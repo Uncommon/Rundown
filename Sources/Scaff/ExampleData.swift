@@ -13,12 +13,16 @@ public enum AllScope: HookScope {}
 public enum EachScope: HookScope {}
 
 public struct Hook<Time: HookTime, Scope: HookScope>: Element {
-  let description: String
-  let execute: () throws -> Void
+  public let description: String
+  let block: () throws -> Void
   
   init(_ description: String = "", execute: @escaping () -> Void) {
     self.description = description
-    self.execute = execute
+    self.block = execute
+  }
+  
+  public func execute() throws {
+    try block()
   }
 }
 
@@ -30,7 +34,7 @@ public typealias AfterAll = Hook<AfterTime, AllScope>
 public protocol ExampleElement: Element {}
 
 public struct ExampleGroup: ExampleElement {
-  let description: String
+  public let description: String
   let beforeAll: [BeforeAll]
   let beforeEach: [BeforeEach]
   let afterEach: [AfterEach]
@@ -58,16 +62,22 @@ public struct ExampleGroup: ExampleElement {
     self.elements = elements
   }
 
-  func execute() throws {
+  public func execute() throws {
     // TODO: XCTContext.runActivity() and Swift Testing equivalent (if any)
     // TODO: Logging so Xcode recognizes test steps
-    try beforeAll.map { try $0.execute() }
+    try beforeAll.forEach { try $0.execute() }
     for element in elements {
-      try beforeEach.map { try $0.execute() }
+      try beforeEach.execute()
       try element.execute()
-      try afterEach.map { try $0.execute() }
+      try afterEach.execute()
     }
-    try afterAll.map { try $0.execute() }
+    try afterAll.execute()
+  }
+}
+
+extension Array where Self.Element: Scaff.Element {
+  func execute() throws {
+    try forEach { try $0.execute() }
   }
 }
 
@@ -75,12 +85,16 @@ public typealias Describe = ExampleGroup
 public typealias Context = ExampleGroup
 
 public struct It: ExampleElement {
-  let description: String
-  let execute: () throws -> Void
+  public let description: String
+  let block: () throws -> Void
   
   init(_ description: String, execute: @escaping () -> Void) {
     self.description = description
-    self.execute = execute
+    self.block = execute
+  }
+  
+  public func execute() throws {
+    try block()
   }
 }
 

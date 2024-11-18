@@ -6,21 +6,22 @@ public struct ExampleAccumulator {
   }
 }
 
-@resultbuilder
+@resultBuilder
 public struct ExampleBuilder {
   // TODO: hooks
   
-  static func buildPartialBlock(first: any ExampleElement) -> ExampleAccumulator {
+  public static func buildPartialBlock(first: any ExampleElement) -> ExampleAccumulator {
     .init(example: first)
   }
-  static func buildPartialBlock(accumulated: ExampleAccumulator, next: any ExampleElement) {
-    accumulated.examples.append(next)
-    return accumulated
+  public static func buildPartialBlock(accumulated: ExampleAccumulator, next: any ExampleElement) -> ExampleAccumulator {
+    var result = accumulated
+    result.examples.append(next)
+    return result
   }
   
   // TODO: if/switch and for support
   
-  static func buildFinalBlock(_ accumulator: ExampleAccumulator) -> ExampleGroup {
+  public static func buildFinalBlock(_ accumulator: ExampleAccumulator) -> ExampleGroup {
     .init(elements: accumulator.examples)
   }
 }

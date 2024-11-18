@@ -11,6 +11,7 @@ public struct TestExampleMacro: AttachedMacro {
     // strip "test" from the function name
     // let [name] = Describe("Name") { [body content] }
     // try [name].execute()
+    return []
   }
 }
 
