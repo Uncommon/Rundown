@@ -9,40 +9,34 @@ import XCTest
 import ScaffMacros
 
 let testMacros: [String: Macro.Type] = [
-    "stringify": StringifyMacro.self,
+  "TestExample": TestExampleMacro.self,
 ]
 #endif
 
 final class ScaffTests: XCTestCase {
-    func testMacro() throws {
-        #if canImport(ScaffMacros)
-        assertMacroExpansion(
-            """
-            #stringify(a + b)
-            """,
-            expandedSource: """
-            (a + b, "a + b")
-            """,
-            macros: testMacros
-        )
-        #else
-        throw XCTSkip("macros are only supported when running tests for the host platform")
-        #endif
-    }
-
-    func testMacroWithStringLiteral() throws {
-        #if canImport(ScaffMacros)
-        assertMacroExpansion(
-            #"""
-            #stringify("Hello, \(name)")
-            """#,
-            expandedSource: #"""
-            ("Hello, \(name)", #""Hello, \(name)""#)
-            """#,
-            macros: testMacros
-        )
-        #else
-        throw XCTSkip("macros are only supported when running tests for the host platform")
-        #endif
-    }
+  func testMacro() throws {
+#if canImport(ScaffMacros)
+    assertMacroExpansion(
+      """
+      @TestExample
+      function testThing() throws {
+        It("works") {
+        }
+      }
+      """,
+      expandedSource: """
+      function testThing() throws {
+        let _test = Describe("Thing") {
+          It("works") {
+          }
+        }
+        try _test.execute()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
 }

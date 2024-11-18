@@ -1,11 +1,16 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
+@attached(body)
+public macro TestExample() = #externalMacro(module: "ScaffMacros", type: "TestExampleMacro")
 
-/// A macro that produces both a value and a string containing the
-/// source code that generated the value. For example,
-///
-///     #stringify(x + y)
-///
-/// produces a tuple `(x + y, "x + y")`.
-@freestanding(expression)
-public macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "ScaffMacros", type: "StringifyMacro")
+// function body macro that turns this:
+// @Example func testThing() {
+//   Describe("feature") {
+//     It("does something") {
+//       (test steps)
+//     }
+//   }
+// }
+// into this:
+// func testThing() throws {
+//   let test = Describe("Thing") { ··· }
+//   try test.execute()
+// }
