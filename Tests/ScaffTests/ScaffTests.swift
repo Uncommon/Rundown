@@ -19,18 +19,19 @@ final class ScaffTests: XCTestCase {
     assertMacroExpansion(
       """
       @TestExample
-      function testThing() throws {
+      func testThing() throws {
         It("works") {
         }
       }
       """,
       expandedSource: """
-      function testThing() throws {
-        let _test = Describe("Thing") {
-          It("works") {
+      func testThing() throws {
+          let _test = Describe("Thing") {
+      
+            It("works") {
+            }
           }
-        }
-        try _test.execute()
+          try _test.execute()
       }
       """,
       macros: testMacros

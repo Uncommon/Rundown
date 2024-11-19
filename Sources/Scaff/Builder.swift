@@ -21,7 +21,7 @@ public struct ExampleBuilder {
   
   // TODO: if/switch and for support
   
-  public static func buildFinalBlock(_ accumulator: ExampleAccumulator) -> ExampleGroup {
+  public static func buildFinalResult(_ accumulator: ExampleAccumulator) -> ExampleGroup {
     .init(elements: accumulator.examples)
   }
 }
