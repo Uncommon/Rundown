@@ -44,6 +44,7 @@ let package = Package(
             name: "ScaffTests",
             dependencies: [
                 "ScaffMacros",
+                "Scaff",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         ),
