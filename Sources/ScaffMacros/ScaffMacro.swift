@@ -14,10 +14,9 @@ public struct TestExampleMacro: BodyMacro {
     guard let function = declaration.as(FunctionDeclSyntax.self)
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
-    let body = CodeBlockItemSyntax(stringLiteral: """
     // TODO: remove the extra line at the start of the block
-    let _test = Describe("\(name)") {
-      \(function.body?.statements.description ?? "")
+    let body = CodeBlockItemSyntax(stringLiteral: """
+    let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
     }
     try _test.execute()
     """)

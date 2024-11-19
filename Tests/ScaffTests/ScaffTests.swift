@@ -27,7 +27,6 @@ final class ScaffTests: XCTestCase {
       expandedSource: """
       func testThing() throws {
           let _test = Describe("Thing") {
-      
             It("works") {
             }
           }
