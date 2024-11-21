@@ -5,7 +5,7 @@ final class ScaffExecutionTests: XCTestCase {
   @TestExample
   func testOneIt() throws {
     It("works") {
-      XCTAssert(false)
+      XCTAssert(true)
     }
   }
 

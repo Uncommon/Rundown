@@ -80,10 +80,10 @@ public struct ExampleGroup: ExampleElement {
   public func execute() throws {
     // TODO: XCTContext.runActivity() and Swift Testing equivalent (if any)
     // TODO: Logging so Xcode recognizes test steps
-    try beforeAll.forEach { try $0.execute() }
+    try beforeAll.execute()
     for element in elements {
       try beforeEach.execute()
-      try element.execute()
+      try element.execute() // perhaps catch XCTSkip in before and example
       try afterEach.execute()
     }
     try afterAll.execute()

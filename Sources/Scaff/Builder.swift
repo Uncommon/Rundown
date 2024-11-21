@@ -81,14 +81,16 @@ public struct Accumulator<Phase: AccumulatorPhase> {
 
 @resultBuilder
 public struct ExampleBuilder {
-  // BeforeEach and BeforeAll can start and repeat
-  public static func buildPartialBlock<Phase: BeforePhase>(first: Hook<Phase>) -> Accumulator<Phase> {
-    .init().adding(first)
-  }
-  public static func buildPartialBlock<Phase: BeforePhase>(
+  // All hooks can repeat
+  public static func buildPartialBlock<Phase: AccumulatorPhase>(
       accumulated: Accumulator<Phase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
     accumulated.adding(next)
+  }
+
+  // BeforeEach and BeforeAll can start
+  public static func buildPartialBlock<Phase: BeforePhase>(first: Hook<Phase>) -> Accumulator<Phase> {
+    .init().adding(first)
   }
 
   // BeforeEach can follow BeforeAll
@@ -122,13 +124,6 @@ public struct ExampleBuilder {
     accumulated.transitioned(with: next)
   }
 
-  // After hooks can repeat
-  public static func buildPartialBlock<Phase: AfterPhase>(
-      accumulated: Accumulator<Phase>,
-      next: Hook<Phase>) -> Accumulator<Phase> {
-    accumulated.transitioned(with: next)
-  }
-
   // AfterAll follows AfterEach
   public static func buildPartialBlock(
       accumulated: Accumulator<AfterEachPhase>,
@@ -140,6 +135,7 @@ public struct ExampleBuilder {
 
   // Examples or AfterEach/AfterAll can end
   public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
+    // TODO: preserve the example description
     .init(description: "",
           beforeAll: component.phaseHooks(),
           beforeEach: component.phaseHooks(),
@@ -147,5 +143,4 @@ public struct ExampleBuilder {
           afterAll: component.phaseHooks(),
           elements: component.examples())
   }
-
 }
