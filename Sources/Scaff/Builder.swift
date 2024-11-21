@@ -53,12 +53,14 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     self.data = other.data
   }
 
-  mutating func accumulate<P: HookPhase>(_ hook: Hook<P>) {
-    data.appendOrSet(.init(P.self), hook)
+  func adding(_ element: some Element) -> Self {
+    var result = self
+    result.data.appendOrSet(.init(Phase.self), element)
+    return result
   }
 
-  mutating func accumulate(_ element: any ExampleElement) {
-    data.appendOrSet(.init(ExampleElement.self), element)
+  func transitioned<P: AccumulatorPhase>(with element: some Element) -> Accumulator<P> {
+    .init().adding(element)
   }
 
   func phaseHooks<P: HookPhase>() -> [Hook<P>] {
@@ -72,81 +74,59 @@ public struct Accumulator<Phase: AccumulatorPhase> {
 
 @resultBuilder
 public struct ExampleBuilder {
-  // Before hooks
-
   // BeforeEach and BeforeAll can start and repeat
   public static func buildPartialBlock<Phase: BeforePhase>(first: Hook<Phase>) -> Accumulator<Phase> {
-    // TODO: make an "accumulating()" function
-    var result = Accumulator<Phase>()
-    result.accumulate(first)
-    return result
+    .init().adding(first)
   }
   public static func buildPartialBlock<Phase: BeforePhase>(
       accumulated: Accumulator<Phase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
-    var result = accumulated
-    result.accumulate(next)
-    return result
+    accumulated.adding(next)
   }
 
   // BeforeEach can follow BeforeAll
   public static func buildPartialBlock(
       accumulated: Accumulator<BeforeAllPhase>,
       next: BeforeEach) -> Accumulator<BeforeEachPhase> {
-    // TODO: make a transition function
-    var result = Accumulator<BeforeEachPhase>(data: accumulated.data)
-    result.accumulate(next)
-    return result
+    accumulated.transitioned(with: next)
   }
 
   // Examples can start and repeat
   public static func buildPartialBlock(first: any ExampleElement) -> Accumulator<ExamplePhase> {
-    var result = Accumulator<ExamplePhase>()
-    result.accumulate(first)
-    return result
+    .init().adding(first)
   }
   public static func buildPartialBlock(
       accumulated: Accumulator<ExamplePhase>,
       next: any ExampleElement) -> Accumulator<ExamplePhase> {
-    var result = accumulated
-    result.accumulate(next)
-    return result
+    accumulated.adding(next)
   }
 
   // Examples can follow BeforeEach/BeforeAll
   public static func buildPartialBlock<Phase: BeforePhase>(
       accumulated: Accumulator<Phase>,
       next: any ExampleElement) -> Accumulator<ExamplePhase> {
-    var result = Accumulator<ExamplePhase>(data: accumulated.data)
-    result.accumulate(next)
-    return result
+    accumulated.transitioned(with: next)
   }
 
   // After hooks can follow examples
   public static func buildPartialBlock<Phase: AfterPhase>(
       accumulated: Accumulator<ExamplePhase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
-    var result = Accumulator<Phase>(data: accumulated.data)
-    result.accumulate(next)
-    return result
+    accumulated.transitioned(with: next)
   }
 
   // After hooks can repeat
   public static func buildPartialBlock<Phase: AfterPhase>(
       accumulated: Accumulator<Phase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
-    var result = Accumulator<Phase>(data: accumulated.data)
-    result.accumulate(next)
-    return result
+    accumulated.transitioned(with: next)
   }
 
   // AfterAll follows AfterEach
   public static func buildPartialBlock(
       accumulated: Accumulator<AfterEachPhase>,
       next: AfterAll) -> Accumulator<AfterAllPhase> {
-    var result = Accumulator<AfterAllPhase>(data: accumulated.data)
-    result.accumulate(next)
-    return result
+    accumulated.transitioned(with: next)
   }
 
   // TODO: if/switch and for support
