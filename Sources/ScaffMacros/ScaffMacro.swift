@@ -15,12 +15,13 @@ public struct TestExampleMacro: BodyMacro {
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
     // TODO: remove the extra line at the start of the block
-    let body = CodeBlockItemSyntax(stringLiteral: """
-    let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
-    }
-    try _test.execute()
-    """)
-    
+    let body = CodeBlockItemSyntax(stringLiteral:
+      """
+      let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
+      }
+      try _test.execute()
+      """)
+
     return [body]
   }
 }

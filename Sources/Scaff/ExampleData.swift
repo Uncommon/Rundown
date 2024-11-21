@@ -7,12 +7,13 @@ public protocol Element {
 
 public protocol HookTime {}
 public enum BeforeTime: HookTime {}
+public enum ExampleTime: HookTime {}
 public enum AfterTime: HookTime {}
 public protocol HookScope {}
 public enum AllScope: HookScope {}
 public enum EachScope: HookScope {}
 
-public struct Hook<Time: HookTime, Scope: HookScope>: Element {
+public struct Hook<Phase: HookPhase>: Element {
   public let description: String
   let block: () throws -> Void
   
@@ -26,10 +27,10 @@ public struct Hook<Time: HookTime, Scope: HookScope>: Element {
   }
 }
 
-public typealias BeforeAll = Hook<BeforeTime, AllScope>
-public typealias BeforeEach = Hook<BeforeTime, EachScope>
-public typealias AfterEach = Hook<AfterTime, EachScope>
-public typealias AfterAll = Hook<AfterTime, AllScope>
+public typealias BeforeAll = Hook<BeforeAllPhase>
+public typealias BeforeEach = Hook<BeforeEachPhase>
+public typealias AfterEach = Hook<AfterEachPhase>
+public typealias AfterAll = Hook<AfterAllPhase>
 
 public protocol ExampleElement: Element {}
 
@@ -40,7 +41,7 @@ public struct ExampleGroup: ExampleElement {
   let afterEach: [AfterEach]
   let afterAll: [AfterAll]
   let elements: [any ExampleElement]
-  
+
   public init(_ description: String, @ExampleBuilder builder: () -> ExampleGroup)
   {
     let builtGroup = builder()
@@ -59,6 +60,20 @@ public struct ExampleGroup: ExampleElement {
     self.beforeEach = []
     self.afterEach = []
     self.afterAll = []
+    self.elements = elements
+  }
+
+  init(description: String,
+       beforeAll: [BeforeAll],
+       beforeEach: [BeforeEach],
+       afterEach: [AfterEach],
+       afterAll: [AfterAll],
+       elements: [any ExampleElement]) {
+    self.description = description
+    self.beforeAll = beforeAll
+    self.beforeEach = beforeEach
+    self.afterEach = afterEach
+    self.afterAll = afterAll
     self.elements = elements
   }
 
