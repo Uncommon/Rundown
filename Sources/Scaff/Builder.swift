@@ -36,30 +36,10 @@ extension Dictionary {
   }
 }
 
-/// Contains the accumulated data so it can be passed from one `Accumulator`
-/// to the next.
-struct AccumulatorData {
-  var storage: [ObjectIdentifier: [any Element]] = [:]
-
-  mutating func accumulate<Phase: HookPhase>(_ hook: Hook<Phase>) {
-    storage.appendOrSet(.init(Phase.self), hook)
-  }
-
-  mutating func accumulate(_ element: any ExampleElement) {
-    storage.appendOrSet(.init(ExampleElement.self), element)
-  }
-
-  func phaseHooks<Phase: HookPhase>() -> [Hook<Phase>] {
-    storage[.init(Phase.self)]?.compactMap { $0 as? Hook<Phase> } ?? []
-  }
-
-  func examples() -> [ExampleGroup] {
-    storage[.init(ExampleGroup.self)]?.compactMap { $0 as? ExampleGroup } ?? []
-  }
-}
-
 public struct Accumulator<Phase: AccumulatorPhase> {
-  var data: AccumulatorData
+  typealias AccumulatorData = [ObjectIdentifier: [any Element]]
+
+  var data: AccumulatorData = [:]
 
   init() {
     self.data = .init()
@@ -72,6 +52,22 @@ public struct Accumulator<Phase: AccumulatorPhase> {
   init<OtherPhase: AccumulatorPhase>(other: Accumulator<OtherPhase>) {
     self.data = other.data
   }
+
+  mutating func accumulate<P: HookPhase>(_ hook: Hook<P>) {
+    data.appendOrSet(.init(P.self), hook)
+  }
+
+  mutating func accumulate(_ element: any ExampleElement) {
+    data.appendOrSet(.init(ExampleElement.self), element)
+  }
+
+  func phaseHooks<P: HookPhase>() -> [Hook<P>] {
+    data[.init(P.self)]?.compactMap { $0 as? Hook<P> } ?? []
+  }
+
+  func examples() -> [ExampleGroup] {
+    data[.init(ExampleGroup.self)]?.compactMap { $0 as? ExampleGroup } ?? []
+  }
 }
 
 @resultBuilder
@@ -82,14 +78,14 @@ public struct ExampleBuilder {
   public static func buildPartialBlock<Phase: BeforePhase>(first: Hook<Phase>) -> Accumulator<Phase> {
     // TODO: make an "accumulating()" function
     var result = Accumulator<Phase>()
-    result.data.accumulate(first)
+    result.accumulate(first)
     return result
   }
   public static func buildPartialBlock<Phase: BeforePhase>(
       accumulated: Accumulator<Phase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
     var result = accumulated
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
@@ -99,21 +95,21 @@ public struct ExampleBuilder {
       next: BeforeEach) -> Accumulator<BeforeEachPhase> {
     // TODO: make a transition function
     var result = Accumulator<BeforeEachPhase>(data: accumulated.data)
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
   // Examples can start and repeat
   public static func buildPartialBlock(first: any ExampleElement) -> Accumulator<ExamplePhase> {
     var result = Accumulator<ExamplePhase>()
-    result.data.accumulate(first)
+    result.accumulate(first)
     return result
   }
   public static func buildPartialBlock(
       accumulated: Accumulator<ExamplePhase>,
       next: any ExampleElement) -> Accumulator<ExamplePhase> {
     var result = accumulated
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
@@ -122,7 +118,7 @@ public struct ExampleBuilder {
       accumulated: Accumulator<Phase>,
       next: any ExampleElement) -> Accumulator<ExamplePhase> {
     var result = Accumulator<ExamplePhase>(data: accumulated.data)
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
@@ -131,7 +127,7 @@ public struct ExampleBuilder {
       accumulated: Accumulator<ExamplePhase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
     var result = Accumulator<Phase>(data: accumulated.data)
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
@@ -140,7 +136,7 @@ public struct ExampleBuilder {
       accumulated: Accumulator<Phase>,
       next: Hook<Phase>) -> Accumulator<Phase> {
     var result = Accumulator<Phase>(data: accumulated.data)
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
@@ -149,7 +145,7 @@ public struct ExampleBuilder {
       accumulated: Accumulator<AfterEachPhase>,
       next: AfterAll) -> Accumulator<AfterAllPhase> {
     var result = Accumulator<AfterAllPhase>(data: accumulated.data)
-    result.data.accumulate(next)
+    result.accumulate(next)
     return result
   }
 
@@ -158,11 +154,11 @@ public struct ExampleBuilder {
   // Examples or AfterEach/AfterAll can end
   public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
     .init(description: "",
-          beforeAll: component.data.phaseHooks(),
-          beforeEach: component.data.phaseHooks(),
-          afterEach: component.data.phaseHooks(),
-          afterAll: component.data.phaseHooks(),
-          elements: component.data.examples())
+          beforeAll: component.phaseHooks(),
+          beforeEach: component.phaseHooks(),
+          afterEach: component.phaseHooks(),
+          afterAll: component.phaseHooks(),
+          elements: component.examples())
   }
 
 }
