@@ -17,7 +17,7 @@ public struct Hook<Phase: HookPhase>: Element {
   public let description: String
   let block: () throws -> Void
   
-  init(_ description: String = "", execute: @escaping () -> Void) {
+  public init(_ description: String = "", execute: @escaping () -> Void) {
     self.description = description
     self.block = execute
   }

@@ -67,11 +67,11 @@ public struct Accumulator<Phase: AccumulatorPhase> {
   }
 
   func transitioned<P: AccumulatorPhase>(with element: some Element) -> Accumulator<P> {
-    .init().adding(element)
+    .init(data: data).adding(element)
   }
 
-  func phaseHooks<P: HookPhase>() -> [Hook<P>] {
-    data[.init(P.self)]?.compactMap { $0 as? Hook<P> } ?? []
+  func phaseHooks<P: HookPhase>(_ phase: P.Type) -> [Hook<P>] {
+    data[.init(Hook<P>.self)]?.compactMap { $0 as? Hook<P> } ?? []
   }
 
   func examples() -> [ExampleElement] {
@@ -137,10 +137,10 @@ public struct ExampleBuilder {
   public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
     // TODO: preserve the example description
     .init(description: "",
-          beforeAll: component.phaseHooks(),
-          beforeEach: component.phaseHooks(),
-          afterEach: component.phaseHooks(),
-          afterAll: component.phaseHooks(),
+          beforeAll: component.phaseHooks(BeforeAllPhase.self),
+          beforeEach: component.phaseHooks(BeforeEachPhase.self),
+          afterEach: component.phaseHooks(AfterEachPhase.self),
+          afterAll: component.phaseHooks(AfterAllPhase.self),
           elements: component.examples())
   }
 }
