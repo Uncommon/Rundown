@@ -1,5 +1,6 @@
 /// The basis of a set of types that enables `Accumulator` to have different
-/// types for different states in the builder's state machine.
+/// types for different states in the builder's state machine. The various
+/// protocols and enums are for categorizing the states.
 public protocol AccumulatorPhase {
   associatedtype Time: HookTime
   associatedtype Scope: HookScope
@@ -39,7 +40,7 @@ extension Dictionary {
 public struct Accumulator<Phase: AccumulatorPhase> {
   typealias AccumulatorData = [ObjectIdentifier: [any Element]]
 
-  var data: AccumulatorData = [:]
+  var data: AccumulatorData
 
   init() {
     self.data = .init()
@@ -53,9 +54,15 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     self.data = other.data
   }
 
-  func adding(_ element: some Element) -> Self {
+  func adding<E: Element>(_ element: E) -> Self {
     var result = self
-    result.data.appendOrSet(.init(Phase.self), element)
+    result.data.appendOrSet(.init(E.self), element)
+    return result
+  }
+
+  func adding(_ example: any ExampleElement) -> Self where Phase == ExamplePhase {
+    var result = self
+    result.data.appendOrSet(.init(ExampleElement.self), example)
     return result
   }
 
@@ -67,8 +74,8 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     data[.init(P.self)]?.compactMap { $0 as? Hook<P> } ?? []
   }
 
-  func examples() -> [ExampleGroup] {
-    data[.init(ExampleGroup.self)]?.compactMap { $0 as? ExampleGroup } ?? []
+  func examples() -> [ExampleElement] {
+    data[.init(ExampleElement.self)]?.compactMap { $0 as? ExampleElement } ?? []
   }
 }
 
