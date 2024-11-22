@@ -94,4 +94,56 @@ final class ScaffExecutionTests: XCTestCase {
     try test.execute()
     XCTAssertEqual(count, expected)
   }
+
+  func testDoubleItForLoop() throws {
+    let expected = 3
+    var count1 = 0
+    var count2 = 0
+
+    let test = Describe("For loop") {
+      for _ in 1...expected {
+        It("iterates 1") {
+          count1 += 1
+        }
+        It("iterates 2") {
+          count2 += 1
+        }
+      }
+    }
+
+    try test.execute()
+    XCTAssertEqual(count1, expected)
+    XCTAssertEqual(count2, expected)
+  }
+
+  func testHookForLoop() throws {
+    let expected = 3
+    var beforeCount = 0
+    var count1 = 0
+    var count2 = 0
+    var afterCount = 0
+
+    let test = Describe("For loop") {
+      for _ in 1...expected {
+        BeforeAll {
+          beforeCount += 1
+        }
+        It("iterates 1") {
+          count1 += 1
+        }
+        It("iterates 2") {
+          count2 += 1
+        }
+        AfterAll {
+          afterCount += 1
+        }
+      }
+    }
+
+    try test.execute()
+    XCTAssertEqual(count1, expected)
+    XCTAssertEqual(count2, expected)
+    XCTAssertEqual(beforeCount, expected)
+    XCTAssertEqual(afterCount, expected)
+  }
 }

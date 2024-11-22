@@ -158,7 +158,8 @@ public struct ExampleBuilder {
     component
   }
 
-  public static func buildArray(_ components: [Accumulator<ExamplePhase>]) -> Accumulator<ExamplePhase> {
+  // Loops can end with examples or AfterEach/AfterAll
+  public static func buildArray<P: FinalPhase>(_ components: [Accumulator<P>]) -> Accumulator<ExamplePhase> {
     var result = Accumulator<ExamplePhase>()
 
     for component in components {
@@ -182,5 +183,30 @@ public struct ExampleBuilder {
           elements: component.examples())
   }
 
-  // TODO: functions for disallowed scenarios marked unavailable for better error messages
+  // TODO: more messages for disallowed scenarios
+  @available(*, unavailable, message: "Examples must not be empty")
+  public static func buildBlock() -> Accumulator<ExamplePhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "BeforeAll must precede BeforeEach")
+  public static func buildPartialBlock(
+      accumulated: Accumulator<BeforeEachPhase>,
+      next: BeforeAll) -> Accumulator<BeforeEachPhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "AfterEach must precede AfterAll")
+  public static func buildPartialBlock(
+      accumulated: Accumulator<AfterAllPhase>,
+      next: AfterEach) -> Accumulator<AfterAllPhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Loop must end in example or after element")
+  public static func buildArray<P: BeforePhase>(_ components: [Accumulator<P>]) -> Accumulator<P> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Group must have examples")
+  public static func buildFinalResult<Phase: BeforePhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
+    fatalError("unavailable")
+  }
+
 }
