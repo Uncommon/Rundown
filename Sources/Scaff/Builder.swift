@@ -54,19 +54,23 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     self.data = other.data
   }
 
-  func adding<E: Element>(_ element: E) -> Self {
+  func adding<E: Element>(_ element: E) -> Self where Phase: HookPhase {
     var result = self
     result.data.appendOrSet(.init(E.self), element)
     return result
   }
 
-  func adding(_ example: any ExampleElement) -> Self where Phase == ExamplePhase {
+  func adding<E: ExampleElement>(_ example: E) -> Self where Phase == ExamplePhase {
     var result = self
     result.data.appendOrSet(.init(ExampleElement.self), example)
     return result
   }
 
-  func transitioned<P: AccumulatorPhase>(with element: some Element) -> Accumulator<P> {
+  func transitioned<P: HookPhase>(with element: some Element) -> Accumulator<P> {
+    .init(data: data).adding(element)
+  }
+
+  func transitioned(with element: some ExampleElement) -> Accumulator<ExamplePhase> {
     .init(data: data).adding(element)
   }
 
