@@ -8,18 +8,16 @@ public struct TestExampleMacro: BodyMacro {
                                providingBodyFor declaration: some DeclSyntaxProtocol & WithOptionalCodeBlockSyntax,
                                in context: some MacroExpansionContext) throws
   -> [CodeBlockItemSyntax] {
-    // strip "test" from the function name
-    // let [name] = Describe("Name") { [body content] }
-    // try [name].execute()
     guard let function = declaration.as(FunctionDeclSyntax.self)
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
-    // TODO: remove the extra line at the start of the block
+    // Assume that if it's in a class, it must be running under XCTestCase
+    let executeParams = context.lexicalContext.first?.as(ClassDeclSyntax.self) == nil ? "" : "in: self"
     let body = CodeBlockItemSyntax(stringLiteral:
       """
       let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
       }
-      try _test.execute()
+      try _test.execute(\(executeParams))
       """)
 
     return [body]

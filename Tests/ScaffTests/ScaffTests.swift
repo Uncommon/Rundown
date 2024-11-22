@@ -39,4 +39,34 @@ final class ScaffTests: XCTestCase {
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
   }
+
+  func testInClass() throws {
+#if canImport(ScaffMacros)
+    assertMacroExpansion(
+      """
+      class TestClass: XCTestCase {
+        @TestExample
+        func testThing() throws {
+          It("works") {
+          }
+        }
+      }
+      """,
+      expandedSource: """
+      class TestClass: XCTestCase {
+        func testThing() throws {
+            let _test = Describe("Thing") {
+                It("works") {
+                }
+            }
+            try _test.execute(in: self)
+        }
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
 }
