@@ -23,6 +23,11 @@ public enum ExamplePhase: FinalPhase {
   public typealias Scope = EachScope
 }
 
+public struct EmptyElement: Element {
+  public var description: String { "" }
+  public func execute() throws {}
+}
+
 extension Dictionary {
   /// Appends `element` to the existing array for `key`, or initializes it with
   /// `[element]` if the value has not yet been set.
@@ -64,6 +69,16 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     var result = self
     result.data.appendOrSet(.init(ExampleElement.self), example)
     return result
+  }
+
+  mutating func add<E: ExampleElement>(_ example: E) where Phase == ExamplePhase {
+    data.appendOrSet(.init(ExampleElement.self), example)
+  }
+
+  mutating func add<P: AccumulatorPhase>(_ other: Accumulator<P>) {
+    data.merge(other.data) { first, second in
+      first + second
+    }
   }
 
   func transitioned<P: HookPhase>(with element: some Element) -> Accumulator<P> {
@@ -135,7 +150,26 @@ public struct ExampleBuilder {
     accumulated.transitioned(with: next)
   }
 
-  // TODO: if/switch and for support
+  // if/else for examples
+  public static func buildEither<E: Element>(first component: E) -> E {
+    component
+  }
+  public static func buildEither<E: Element>(second component: E) -> E {
+    component
+  }
+
+  public static func buildArray(_ components: [Accumulator<ExamplePhase>]) -> Accumulator<ExamplePhase> {
+    var result = Accumulator<ExamplePhase>()
+
+    for component in components {
+      result.add(component)
+    }
+    return result
+  }
+
+  public static func buildPartialBlock<P>(first: Accumulator<P>) -> Accumulator<P> {
+    first
+  }
 
   // Examples or AfterEach/AfterAll can end
   public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
@@ -147,4 +181,6 @@ public struct ExampleBuilder {
           afterAll: component.phaseHooks(AfterAllPhase.self),
           elements: component.examples())
   }
+
+  // TODO: functions for disallowed scenarios marked unavailable for better error messages
 }

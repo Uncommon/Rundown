@@ -78,4 +78,20 @@ final class ScaffExecutionTests: XCTestCase {
     XCTAssertEqual(itCount, 2, "Its didn't run correctly")
     XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
   }
+
+  func testSingleItForLoop() throws {
+    let expected = 3
+    var count = 0
+
+    let test = Describe("For loop") {
+      for _ in 1...expected {
+        It("iterates") {
+          count += 1
+        }
+      }
+    }
+
+    try test.execute()
+    XCTAssertEqual(count, expected)
+  }
 }
