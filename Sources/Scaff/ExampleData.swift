@@ -1,4 +1,5 @@
 import Foundation
+import XCTest
 
 public protocol Element {
   var description: String { get }
@@ -32,7 +33,9 @@ public typealias BeforeEach = Hook<BeforeEachPhase>
 public typealias AfterEach = Hook<AfterEachPhase>
 public typealias AfterAll = Hook<AfterAllPhase>
 
-public protocol ExampleElement: Element {}
+public protocol ExampleElement: Element {
+  func execute(in test: TestCase) throws
+}
 
 public struct ExampleGroup: ExampleElement {
   public let description: String
@@ -78,21 +81,76 @@ public struct ExampleGroup: ExampleElement {
   }
 
   public func execute() throws {
-    // TODO: XCTContext.runActivity() and Swift Testing equivalent (if any)
-    // TODO: Logging so Xcode recognizes test steps
-    try beforeAll.execute()
-    for element in elements {
-      try beforeEach.execute()
-      try element.execute() // perhaps catch XCTSkip in before and example
-      try afterEach.execute()
+    try execute { try $0.execute() }
+  }
+
+  func execute(_ wrapper: (any Element) throws -> Void) throws {
+    for hook in beforeAll {
+      try wrapper(hook)
     }
-    try afterAll.execute()
+    for element in elements {
+      for hook in beforeEach {
+        try wrapper(hook)
+      }
+      try wrapper(element)
+      for hook in afterEach {
+        try wrapper(hook)
+      }
+    }
+    for hook in afterAll {
+      try wrapper(hook)
+    }
+  }
+
+  @MainActor
+  public func executeMain() throws {
+    try execute {
+      element in
+      try XCTContext.runActivity(named: element.description) { _ in
+        try element.execute()
+      }
+    }
+  }
+
+  public func execute(in test: TestCase) throws {
+    try execute {
+      element in
+      try test.withElement(self) {
+        if let example = element as? ExampleElement {
+          try example.execute(in: test)
+        }
+        else {
+          try element.execute()
+        }
+      }
+    }
   }
 }
 
-extension Array where Self.Element: Scaff.Element {
-  func execute() throws {
-    try forEach { try $0.execute() }
+/// This subclass of `XCTestCase` is necessary in order to track the hierarchy
+/// of test elements and construct the full description when recording an issue.
+open class TestCase: XCTestCase {
+  var elementStack: [any Element] = []
+
+  func withElement(_ element: some Element, block: () throws -> Void) rethrows {
+    elementStack.append(element)
+    try block()
+    _ = elementStack.popLast()
+  }
+
+  /// Adds the full test element description to the issue before recording
+  public override func record(_ issue: XCTIssue) {
+    let description = elementStack.map { $0.description }.joined(separator: ", ")
+
+    let newIssue = XCTIssue(
+      type: issue.type,
+      compactDescription: "\(description) \(issue.compactDescription)",
+      detailedDescription: issue.description,
+      sourceCodeContext: issue.sourceCodeContext,
+      associatedError: issue.associatedError,
+      attachments: issue.attachments)
+
+    super.record(newIssue)
   }
 }
 
@@ -110,6 +168,12 @@ public struct It: ExampleElement {
   
   public func execute() throws {
     try block()
+  }
+
+  public func execute(in test: TestCase) throws {
+    try test.withElement(self) {
+      try block()
+    }
   }
 }
 

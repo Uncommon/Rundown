@@ -1,7 +1,7 @@
 import XCTest
 import Scaff
 
-final class ScaffExecutionTests: XCTestCase {
+final class ScaffExecutionTests: Scaff.TestCase {
   @TestExample
   func testOneIt() throws {
     It("works") {
@@ -17,7 +17,7 @@ final class ScaffExecutionTests: XCTestCase {
         executed = true
       }
     }
-    try test.execute()
+    try test.execute(in: self)
     XCTAssert(executed)
   }
 
@@ -40,7 +40,7 @@ final class ScaffExecutionTests: XCTestCase {
       }
     }
 
-    try test.execute()
+    try test.execute(in: self)
     XCTAssert(didBefore, "BeforeAll did not execute")
     XCTAssert(didIt, "It did not execute")
     XCTAssert(didAfter, "AfterAll did not execute")
@@ -73,7 +73,7 @@ final class ScaffExecutionTests: XCTestCase {
       }
     }
 
-    try test.execute()
+    try test.execute(in: self)
     XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
     XCTAssertEqual(itCount, 2, "Its didn't run correctly")
     XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
@@ -91,7 +91,7 @@ final class ScaffExecutionTests: XCTestCase {
       }
     }
 
-    try test.execute()
+    try test.execute(in: self)
     XCTAssertEqual(count, expected)
   }
 
@@ -111,7 +111,7 @@ final class ScaffExecutionTests: XCTestCase {
       }
     }
 
-    try test.execute()
+    try test.execute(in: self)
     XCTAssertEqual(count1, expected)
     XCTAssertEqual(count2, expected)
   }
@@ -140,7 +140,7 @@ final class ScaffExecutionTests: XCTestCase {
       }
     }
 
-    try test.execute()
+    try test.execute(in: self)
     XCTAssertEqual(count1, expected)
     XCTAssertEqual(count2, expected)
     XCTAssertEqual(beforeCount, expected)
