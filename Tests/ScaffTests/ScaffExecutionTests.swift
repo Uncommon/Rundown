@@ -9,6 +9,16 @@ final class ScaffExecutionTests: Scaff.TestCase {
     }
   }
 
+  @TestExample
+  func testOneItFails() throws {
+    It("fails") {
+      XCTExpectFailure(strict: true) {
+        $0.compactDescription.starts(with: "OneItFails, fails")
+      }
+      XCTAssert(false)
+    }
+  }
+
   func testExecuteDescribe() throws {
     var executed = false
 
