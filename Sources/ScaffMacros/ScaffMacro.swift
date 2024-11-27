@@ -12,13 +12,25 @@ public struct TestExampleMacro: BodyMacro {
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
     // Assume that if it's in a class, it must be running under XCTestCase
-    let executeParams = context.lexicalContext.first?.as(ClassDeclSyntax.self) == nil ? "" : "in: self"
+    let execute = context.lexicalContext.first?.as(ClassDeclSyntax.self) == nil
+      ? """
+        let run = ExampleRun()
+        try _test.execute(in: run)
+        """
+      : """
+        try execute(_test)
+        """
+
     let body = CodeBlockItemSyntax(stringLiteral:
       """
       let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
       }
-      try _test.execute(\(executeParams))
+      \(execute)
       """)
+
+    // If it's Swift Testing:
+    // - take the root element and gather the list of spec names/identifiers
+    // - create a Test using __function() that treats each spec as a test case
 
     return [body]
   }

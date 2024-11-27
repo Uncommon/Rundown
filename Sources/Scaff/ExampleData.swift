@@ -34,7 +34,7 @@ public typealias AfterEach = Hook<AfterEachPhase>
 public typealias AfterAll = Hook<AfterAllPhase>
 
 public protocol ExampleElement: Element {
-  func execute(in test: TestCase) throws
+  func execute(in run: ExampleRun) throws
 }
 
 public struct ExampleGroup: ExampleElement {
@@ -112,12 +112,12 @@ public struct ExampleGroup: ExampleElement {
     }
   }
 
-  public func execute(in test: TestCase) throws {
+  public func execute(in run: ExampleRun) throws {
     try execute {
       element in
-      try test.withElement(self) {
+      try run.withElement(self) {
         if let example = element as? ExampleElement {
-          try example.execute(in: test)
+          try example.execute(in: run)
         }
         else {
           try element.execute()
@@ -127,20 +127,29 @@ public struct ExampleGroup: ExampleElement {
   }
 }
 
-/// This subclass of `XCTestCase` is necessary in order to track the hierarchy
-/// of test elements and construct the full description when recording an issue.
-open class TestCase: XCTestCase {
+public class ExampleRun {
   var elementStack: [any Element] = []
+  var description: String {
+    elementStack.map { $0.description }.joined(separator: ", ")
+  }
+
+  public init() {}
 
   func withElement(_ element: some Element, block: () throws -> Void) rethrows {
     elementStack.append(element)
     try block()
     _ = elementStack.popLast()
   }
+}
+
+/// This subclass of `XCTestCase` is necessary in order to track the hierarchy
+/// of test elements and construct the full description when recording an issue.
+open class TestCase: XCTestCase {
+  var run: ExampleRun = .init()
 
   /// Adds the full test element description to the issue before recording
   public override func record(_ issue: XCTIssue) {
-    let description = elementStack.map { $0.description }.joined(separator: ", ")
+    let description = run.description
 
     let newIssue = XCTIssue(
       type: issue.type,
@@ -151,6 +160,10 @@ open class TestCase: XCTestCase {
       attachments: issue.attachments)
 
     super.record(newIssue)
+  }
+
+  public func execute(_ test: some ExampleElement) throws {
+    try test.execute(in: run)
   }
 }
 
@@ -170,8 +183,8 @@ public struct It: ExampleElement {
     try block()
   }
 
-  public func execute(in test: TestCase) throws {
-    try test.withElement(self) {
+  public func execute(in run: ExampleRun) throws {
+    try run.withElement(self) {
       try block()
     }
   }

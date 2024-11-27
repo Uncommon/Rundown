@@ -27,7 +27,7 @@ final class ScaffExecutionTests: Scaff.TestCase {
         executed = true
       }
     }
-    try test.execute(in: self)
+    try execute(test)
     XCTAssert(executed)
   }
 
@@ -50,7 +50,7 @@ final class ScaffExecutionTests: Scaff.TestCase {
       }
     }
 
-    try test.execute(in: self)
+    try execute(test)
     XCTAssert(didBefore, "BeforeAll did not execute")
     XCTAssert(didIt, "It did not execute")
     XCTAssert(didAfter, "AfterAll did not execute")
@@ -83,7 +83,7 @@ final class ScaffExecutionTests: Scaff.TestCase {
       }
     }
 
-    try test.execute(in: self)
+    try execute(test)
     XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
     XCTAssertEqual(itCount, 2, "Its didn't run correctly")
     XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
@@ -101,7 +101,7 @@ final class ScaffExecutionTests: Scaff.TestCase {
       }
     }
 
-    try test.execute(in: self)
+    try execute(test)
     XCTAssertEqual(count, expected)
   }
 
@@ -121,7 +121,7 @@ final class ScaffExecutionTests: Scaff.TestCase {
       }
     }
 
-    try test.execute(in: self)
+    try execute(test)
     XCTAssertEqual(count1, expected)
     XCTAssertEqual(count2, expected)
   }
@@ -150,7 +150,7 @@ final class ScaffExecutionTests: Scaff.TestCase {
       }
     }
 
-    try test.execute(in: self)
+    try execute(test)
     XCTAssertEqual(count1, expected)
     XCTAssertEqual(count2, expected)
     XCTAssertEqual(beforeCount, expected)

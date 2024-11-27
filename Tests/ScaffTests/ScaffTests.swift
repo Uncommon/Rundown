@@ -30,7 +30,8 @@ final class ScaffTests: XCTestCase {
             It("works") {
             }
           }
-          try _test.execute()
+          let run = ExampleRun()
+          try _test.execute(in: run)
       }
       """,
       macros: testMacros
@@ -59,7 +60,7 @@ final class ScaffTests: XCTestCase {
                 It("works") {
                 }
             }
-            try _test.execute(in: self)
+            try execute(_test)
         }
       }
       """,
