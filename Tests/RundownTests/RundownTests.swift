@@ -30,8 +30,7 @@ final class RundownTests: XCTestCase {
             It("works") {
             }
           }
-          let run = ExampleRun()
-          try _test.execute(in: run)
+          try ExampleRun.run(_test)
       }
       """,
       macros: testMacros
@@ -60,7 +59,7 @@ final class RundownTests: XCTestCase {
                 It("works") {
                 }
             }
-            try execute(_test)
+            try ExampleRun.run(_test)
         }
       }
       """,
