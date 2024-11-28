@@ -11,18 +11,19 @@ public struct TestExampleMacro: BodyMacro {
     guard let function = declaration.as(FunctionDeclSyntax.self)
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
-    let body = CodeBlockItemSyntax(stringLiteral:
-      """
-      let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
+    let describeNode: CodeBlockItemSyntax = """
+      let _test = Describe("\(raw: name)") {\(raw: function.body?.statements.description ?? "")
       }
+      """
+    let runNode: CodeBlockItemSyntax = """
       try ExampleRun.run(_test)
-      """)
+      """
 
-    // If it's Swift Testing:
+    // If it's Swift Testing (ie not inside a class):
     // - take the root element and gather the list of spec names/identifiers
     // - create a Test using __function() that treats each spec as a test case
 
-    return [body]
+    return [describeNode, runNode]
   }
 }
 
