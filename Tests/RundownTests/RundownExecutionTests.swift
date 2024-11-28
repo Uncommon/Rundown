@@ -11,10 +11,10 @@ final class RundownExecutionTests: Rundown.TestCase {
   }
 
   @TestExample
-  func testOneItFails() throws {
-    It("fails") {
+  func testFailureMessage() throws {
+    It("logs correctly") {
       XCTExpectFailure(strict: true) {
-        $0.compactDescription.starts(with: "OneItFails, fails")
+        $0.compactDescription.starts(with: "FailureMessage, logs correctly")
       }
       XCTAssert(false)
     }
