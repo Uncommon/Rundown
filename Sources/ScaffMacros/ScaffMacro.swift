@@ -11,21 +11,11 @@ public struct TestExampleMacro: BodyMacro {
     guard let function = declaration.as(FunctionDeclSyntax.self)
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
-    // Assume that if it's in a class, it must be running under XCTestCase
-    let execute = context.lexicalContext.first?.as(ClassDeclSyntax.self) == nil
-      ? """
-        let run = ExampleRun()
-        try _test.execute(in: run)
-        """
-      : """
-        try execute(_test)
-        """
-
     let body = CodeBlockItemSyntax(stringLiteral:
       """
       let _test = Describe("\(name)") {\(function.body?.statements.description ?? "")
       }
-      \(execute)
+      try ExampleRun.run(_test)
       """)
 
     // If it's Swift Testing:

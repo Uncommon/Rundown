@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import XCTest
 
 public protocol Element {
@@ -35,6 +36,12 @@ public typealias AfterAll = Hook<AfterAllPhase>
 
 public protocol ExampleElement: Element {
   func execute(in run: ExampleRun) throws
+}
+
+extension ExampleElement {
+  public func execute() throws {
+    try ExampleRun.run(self)
+  }
 }
 
 public struct ExampleGroup: ExampleElement {
@@ -80,10 +87,6 @@ public struct ExampleGroup: ExampleElement {
     self.elements = elements
   }
 
-  public func execute() throws {
-    try execute { try $0.execute() }
-  }
-
   func execute(_ wrapper: (any Element) throws -> Void) throws {
     for hook in beforeAll {
       try wrapper(hook)
@@ -127,28 +130,60 @@ public struct ExampleGroup: ExampleElement {
   }
 }
 
-public class ExampleRun {
+public class ExampleRun: @unchecked Sendable {
+  // Manual lock for unchecked sendability
+  let lock = NSRecursiveLock()
+  private static let logger = Logger(subsystem: "Scaff", category: "ExampleRun")
+
   var elementStack: [any Element] = []
   var description: String {
-    elementStack.map { $0.description }.joined(separator: ", ")
+    withLock {
+      elementStack.map { $0.description }.joined(separator: ", ")
+    }
   }
 
-  public init() {}
+  @TaskLocal
+  static var current: ExampleRun? = nil
+
+  private init() {}
+
+  private func withLock<T>(_ block: () throws -> T) rethrows -> T {
+    lock.lock()
+    defer { lock.unlock() }
+    return try block()
+  }
 
   func withElement(_ element: some Element, block: () throws -> Void) rethrows {
-    elementStack.append(element)
+    withLock { elementStack.append(element) }
     try block()
-    _ = elementStack.popLast()
+    withLock { _ = elementStack.popLast() }
+  }
+
+  public static func run(_ element: some ExampleElement) throws {
+    let run = ExampleRun()
+
+    if let current {
+      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
+    }
+    try ExampleRun.$current.withValue(run) {
+      try element.execute(in: run)
+    }
   }
 }
 
-/// This subclass of `XCTestCase` is necessary in order to track the hierarchy
-/// of test elements and construct the full description when recording an issue.
+/// This subclass of `XCTestCase` is necessary in order to include the full
+/// example description when recording an issue.
 open class TestCase: XCTestCase {
-  var run: ExampleRun = .init()
+  let logger = Logger(subsystem: "Scaff", category: "TestCase")
 
   /// Adds the full test element description to the issue before recording
   public override func record(_ issue: XCTIssue) {
+    guard let run = ExampleRun.current
+    else {
+      logger.warning("issue logged when no ExampleRun is set")
+      super.record(issue)
+      return
+    }
     let description = run.description
 
     let newIssue = XCTIssue(
@@ -160,10 +195,6 @@ open class TestCase: XCTestCase {
       attachments: issue.attachments)
 
     super.record(newIssue)
-  }
-
-  public func execute(_ test: some ExampleElement) throws {
-    try test.execute(in: run)
   }
 }
 
@@ -179,10 +210,6 @@ public struct It: ExampleElement {
     self.block = execute
   }
   
-  public func execute() throws {
-    try block()
-  }
-
   public func execute(in run: ExampleRun) throws {
     try run.withElement(self) {
       try block()
