@@ -133,7 +133,7 @@ public struct ExampleGroup: ExampleElement {
 public class ExampleRun: @unchecked Sendable {
   // Manual lock for unchecked sendability
   let lock = NSRecursiveLock()
-  private static let logger = Logger(subsystem: "Scaff", category: "ExampleRun")
+  private static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
 
   var elementStack: [any Element] = []
   var description: String {
@@ -174,7 +174,7 @@ public class ExampleRun: @unchecked Sendable {
 /// This subclass of `XCTestCase` is necessary in order to include the full
 /// example description when recording an issue.
 open class TestCase: XCTestCase {
-  let logger = Logger(subsystem: "Scaff", category: "TestCase")
+  let logger = Logger(subsystem: "Rundown", category: "TestCase")
 
   /// Adds the full test element description to the issue before recording
   public override func record(_ issue: XCTIssue) {

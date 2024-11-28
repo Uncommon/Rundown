@@ -5,17 +5,17 @@ import PackageDescription
 import CompilerPluginSupport
 
 let package = Package(
-    name: "Scaff",
+    name: "Rundown",
     platforms: [.macOS(.v14), .iOS(.v13), .tvOS(.v13), .watchOS(.v6), .macCatalyst(.v13)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "Scaff",
-            targets: ["Scaff"]
+            name: "Rundown",
+            targets: ["Rundown"]
         ),
         .executable(
-            name: "ScaffClient",
-            targets: ["ScaffClient"]
+            name: "RundownClient",
+            targets: ["RundownClient"]
         ),
     ],
     dependencies: [
@@ -26,7 +26,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         // Macro implementation that performs the source transformation of a macro.
         .macro(
-            name: "ScaffMacros",
+            name: "RundownMacros",
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
@@ -34,17 +34,17 @@ let package = Package(
         ),
 
         // Library that exposes a macro as part of its API, which is used in client programs.
-        .target(name: "Scaff", dependencies: ["ScaffMacros"]),
+        .target(name: "Rundown", dependencies: ["RundownMacros"]),
 
         // A client of the library, which is able to use the macro in its own code.
-        .executableTarget(name: "ScaffClient", dependencies: ["Scaff"]),
+        .executableTarget(name: "RundownClient", dependencies: ["Rundown"]),
 
         // A test target used to develop the macro implementation.
         .testTarget(
-            name: "ScaffTests",
+            name: "RundownTests",
             dependencies: [
-                "ScaffMacros",
-                "Scaff",
+                "RundownMacros",
+                "Rundown",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]
         ),

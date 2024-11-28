@@ -1,5 +1,5 @@
 @attached(body)
-public macro TestExample() = #externalMacro(module: "ScaffMacros", type: "TestExampleMacro")
+public macro TestExample() = #externalMacro(module: "RundownMacros", type: "TestExampleMacro")
 
 // function body macro that turns this:
 // @Example func testThing() {

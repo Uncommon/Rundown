@@ -1,7 +1,7 @@
 import XCTest
-import Scaff
+import Rundown
 
-final class ScaffExecutionTests: Scaff.TestCase {
+final class RundownExecutionTests: Rundown.TestCase {
   @TestExample
   func testOneIt() throws {
     It("works") {

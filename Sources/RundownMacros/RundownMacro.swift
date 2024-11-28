@@ -27,7 +27,7 @@ public struct TestExampleMacro: BodyMacro {
 }
 
 @main
-struct ScaffPlugin: CompilerPlugin {
+struct RundownPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [
     TestExampleMacro.self,
   ]
