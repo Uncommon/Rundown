@@ -27,11 +27,10 @@ final class RundownMacroTests: XCTestCase {
       """,
       expandedSource: """
       func testThing() throws {
-          let _test = Describe("Thing") {
+          try Describe("Thing") {
             It("works") {
             }
-          }
-          try ExampleRun.run(_test)
+          } .run()
       }
       """,
       macros: testMacros
@@ -56,11 +55,10 @@ final class RundownMacroTests: XCTestCase {
       expandedSource: """
       class TestClass: XCTestCase {
         func testThing() throws {
-            let _test = Describe("Thing") {
+            try Describe("Thing") {
                 It("works") {
                 }
-            }
-            try ExampleRun.run(_test)
+            } .run()
         }
       }
       """,
@@ -91,8 +89,8 @@ final class RundownMacroTests: XCTestCase {
           }
         }
       
-        func testThing() {
-          try ExampleRun.run(thing())
+        func testThing() throws {
+          try thing().named("thing").run()
         }
       }
       """,

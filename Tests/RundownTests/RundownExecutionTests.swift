@@ -29,12 +29,11 @@ final class RundownExecutionTests: Rundown.TestCase {
   func testExecuteDescribe() throws {
     var executed = false
 
-    let test = Describe("Running the test") {
+    try Describe("Running the test") {
       It("works") {
         executed = true
       }
-    }
-    try ExampleRun.run(test)
+    }.run()
     XCTAssert(executed)
   }
 
@@ -43,7 +42,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     var didIt = false
     var didAfter = false
 
-    let test = Describe("Running hooks") {
+    try Describe("Running hooks") {
       BeforeAll {
         didBefore = true
       }
@@ -55,42 +54,41 @@ final class RundownExecutionTests: Rundown.TestCase {
       AfterAll {
         didAfter = true
       }
-    }
-
-    try ExampleRun.run(test)
+    }.run()
     XCTAssert(didBefore, "BeforeAll did not execute")
     XCTAssert(didIt, "It did not execute")
     XCTAssert(didAfter, "AfterAll did not execute")
   }
 
+  @MainActor
   func testBeforeAfterEach() throws {
     var beforeCount = 0
     var itCount = 0
     var afterCount = 0
 
-    let test = Describe("Running each hooks") {
+    try Describe("Running each hooks") {
       BeforeEach {
         beforeCount += 1
       }
 
       It("runs first test") {
-        XCTAssertEqual(beforeCount, 1)
-        XCTAssertEqual(afterCount, 0)
+        XCTAssertEqual(beforeCount, 1, "BeforeEach missed")
+        XCTAssertEqual(afterCount, 0, "AfterEach missed")
         itCount += 1
       }
 
-      It("runs second test") {
-        XCTAssertEqual(beforeCount, 2)
-        XCTAssertEqual(afterCount, 1)
-        itCount += 1
+      Context("in a context") {
+        It("runs second test") {
+          XCTAssertEqual(beforeCount, 2, "BeforeEach missed")
+          XCTAssertEqual(afterCount, 1, "AfterEach missed")
+          itCount += 1
+        }
       }
 
       AfterEach {
         afterCount += 1
       }
-    }
-
-    try ExampleRun.run(test)
+    }.runXCT()
     XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
     XCTAssertEqual(itCount, 2, "Its didn't run correctly")
     XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
@@ -100,15 +98,13 @@ final class RundownExecutionTests: Rundown.TestCase {
     let expected = 3
     var count = 0
 
-    let test = Describe("For loop") {
+    try Describe("For loop") {
       for _ in 1...expected {
         It("iterates") {
           count += 1
         }
       }
-    }
-
-    try ExampleRun.run(test)
+    }.run()
     XCTAssertEqual(count, expected)
   }
 
@@ -117,7 +113,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     var count1 = 0
     var count2 = 0
 
-    let test = Describe("For loop") {
+    try Describe("For loop") {
       for _ in 1...expected {
         It("iterates 1") {
           count1 += 1
@@ -126,9 +122,7 @@ final class RundownExecutionTests: Rundown.TestCase {
           count2 += 1
         }
       }
-    }
-
-    try ExampleRun.run(test)
+    }.run()
     XCTAssertEqual(count1, expected)
     XCTAssertEqual(count2, expected)
   }
@@ -140,7 +134,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     var count2 = 0
     var afterCount = 0
 
-    let test = Describe("For loop") {
+    try Describe("For loop") {
       for _ in 1...expected {
         BeforeAll {
           beforeCount += 1
@@ -155,9 +149,7 @@ final class RundownExecutionTests: Rundown.TestCase {
           afterCount += 1
         }
       }
-    }
-
-    try ExampleRun.run(test)
+    }.run()
     XCTAssertEqual(count1, expected)
     XCTAssertEqual(count2, expected)
     XCTAssertEqual(beforeCount, expected)

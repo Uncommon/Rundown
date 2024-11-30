@@ -137,12 +137,16 @@ public struct ExampleGroup: ExampleElement {
       }
     }
   }
+  
+  public func run() throws {
+    try ExampleRun.run(self)
+  }
 }
 
 public class ExampleRun: @unchecked Sendable {
   // Manual lock for unchecked sendability
-  let lock = NSRecursiveLock()
-  private static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
+  private let lock = NSRecursiveLock()
+  internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
 
   var elementStack: [any Element] = []
   var description: String {
@@ -154,7 +158,7 @@ public class ExampleRun: @unchecked Sendable {
   @TaskLocal
   static var current: ExampleRun? = nil
 
-  private init() {}
+  internal init() {}
 
   private func withLock<T>(_ block: () throws -> T) rethrows -> T {
     lock.lock()
@@ -177,33 +181,6 @@ public class ExampleRun: @unchecked Sendable {
     try ExampleRun.$current.withValue(run) {
       try element.execute(in: run)
     }
-  }
-}
-
-/// This subclass of `XCTestCase` is necessary in order to include the full
-/// example description when recording an issue.
-open class TestCase: XCTestCase {
-  let logger = Logger(subsystem: "Rundown", category: "TestCase")
-
-  /// Adds the full test element description to the issue before recording
-  public override func record(_ issue: XCTIssue) {
-    guard let run = ExampleRun.current
-    else {
-      logger.warning("issue logged when no ExampleRun is set")
-      super.record(issue)
-      return
-    }
-    let description = run.description
-
-    let newIssue = XCTIssue(
-      type: issue.type,
-      compactDescription: "\(description) \(issue.compactDescription)",
-      detailedDescription: issue.description,
-      sourceCodeContext: issue.sourceCodeContext,
-      associatedError: issue.associatedError,
-      attachments: issue.attachments)
-
-    super.record(newIssue)
   }
 }
 

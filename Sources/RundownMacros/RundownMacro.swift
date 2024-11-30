@@ -12,19 +12,17 @@ public struct TestExampleMacro: BodyMacro {
     guard let function = declaration.as(FunctionDeclSyntax.self)
     else { return [] }
     let name = function.name.text.droppingPrefix("test")
+    // TODO: eliminate extra space before ".run()"
     let describeNode: CodeBlockItemSyntax = """
-      let _test = Describe("\(raw: name)") {\(raw: function.body?.statements.description ?? "")
-      }
-      """
-    let runNode: CodeBlockItemSyntax = """
-      try ExampleRun.run(_test)
+      try Describe("\(raw: name)") {\(raw: function.body?.statements.description ?? "")
+      }.run()
       """
 
     // If it's Swift Testing (ie not inside a class):
     // - take the root element and gather the list of spec names/identifiers
     // - create a Test using __function() that treats each spec as a test case
 
-    return [describeNode, runNode]
+    return [describeNode]
   }
 }
 
@@ -94,7 +92,7 @@ public struct ExampleMacro: PeerMacro {
                        effectSpecifiers: .init(throwsClause: .init(throwsSpecifier: "throws"))),
       body: """
         {
-          try ExampleRun.run(\(function.name)().named("\(function.name)"))
+          try \(function.name)().named("\(function.name)").run()
         }
         """)
 
