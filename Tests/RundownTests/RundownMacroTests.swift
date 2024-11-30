@@ -13,7 +13,7 @@ let testMacros: [String: Macro.Type] = [
 ]
 #endif
 
-final class RundownTests: XCTestCase {
+final class RundownMacroTests: XCTestCase {
   func testMacro() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(
