@@ -28,22 +28,22 @@ open class TestCase: XCTestCase {
   }
 }
 
-public extension ExampleGroup {
-  /// Runs the example with each element run as an
-  /// `XCTContext` activity.
+extension ExampleGroup {
+  /// Runs the example with each element run as an `XCTContext` activity.
+  /// Call this version instead of `run()` when using `XCTest`.
   @MainActor
-  func runXCT() throws {
-    try ExampleRun.runXCT(self)
+  public func runActivity() throws {
+    try ExampleRun.runActivity(self)
   }
   
   @MainActor
-  func executeXCT(in run: ExampleRun) throws {
+  func executeActivity(in run: ExampleRun) throws {
     try execute {
       element in
       try run.withElementActivity(element) { _ in
         switch element {
           case let group as ExampleGroup:
-            try group.executeXCT(in: run)
+            try group.executeActivity(in: run)
           case let example as ExampleElement:
             try example.execute(in: run)
           default:
@@ -56,7 +56,7 @@ public extension ExampleGroup {
 
 extension ExampleRun {
   @MainActor
-  public static func runXCT(_ element: ExampleGroup) throws {
+  public static func runActivity(_ element: ExampleGroup) throws {
     let run = ExampleRun()
 
     if let current {
@@ -64,7 +64,7 @@ extension ExampleRun {
     }
     try ExampleRun.$current.withValue(run) {
       try run.withElementActivity(element) { _ in
-        try element.executeXCT(in: run)
+        try element.executeActivity(in: run)
       }
     }
   }

@@ -58,7 +58,7 @@ final class RundownMacroTests: XCTestCase {
             try Describe("Thing") {
                 It("works") {
                 }
-            } .run()
+            } .runActivity()
         }
       }
       """,

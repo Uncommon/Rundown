@@ -1,6 +1,7 @@
 import XCTest
 import Rundown
 
+@MainActor
 final class RundownExecutionTests: Rundown.TestCase {
   @TestExample
   func testOneIt() throws {
@@ -60,7 +61,6 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssert(didAfter, "AfterAll did not execute")
   }
 
-  @MainActor
   func testBeforeAfterEach() throws {
     var beforeCount = 0
     var itCount = 0
@@ -88,7 +88,7 @@ final class RundownExecutionTests: Rundown.TestCase {
       AfterEach {
         afterCount += 1
       }
-    }.runXCT()
+    }.runActivity()
     XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
     XCTAssertEqual(itCount, 2, "Its didn't run correctly")
     XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
