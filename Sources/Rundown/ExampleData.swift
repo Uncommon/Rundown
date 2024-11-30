@@ -86,6 +86,15 @@ public struct ExampleGroup: ExampleElement {
     self.afterAll = afterAll
     self.elements = elements
   }
+  
+  public func named(_ name: String) -> Self {
+    return Self.init(description: name,
+                     beforeAll: beforeAll,
+                     beforeEach: beforeEach,
+                     afterEach: afterEach,
+                     afterAll: afterAll,
+                     elements: elements)
+  }
 
   func execute(_ wrapper: (any Element) throws -> Void) throws {
     for hook in beforeAll {

@@ -18,6 +18,13 @@ final class RundownExecutionTests: Rundown.TestCase {
       XCTAssert(false)
     }
   }
+  
+  @Example @ExampleBuilder
+  func oneItPeer() throws -> ExampleGroup {
+    It("works") {
+      XCTAssert(true)
+    }
+  }
 
   func testExecuteDescribe() throws {
     var executed = false

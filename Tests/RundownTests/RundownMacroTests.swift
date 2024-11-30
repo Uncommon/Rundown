@@ -10,11 +10,12 @@ import RundownMacros
 
 let testMacros: [String: Macro.Type] = [
   "TestExample": TestExampleMacro.self,
+  "Example": ExampleMacro.self,
 ]
 #endif
 
 final class RundownMacroTests: XCTestCase {
-  func testMacro() throws {
+  func testBodyMacro() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(
       """
@@ -40,7 +41,7 @@ final class RundownMacroTests: XCTestCase {
 #endif
   }
 
-  func testInClass() throws {
+  func testBodyMacroInClass() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(
       """
@@ -60,6 +61,38 @@ final class RundownMacroTests: XCTestCase {
                 }
             }
             try ExampleRun.run(_test)
+        }
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+  
+  func testPeerMacro() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      class TestClass: XCTestCase {
+        @Example @ExampleBuilder
+        func thing() throws -> ExampleGroup {
+          It("works") {
+          }
+        }
+      }
+      """,
+      expandedSource: """
+      class TestClass: XCTestCase {
+        @ExampleBuilder
+        func thing() throws -> ExampleGroup {
+          It("works") {
+          }
+        }
+      
+        func testThing() {
+          try ExampleRun.run(thing())
         }
       }
       """,
