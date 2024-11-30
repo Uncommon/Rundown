@@ -66,7 +66,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     var itCount = 0
     var afterCount = 0
 
-    try Describe("Running each hooks") {
+    try Describe("Running 'each' hooks") {
       BeforeEach {
         beforeCount += 1
       }

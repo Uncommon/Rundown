@@ -16,11 +16,14 @@ public enum AllScope: HookScope {}
 public enum EachScope: HookScope {}
 
 public struct Hook<Phase: HookPhase>: Element {
-  public let description: String
+  public let name: String
+  public var description: String {
+    Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
+  }
   let block: () throws -> Void
   
-  public init(_ description: String = "", execute: @escaping () -> Void) {
-    self.description = description
+  public init(_ name: String = "", execute: @escaping () -> Void) {
+    self.name = name
     self.block = execute
   }
   

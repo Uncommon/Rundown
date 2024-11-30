@@ -6,7 +6,9 @@ public protocol AccumulatorPhase {
   associatedtype Scope: HookScope
 }
 /// Any "before" or "after" phase
-public protocol HookPhase: AccumulatorPhase {}
+public protocol HookPhase: AccumulatorPhase {
+  static var phaseName: String { get }
+}
 /// Any phase that can come at the end - example or after
 public protocol FinalPhase: AccumulatorPhase {}
 
@@ -14,10 +16,18 @@ public protocol BeforePhase: HookPhase where Time == BeforeTime {}
 public protocol AfterPhase: FinalPhase, HookPhase where Time == AfterTime {}
 public protocol AllPhase: HookPhase where Scope == AllScope {}
 public protocol EachPhase: HookPhase where Scope == EachScope {}
-public enum BeforeAllPhase: BeforePhase, AllPhase {}
-public enum BeforeEachPhase: BeforePhase, EachPhase {}
-public enum AfterEachPhase: AfterPhase, EachPhase {}
-public enum AfterAllPhase: AfterPhase, AllPhase {}
+public enum BeforeAllPhase: BeforePhase, AllPhase {
+  public static var phaseName: String { "before all" }
+}
+public enum BeforeEachPhase: BeforePhase, EachPhase {
+  public static var phaseName: String { "before each" }
+}
+public enum AfterEachPhase: AfterPhase, EachPhase {
+  public static var phaseName: String { "after each" }
+}
+public enum AfterAllPhase: AfterPhase, AllPhase {
+  public static var phaseName: String { "after all" }
+}
 public enum ExamplePhase: FinalPhase {
   public typealias Time = ExampleTime
   public typealias Scope = EachScope

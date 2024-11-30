@@ -40,18 +40,14 @@ public extension ExampleGroup {
   func executeXCT(in run: ExampleRun) throws {
     try execute {
       element in
-      try run.withElement(self) {
-        try XCTContext.runActivity(named: run.description) {
-          activity in
-          activity.add(.init(string: run.description))
-          switch element {
-            case let group as ExampleGroup:
-              try group.executeXCT(in: run)
-            case let example as ExampleElement:
-              try example.execute(in: run)
-            default:
-              try element.execute()
-          }
+      try run.withElementActivity(element) { _ in
+        switch element {
+          case let group as ExampleGroup:
+            try group.executeXCT(in: run)
+          case let example as ExampleElement:
+            try example.execute(in: run)
+          default:
+            try element.execute()
         }
       }
     }
@@ -67,7 +63,17 @@ extension ExampleRun {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
     try ExampleRun.$current.withValue(run) {
-      try element.executeXCT(in: run)
+      try run.withElementActivity(element) { _ in
+        try element.executeXCT(in: run)
+      }
+    }
+  }
+  
+  @MainActor
+  func withElementActivity(_ element: some Element,
+                           block: (XCTActivity) throws -> Void) rethrows {
+    try withElement(element) {
+      try XCTContext.runActivity(named: element.description, block: block)
     }
   }
 }
