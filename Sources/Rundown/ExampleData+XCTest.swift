@@ -36,21 +36,46 @@ extension ExampleGroup {
     try ExampleRun.runActivity(self)
   }
   
+  // Re-implementation of the original execute() because what needs to be
+  // done with activities is too complex for a wrapper callback.
   @MainActor
   func executeActivity(in run: ExampleRun) throws {
-    try execute {
-      element in
-      try run.withElementActivity(element) { _ in
-        switch element {
-          case let group as ExampleGroup:
-            try group.executeActivity(in: run)
-          case let example as ExampleElement:
-            try example.execute(in: run)
-          default:
-            try element.execute()
+    func executeHooks<P>(_ hooks: [Hook<P>]) throws {
+      for hook in hooks {
+        try run.withElementActivity(hook) { _ in
+          try hook.execute()
         }
       }
     }
+    func executeElement(_ element: some ExampleElement) throws {
+      try run.withElementActivity(element) { _ in
+        if let group = element as? ExampleGroup {
+          try group.executeActivity(in: run)
+        }
+        else {
+          try element.execute(in: run)
+        }
+      }
+    }
+
+    if beforeEach.isEmpty && afterEach.isEmpty {
+      for element in elements {
+        try executeElement(element)
+      }
+    }
+    else {
+      try executeHooks(beforeAll)
+      for element in elements {
+        // Use XCTContext.runActivity, but not the ExampleRun version,
+        // to group items in the output without affecting the description.
+        try XCTContext.runActivity(named: element.description) { _ in
+          try executeHooks(beforeEach)
+          try executeElement(element)
+          try executeHooks(afterEach)
+        }
+      }
+    }
+    try executeHooks(afterAll)
   }
 }
 

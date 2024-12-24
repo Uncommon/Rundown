@@ -117,16 +117,6 @@ public struct ExampleGroup: ExampleElement {
     }
   }
 
-  @MainActor
-  public func executeMain() throws {
-    try execute {
-      element in
-      try XCTContext.runActivity(named: element.description) { _ in
-        try element.execute()
-      }
-    }
-  }
-
   public func execute(in run: ExampleRun) throws {
     try execute {
       element in
