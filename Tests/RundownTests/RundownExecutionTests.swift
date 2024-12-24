@@ -164,7 +164,7 @@ final class RundownExecutionTests: Rundown.TestCase {
         try "".withCString { _ in
           try callback()
         }
-      } builder: {
+      } example: {
         It("works") {
           executed = true
         }
@@ -172,5 +172,23 @@ final class RundownExecutionTests: Rundown.TestCase {
     }.run()
     
     XCTAssert(executed)
+  }
+  
+  @TaskLocal static var local: Int = 0
+  
+  func testWithinTaskLocal() throws {
+    try Describe("Within") {
+      for value in 1...2 {
+        Within("with task local as \(value)") { callback in
+          try Self.$local.withValue(value) {
+            try callback()
+          }
+        } example: {
+          It("has correct value") {
+            XCTAssert(Self.$local.wrappedValue == value)
+          }
+        }
+      }
+    }.runActivity()
   }
 }

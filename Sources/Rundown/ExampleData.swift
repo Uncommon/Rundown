@@ -148,9 +148,9 @@ public struct Within: ExampleElement {
   
   public init(_ description: String,
        executor: @escaping Executor,
-       @ExampleBuilder builder: () -> ExampleGroup) {
+       @ExampleBuilder example: () -> ExampleGroup) {
     self.executor = executor
-    self.group = .init(description, builder: builder)
+    self.group = .init(description, builder: example)
   }
   
   public func execute(in run: ExampleRun) throws {

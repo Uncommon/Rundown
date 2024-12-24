@@ -105,6 +105,7 @@ extension ExampleGroup {
 }
 
 extension ExampleRun {
+  // TODO: `It`s don't get logged
   @MainActor
   public static func runActivity(_ element: ExampleGroup) throws {
     let run = ExampleRun()
