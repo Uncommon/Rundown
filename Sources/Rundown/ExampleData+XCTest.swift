@@ -28,6 +28,31 @@ open class TestCase: XCTestCase {
   }
 }
 
+/// Can serve as the principal class for a testing bundle in order to
+/// register a `TestObserver` instance.
+@MainActor
+public class RundownPrincipal: NSObject {
+  static var observer: TestObserver?
+  
+  public override init() {
+    Self.registerObserver()
+  }
+  
+  public static func registerObserver() {
+    assert(Self.observer == nil, "Rundown.TestObserver already registered")
+    let observer = TestObserver()
+    
+    XCTestObservationCenter.shared.addTestObserver(observer)
+    Self.observer = observer
+  }
+}
+
+final class TestObserver: NSObject, XCTestObservation {
+  func testBundleWillStart(_ testBundle: Bundle) {
+    // collect tests
+  }
+}
+
 extension ExampleGroup {
   /// Runs the example with each element run as an `XCTContext` activity.
   /// Call this version instead of `run()` when using `XCTest`.
