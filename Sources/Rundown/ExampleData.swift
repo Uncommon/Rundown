@@ -136,6 +136,30 @@ public struct ExampleGroup: ExampleElement {
   }
 }
 
+/// Example group that allows for callback-based setup and teardown, such as
+/// `TaskLocal.withValue()`
+public struct Within: ExampleElement {
+  public typealias Executor = (() throws -> Void) throws -> Void
+  
+  let executor: Executor
+  let group: ExampleGroup
+  
+  public var description: String { group.description }
+  
+  public init(_ description: String,
+       executor: @escaping Executor,
+       @ExampleBuilder builder: () -> ExampleGroup) {
+    self.executor = executor
+    self.group = .init(description, builder: builder)
+  }
+  
+  public func execute(in run: ExampleRun) throws {
+    try executor { try group.execute(in: run) }
+  }
+}
+
+/// Tracks the execution of an example group in order to construct the full name
+/// of the current element.
 public class ExampleRun: @unchecked Sendable {
   // Manual lock for unchecked sendability
   private let lock = NSRecursiveLock()

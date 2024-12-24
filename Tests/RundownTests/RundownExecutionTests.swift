@@ -155,4 +155,22 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertEqual(beforeCount, expected)
     XCTAssertEqual(afterCount, expected)
   }
+  
+  func testWithin() throws {
+    var executed = false
+
+    try Describe("Within") {
+      Within("inside a callback") { callback in
+        try "".withCString { _ in
+          try callback()
+        }
+      } builder: {
+        It("works") {
+          executed = true
+        }
+      }
+    }.run()
+    
+    XCTAssert(executed)
+  }
 }
