@@ -123,7 +123,7 @@ extension ExampleRun {
   @MainActor
   func withElementActivity(_ element: some Element,
                            block: (XCTActivity) throws -> Void) rethrows {
-    try withElement(element) {
+    try with(element) {
       try XCTContext.runActivity(named: element.description, block: block)
     }
   }

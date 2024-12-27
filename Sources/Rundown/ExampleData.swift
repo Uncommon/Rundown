@@ -120,7 +120,7 @@ public struct ExampleGroup: ExampleElement {
   public func execute(in run: ExampleRun) throws {
     try execute {
       element in
-      try run.withElement(self) {
+      try run.with(self) {
         if let example = element as? ExampleElement {
           try example.execute(in: run)
         }
@@ -173,7 +173,7 @@ public struct It: ExampleElement {
   }
   
   public func execute(in run: ExampleRun) throws {
-    try run.withElement(self) {
+    try run.with(self) {
       try block()
     }
   }

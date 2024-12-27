@@ -27,7 +27,14 @@ public class ExampleRun: @unchecked Sendable {
     return try block()
   }
 
-  func withElement(_ element: some Element, block: () throws -> Void) rethrows {
+  func with(_ element: some Element, block: () throws -> Void) rethrows {
+    withLock { elementStack.append(element) }
+    try block()
+    withLock { _ = elementStack.popLast() }
+  }
+  
+  @MainActor
+  func with(_ element: some Element, block: @MainActor () throws -> Void) rethrows {
     withLock { elementStack.append(element) }
     try block()
     withLock { _ = elementStack.popLast() }
