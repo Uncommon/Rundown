@@ -26,6 +26,27 @@ open class TestCase: XCTestCase {
 
     super.record(newIssue)
   }
+  
+  @MainActor
+  public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+                   function: String = #function) throws {
+    let description = String(function.prefix { $0.isIdentifier })
+      .droppingPrefix("test")
+    try Describe(description, builder: builder).runActivity()
+  }
+  
+  @MainActor
+  public func spec(_ description: String,
+                   @ExampleBuilder builder: () -> ExampleGroup) throws {
+    try Describe(description, builder: builder).runActivity()
+  }
+}
+
+extension Character {
+  var isIdentifier: Bool {
+    // Technically incomplete, but enough for most cases
+    isLetter || isNumber || self == "_"
+  }
 }
 
 /// Can serve as the principal class for a testing bundle in order to

@@ -179,3 +179,28 @@ public struct It: ExampleElement {
   }
 }
 
+public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+                 function: String = #function) throws {
+  let description = String(function.prefix { $0.isIdentifier })
+    .droppingPrefix("test")
+  try Describe(description, builder: builder).run()
+}
+
+public func spec(_ description: String,
+                 @ExampleBuilder builder: () -> ExampleGroup) throws {
+  try Describe(description, builder: builder).run()
+}
+
+extension String
+{
+  // TODO: Consolidate this because it's also in the macro target
+  /// Returns the string with the given prefix removed, or returns the string
+  /// unchanged if the prefix does not match.
+  func droppingPrefix(_ prefix: String) -> String
+  {
+    guard hasPrefix(prefix)
+    else { return self }
+    
+    return String(self[prefix.endIndex...])
+  }
+}
