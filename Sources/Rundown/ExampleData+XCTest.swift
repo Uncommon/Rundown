@@ -98,6 +98,10 @@ extension ExampleRun {
         switch element {
             case let subgroup as ExampleGroup:
               try runActivity(subgroup)
+            case let within as Within:
+              try within.executor {
+                try runActivity(within.group)
+              }
             default:
                 try element.execute(in: self)
         }
