@@ -27,7 +27,22 @@ A result builder is used to assemble the steps into an object that can be execut
 
 ## Running tests
 
-There are currently three experimental ways to run the tests:
+There are currently a few experimental ways to run the tests:
+
+``` swift
+spec {
+  It("works") {
+    // ···
+  }
+}
+```
+
+The `spec()` function creates an outer `Describe` element, using either the name of the calling function or a provided string, and then executes it. This is a global function.
+
+When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` - or more precisely, a method of the subclass `Rundown.TestCase`. This subclass should always be used so that issues can be logged with the full test element description, and this version of `spec()` uses an `XCTActivity` for each test element. 
+
+The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `XCTActivity`.
+
 
 ``` swift
 Describe("this thing") {
@@ -35,7 +50,7 @@ Describe("this thing") {
 }.run()
 ```
 
-Simply calling `run()` will execute the test steps. When running under `XCTest`, calling `runActivity()` instead will use `XCTContext.runActivity()` to log the steps as a hierarachy. The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `runActivity()`.
+This is what `spec()` does internally. Call `runActivity()` to get the `XCTActivity` behavior.
 
 ``` swift
 @TestExample
@@ -61,6 +76,7 @@ func something() throws -> ExampleGroup {
 
 ### Goals and plans
 
-* Compatibility with XCTest and Swift Testing - *Swift Testing needs more flexibility in test discovery, which is hopefully coming soon*
+* Compatibility with XCTest and Swift Testing, with an API that looks the same in either case
+* Flexibility to use it or not for any given test (hence there is no custom test discovery)
 * Minimal boilerplate at the use site
 * Ease of use during development, such as running (or skipping) specific elements
