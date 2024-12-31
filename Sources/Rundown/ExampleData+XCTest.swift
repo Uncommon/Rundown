@@ -81,62 +81,59 @@ extension ExampleGroup {
   public func runActivity() throws {
     try ExampleRun.runActivity(self)
   }
-  
-  // Re-implementation of the original execute() because what needs to be
-  // done with activities is too complex for a wrapper callback.
-  @MainActor
-  func executeActivity(in run: ExampleRun) throws {
-    func executeHooks<P>(_ hooks: [Hook<P>]) throws {
-      for hook in hooks {
-        try run.withElementActivity(hook) { _ in
-          try hook.execute()
-        }
-      }
-    }
-    func executeElement(_ element: some ExampleElement) throws {
-      try run.withElementActivity(element) { _ in
-        if let group = element as? ExampleGroup {
-          try group.executeActivity(in: run)
-        }
-        else {
-          try element.execute(in: run)
-        }
-      }
-    }
-
-    if beforeEach.isEmpty && afterEach.isEmpty {
-      for element in elements {
-        try executeElement(element)
-      }
-    }
-    else {
-      try executeHooks(beforeAll)
-      for element in elements {
-        // Use XCTContext.runActivity, but not the ExampleRun version,
-        // to group items in the output without affecting the description.
-        try XCTContext.runActivity(named: element.description) { _ in
-          try executeHooks(beforeEach)
-          try executeElement(element)
-          try executeHooks(afterEach)
-        }
-      }
-    }
-    try executeHooks(afterAll)
-  }
 }
 
 extension ExampleRun {
-  // TODO: `It`s don't get logged
   @MainActor
-  public static func runActivity(_ element: ExampleGroup) throws {
+  public func runActivity(_ group: ExampleGroup) throws {
+    func runHooks<P>(_ hooks: [Hook<P>]) throws {
+      for hook in hooks {
+        try withElementActivity(hook) { _ in
+          try hook.execute(in: self)
+        }
+      }
+    }
+    func runElement(_ element: some ExampleElement) throws {
+      try withElementActivity(element) { _ in
+        switch element {
+            case let subgroup as ExampleGroup:
+              try runActivity(subgroup)
+            default:
+                try element.execute(in: self)
+        }
+      }
+    }
+    
+    try runHooks(group.beforeAll)
+    if group.beforeEach.isEmpty && group.afterEach.isEmpty {
+      for element in group.elements {
+        try runElement(element)
+      }
+    }
+    else {
+      for element in group.elements {
+        // Use XCTContext.runActivity, but not the ExampleRun version,
+        // to group items in the output without affecting the description.
+        try XCTContext.runActivity(named: element.description) { _ in
+          try runHooks(group.beforeEach)
+          try runElement(element)
+          try runHooks(group.afterEach)
+        }
+      }
+    }
+    try runHooks(group.afterAll)
+  }
+  
+  @MainActor
+  public static func runActivity(_ group: ExampleGroup) throws {
     let run = ExampleRun()
 
     if let current {
-      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
+      logger.error("running new element \"\(group.description)\" when already running \"\(current.description)\"")
     }
     try ExampleRun.$current.withValue(run) {
-      try run.withElementActivity(element) { _ in
-        try element.executeActivity(in: run)
+      try run.withElementActivity(group) { _ in
+        try run.runActivity(group)
       }
     }
   }

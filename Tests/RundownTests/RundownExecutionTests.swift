@@ -1,5 +1,5 @@
 import XCTest
-import Rundown
+@testable import Rundown
 
 @MainActor
 final class RundownExecutionTests: Rundown.TestCase {
@@ -10,13 +10,17 @@ final class RundownExecutionTests: Rundown.TestCase {
     }
   }
 
-  @TestExample
   func testOneItFails() throws {
-    It("fails") {
-      XCTExpectFailure(strict: true) {
-        $0.compactDescription.starts(with: "OneItFails, fails")
+    try spec {
+      It("fails") {
+        let expectedDescription = "OneItFails, fails"
+        
+        XCTAssertEqual(ExampleRun.current?.description, expectedDescription)
+        XCTExpectFailure(strict: true) {
+          $0.compactDescription.starts(with: expectedDescription)
+        }
+        XCTAssert(false)
       }
-      XCTAssert(false)
     }
   }
   

@@ -4,7 +4,7 @@ import XCTest
 
 public protocol Element {
   var description: String { get }
-  func execute() throws
+  func execute(in run: ExampleRun) throws
 }
 
 public protocol HookTime {}
@@ -27,7 +27,7 @@ public struct Hook<Phase: HookPhase>: Element {
     self.block = execute
   }
   
-  public func execute() throws {
+  public func execute(in run: ExampleRun) throws {
     try block()
   }
 }
@@ -37,15 +37,7 @@ public typealias BeforeEach = Hook<BeforeEachPhase>
 public typealias AfterEach = Hook<AfterEachPhase>
 public typealias AfterAll = Hook<AfterAllPhase>
 
-public protocol ExampleElement: Element {
-  func execute(in run: ExampleRun) throws
-}
-
-extension ExampleElement {
-  public func execute() throws {
-    try ExampleRun.run(self)
-  }
-}
+public protocol ExampleElement: Element {}
 
 public struct ExampleGroup: ExampleElement {
   public let description: String
@@ -90,6 +82,7 @@ public struct ExampleGroup: ExampleElement {
     self.elements = elements
   }
   
+  /// Returns the group with a different name
   public func named(_ name: String) -> Self {
     return Self.init(description: name,
                      beforeAll: beforeAll,
@@ -98,41 +91,13 @@ public struct ExampleGroup: ExampleElement {
                      afterAll: afterAll,
                      elements: elements)
   }
-
-  func execute(_ wrapper: (any Element) throws -> Void) throws {
-    for hook in beforeAll {
-      try wrapper(hook)
-    }
-    for element in elements {
-      for hook in beforeEach {
-        try wrapper(hook)
-      }
-      try wrapper(element)
-      for hook in afterEach {
-        try wrapper(hook)
-      }
-    }
-    for hook in afterAll {
-      try wrapper(hook)
-    }
-  }
-
-  public func execute(in run: ExampleRun) throws {
-    try execute {
-      element in
-      try run.with(self) {
-        if let example = element as? ExampleElement {
-          try example.execute(in: run)
-        }
-        else {
-          try element.execute()
-        }
-      }
-    }
-  }
   
   public func run() throws {
     try ExampleRun.run(self)
+  }
+  
+  public func execute(in run: ExampleRun) throws {
+    try run.run(self)
   }
 }
 
@@ -173,9 +138,7 @@ public struct It: ExampleElement {
   }
   
   public func execute(in run: ExampleRun) throws {
-    try run.with(self) {
-      try block()
-    }
+    try block()
   }
 }
 

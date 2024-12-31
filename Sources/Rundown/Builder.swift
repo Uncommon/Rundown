@@ -35,7 +35,7 @@ public enum ExamplePhase: FinalPhase {
 
 public struct EmptyElement: Element {
   public var description: String { "" }
-  public func execute() throws {}
+  public func execute(in run: ExampleRun) throws {}
 }
 
 extension Dictionary {

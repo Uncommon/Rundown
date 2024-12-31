@@ -39,6 +39,39 @@ public class ExampleRun: @unchecked Sendable {
     try block()
     withLock { _ = elementStack.popLast() }
   }
+  
+  /// Executes the elements of a group. This is managed by the run instead of
+  /// the group itself because the run can have logic that it needs to apply
+  /// at each step.
+  public func run(_ group: ExampleGroup) throws {
+    func runHooks<P>(_ hooks: [Hook<P>]) throws {
+      for hook in hooks {
+        try with(hook) {
+          try hook.execute(in: self)
+        }
+      }
+    }
+    try runHooks(group.beforeAll)
+    for element in group.elements {
+      try runHooks(group.beforeEach)
+      switch element {
+          case let subgroup as ExampleGroup:
+            try run(subgroup)
+          default:
+            try with(element) {
+              try element.execute(in: self)
+            }
+      }
+      try runHooks(group.afterEach)
+    }
+    try runHooks(group.afterAll)
+  }
+  
+  public func run(_ within: Within) throws {
+    try within.executor {
+      try run(within.group)
+    }
+  }
 
   public static func run(_ element: some ExampleElement) throws {
     let run = ExampleRun()
