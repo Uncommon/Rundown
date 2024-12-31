@@ -190,6 +190,9 @@ final class RundownExecutionTests: Rundown.TestCase {
         } example: {
           It("has correct value") {
             XCTAssert(Self.$local.wrappedValue == value)
+            XCTAssertEqual(ExampleRun.activity?.name, "has correct value")
+            XCTAssertEqual(ExampleRun.current?.description,
+                           "Within, with task local as \(value), has correct value")
           }
         }
       }

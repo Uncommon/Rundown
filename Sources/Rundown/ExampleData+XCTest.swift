@@ -84,21 +84,30 @@ extension ExampleGroup {
 }
 
 extension ExampleRun {
+  @TaskLocal
+  private static var activityBox: ActivityBox?
+  
+  /// The `XCTActivity` for the currently executing test element.
+  @MainActor
+  static var activity: XCTActivity? { activityBox?.activity }
+  
   @MainActor
   public func runActivity(_ group: ExampleGroup) throws {
     func runHooks<P>(_ hooks: [Hook<P>]) throws {
       for hook in hooks {
-        try withElementActivity(hook) { _ in
+        try withElementActivity(hook) {
           try hook.execute(in: self)
         }
       }
     }
     func runElement(_ element: some ExampleElement) throws {
-      try withElementActivity(element) { _ in
+      try withElementActivity(element) {
         switch element {
             case let subgroup as ExampleGroup:
               try runActivity(subgroup)
             case let within as Within:
+              // Do the "within" logic manually to maintain @MainActor and
+              // the use of runActivity
               try within.executor {
                 try runActivity(within.group)
               }
@@ -118,7 +127,7 @@ extension ExampleRun {
       for element in group.elements {
         // Use XCTContext.runActivity, but not the ExampleRun version,
         // to group items in the output without affecting the description.
-        try XCTContext.runActivity(named: element.description) { _ in
+        try Self.withCurrentActivity(named: element.description) {
           try runHooks(group.beforeEach)
           try runElement(element)
           try runHooks(group.afterEach)
@@ -129,6 +138,14 @@ extension ExampleRun {
   }
   
   @MainActor
+  func withElementActivity(_ element: some Element,
+                           block: () throws -> Void) rethrows {
+    try with(element) {
+      try Self.withCurrentActivity(named: element.description, block: block)
+    }
+  }
+
+  @MainActor
   public static func runActivity(_ group: ExampleGroup) throws {
     let run = ExampleRun()
 
@@ -136,17 +153,27 @@ extension ExampleRun {
       logger.error("running new element \"\(group.description)\" when already running \"\(current.description)\"")
     }
     try ExampleRun.$current.withValue(run) {
-      try run.withElementActivity(group) { _ in
+      try run.withElementActivity(group) {
         try run.runActivity(group)
       }
     }
   }
   
   @MainActor
-  func withElementActivity(_ element: some Element,
-                           block: (XCTActivity) throws -> Void) rethrows {
-    try with(element) {
-      try XCTContext.runActivity(named: element.description, block: block)
+  static func withCurrentActivity(named name: String, block: () throws -> Void) rethrows {
+    try XCTContext.runActivity(named: name) { activity in
+      try Self.$activityBox.withValue(.init(activity)) {
+        try block()
+      }
     }
+  }
+  
+  /// Sendable container to hold an `XCTActivity` in task-local storage.
+  /// Since `XCTContext.runActivity()` is a `@MainActor` function, the
+  /// task-local variable will only ever be set on the main actor, so data
+  /// race issues are ignored.
+  class ActivityBox: @unchecked Sendable {
+    let activity: XCTActivity
+    init(_ activity: XCTActivity) { self.activity = activity }
   }
 }

@@ -33,13 +33,6 @@ public class ExampleRun: @unchecked Sendable {
     withLock { _ = elementStack.popLast() }
   }
   
-  @MainActor
-  func with(_ element: some Element, block: @MainActor () throws -> Void) rethrows {
-    withLock { elementStack.append(element) }
-    try block()
-    withLock { _ = elementStack.popLast() }
-  }
-  
   /// Executes the elements of a group. This is managed by the run instead of
   /// the group itself because the run can have logic that it needs to apply
   /// at each step.
