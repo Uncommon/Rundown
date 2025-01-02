@@ -23,7 +23,27 @@ Describe("this app feature") {
 }
 ```
 
-A result builder is used to assemble the steps into an object that can be executed in a unit test. The result builder also ensures proper ordering of elements: `BeforeAll`, `BeforeEach`, `Describe`/`Context`/`It`, `AfterEach`, `AfterAll`. Mis-ordered elements produce a compile-time error.
+A Swift result builder is used to assemble the steps into an object that can be executed in a unit test. The result builder also ensures proper ordering of elements:
+
+* `BeforeAll`
+* `BeforeEach`
+* `Describe`/`Context`/`It`
+* `AfterEach`
+* `AfterAll`
+
+Mis-ordered elements produce a compile-time error.
+
+## Test framework support
+
+The goals is for this library to be equally useful in either XCTest or Swift Testing.
+
+XCTest support has the following features:
+
+* Each test element is run using `XCTContext.runActivity()` so that the test structure is evident in the logs.
+* A sub class of `XCTestCase`, named `Rundown.TestCase`, is provided so that test failures include the full name of the test element, including enclosing `Describe` and `Context` elements.
+* `XCTSkip` is handled so that only the remaining elements at that level are skipped.
+
+Similar support for Swift Testing is planned, but the Swift Testing APIs do not yet provide for implementing those features. It is still possible to simply run the test elements, though. 
 
 ## Running tests
 
@@ -74,9 +94,9 @@ func something() throws -> ExampleGroup {
 
 `@Example` is a peer macro that generates another function prefixed with "test" so that it's discoverable by XCTest. This doesn't have the drawbacks of the body macro, but it does require the additional boilerplate of explicitly specifying the `@ExampleBuilder` result builder and the `ExampleGroup` result type.
 
-### Goals and plans
+## Goals and plans
 
 * Compatibility with XCTest and Swift Testing, with an API that looks the same in either case
-* Flexibility to use it or not for any given test (hence there is no custom test discovery)
+* Flexibility to use it or not for any given test (hence there is no custom test discovery; this may change in the future, especially if framework support improves)
 * Minimal boilerplate at the use site
 * Ease of use during development, such as running (or skipping) specific elements
