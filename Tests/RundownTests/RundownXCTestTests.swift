@@ -4,6 +4,23 @@ import XCTest
 @MainActor
 final class RundownTests: Rundown.TestCase {
   
+  func testDescriptions() throws {
+    try spec("ExampleRun") {
+      Context("first context") {
+        It("has correct description") {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "ExampleRun, first context, has correct description")
+        }
+      }
+      Context("second context") {
+        It("has correct description") {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "ExampleRun, second context, has correct description")
+        }
+      }
+    }
+  }
+
   func testBeforeAfterEach() throws {
     var beforeCount = 0
     var itCount = 0
@@ -92,6 +109,8 @@ final class RundownTests: Rundown.TestCase {
       }
       Context("skipping in BeforeEach") {
         BeforeEach {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "Skip, skipping in BeforeEach, before each")
           try XCTSkipIf(true, "skip BeforeEach")
         }
         It("skips elements") {

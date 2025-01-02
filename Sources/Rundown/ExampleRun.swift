@@ -29,8 +29,8 @@ public class ExampleRun: @unchecked Sendable {
 
   func with(_ element: some Element, block: () throws -> Void) rethrows {
     withLock { elementStack.append(element) }
+    defer { withLock { _ = elementStack.popLast() } }
     try block()
-    withLock { _ = elementStack.popLast() }
   }
   
   /// Executes the elements of a group. This is managed by the run instead of
@@ -47,13 +47,13 @@ public class ExampleRun: @unchecked Sendable {
     try runHooks(group.beforeAll)
     for element in group.elements {
       try runHooks(group.beforeEach)
-      switch element {
-          case let subgroup as ExampleGroup:
-            try run(subgroup)
-          default:
-            try with(element) {
-              try element.execute(in: self)
-            }
+      try with(element) {
+        switch element {
+            case let subgroup as ExampleGroup:
+              try run(subgroup)
+            default:
+                try element.execute(in: self)
+        }
       }
       try runHooks(group.afterEach)
     }
@@ -73,7 +73,9 @@ public class ExampleRun: @unchecked Sendable {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
     try ExampleRun.$current.withValue(run) {
-      try element.execute(in: run)
+      try run.with(element) {
+        try element.execute(in: run)
+      }
     }
   }
 }

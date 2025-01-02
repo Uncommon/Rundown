@@ -41,6 +41,23 @@ final class RundownExecutionTests: Rundown.TestCase {
     }.run()
     XCTAssert(executed)
   }
+  
+  func testDescriptions() throws {
+    try Describe("ExampleRun") {
+      Context("first context") {
+        It("has correct description") {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "ExampleRun, first context, has correct description")
+        }
+      }
+      Context("second context") {
+        It("has correct description") {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "ExampleRun, second context, has correct description")
+        }
+      }
+    }.run()
+  }
 
   func testBeforeAfterAll() throws {
     var didBefore = false
