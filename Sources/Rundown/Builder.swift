@@ -218,5 +218,4 @@ public struct ExampleBuilder {
   public static func buildFinalResult<Phase: BeforePhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
     fatalError("unavailable")
   }
-
 }

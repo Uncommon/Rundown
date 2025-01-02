@@ -58,7 +58,7 @@ final class RundownMacroTests: XCTestCase {
             try Describe("Thing") {
                 It("works") {
                 }
-            } .runActivity()
+            } .runActivity(under: self)
         }
       }
       """,
@@ -90,7 +90,7 @@ final class RundownMacroTests: XCTestCase {
         }
       
         func testThing() throws {
-          try thing().named("thing").run()
+          try thing().named("thing").runActivity(under: self)
         }
       }
       """,

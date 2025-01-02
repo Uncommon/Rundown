@@ -4,11 +4,11 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-fileprivate func runFuncName(for context: some MacroExpansionContext) -> String {
+fileprivate func runCall(for context: some MacroExpansionContext) -> String {
   // Assume if it's in a class then it's XCTestCase or a subclass.
   // Swift Testing recommends using structs over classes.
   let isClass = context.lexicalContext.first?.as(ClassDeclSyntax.self) != nil
-  return isClass ? "runActivity" : "run"
+  return isClass ? "runActivity(under: self)" : "run()"
 }
 
 public struct TestExampleMacro: BodyMacro {
@@ -22,7 +22,7 @@ public struct TestExampleMacro: BodyMacro {
     // TODO: eliminate extra space before ".run()"
     let describeNode: CodeBlockItemSyntax = """
       try Describe("\(raw: name)") {\(raw: function.body?.statements.description ?? "")
-      }.\(raw: runFuncName(for: context))()
+      }.\(raw: runCall(for: context))
       """
 
     // If it's Swift Testing (ie not inside a class):
@@ -99,7 +99,7 @@ public struct ExampleMacro: PeerMacro {
                        effectSpecifiers: .init(throwsClause: .init(throwsSpecifier: "throws"))),
       body: """
         {
-          try \(function.name)().named("\(function.name)").\(raw: runFuncName(for: context))()
+          try \(function.name)().named("\(function.name)").\(raw: runCall(for: context))
         }
         """)
 

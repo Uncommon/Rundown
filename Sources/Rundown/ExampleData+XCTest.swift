@@ -32,13 +32,13 @@ open class TestCase: XCTestCase {
                    function: String = #function) throws {
     let description = String(function.prefix { $0.isIdentifier })
       .droppingPrefix("test")
-    try Describe(description, builder: builder).runActivity()
+    try Describe(description, builder: builder).runActivity(under: self)
   }
   
   @MainActor
   public func spec(_ description: String,
                    @ExampleBuilder builder: () -> ExampleGroup) throws {
-    try Describe(description, builder: builder).runActivity()
+    try Describe(description, builder: builder).runActivity(under: self)
   }
 }
 
@@ -52,9 +52,11 @@ extension Character {
 extension ExampleGroup {
   /// Runs the example with each element run as an `XCTContext` activity.
   /// Call this version instead of `run()` when using `XCTest`.
+  ///
+  /// See `ExampleRun.runActivity()` for more details.`
   @MainActor
-  public func runActivity() throws {
-    try ExampleRun.runActivity(self)
+  public func runActivity(under test: XCTestCase) throws {
+    try ExampleRun.runActivity(self, under: test)
   }
 }
 
@@ -66,8 +68,24 @@ extension ExampleRun {
   @MainActor
   static var activity: XCTActivity? { activityBox?.activity }
   
+  /// Runs the elements of the given group, with each executing inside
+  /// `XCTContext.runActivity()`.
+  ///
+  /// If an `XCTSkip` is caught while running `BeforeAll` hooks, the rest of
+  /// the group is skipped, including any remaining `BeforeAll` and `AfterAll`
+  /// hooks.
+  ///
+  /// If an `XCTSkip` is caught while running `BeforeEach` hooks, the rest of
+  /// that element is skipped, including any remaining `BeforeEach` and
+  ///  `AfterEach` hooks.
+  ///
+  /// If an `XCTSkip` is caught while running a test example, such as `It`,
+  /// the corresponding `AfterEach` hooks will still run, and execution will
+  /// continue with the next item in the group.
+  ///
+  /// Throwing `XCTSkip` in `AfterEach` or `AfterAll` hooks will not be caught.
   @MainActor
-  public func runActivity(_ group: ExampleGroup) throws {
+  public func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
     func runHooks<P>(_ hooks: [Hook<P>]) throws {
       for hook in hooks {
         try withElementActivity(hook) {
@@ -78,21 +96,41 @@ extension ExampleRun {
     func runElement(_ element: some ExampleElement) throws {
       try withElementActivity(element) {
         switch element {
-            case let subgroup as ExampleGroup:
-              try runActivity(subgroup)
-            case let within as Within:
-              // Do the "within" logic manually to maintain @MainActor and
-              // the use of runActivity
-              try within.executor {
-                try runActivity(within.group)
-              }
-            default:
-                try element.execute(in: self)
+          case let subgroup as ExampleGroup:
+            try runActivity(subgroup, under: test)
+          case let within as Within:
+            // Do the "within" logic manually to maintain @MainActor and
+            // the use of runActivity
+            try within.executor {
+              try runActivity(within.group, under: test)
+            }
+          default:
+            do {
+              try element.execute(in: self)
+            }
+            catch let skip as XCTSkip {
+              logSkip(skip, element: element)
+            }
+            catch let error {
+              // It's not clear if this should be .thrownError or .uncaughtException
+              let issue = XCTIssue(type: .uncaughtException,
+                                   compactDescription: "uncaught exception",
+                                   detailedDescription: error.localizedDescription,
+                                   sourceCodeContext: .init(),
+                                   associatedError: error)
+              test.record(issue)
+            }
         }
       }
     }
     
-    try runHooks(group.beforeAll)
+    do {
+      try runHooks(group.beforeAll)
+    }
+    catch let skip as XCTSkip {
+      logSkip(skip, element: group)
+      return
+    }
     if group.beforeEach.isEmpty && group.afterEach.isEmpty {
       for element in group.elements {
         try runElement(element)
@@ -103,13 +141,26 @@ extension ExampleRun {
         // Use XCTContext.runActivity, but not the ExampleRun version,
         // to group items in the output without affecting the description.
         try Self.withCurrentActivity(named: element.description) {
-          try runHooks(group.beforeEach)
+          do {
+            try runHooks(group.beforeEach)
+          }
+          catch let skip as XCTSkip {
+            logSkip(skip, element: element)
+            return // from withCurrentActivity()
+          }
           try runElement(element)
           try runHooks(group.afterEach)
         }
       }
     }
     try runHooks(group.afterAll)
+  }
+  
+  @MainActor
+  func logSkip(_ skip: XCTSkip, element: Element) {
+    let message = skip.message.map { ": (\($0))" } ?? ""
+    
+    ExampleRun.logger.info("Skipped \"\(ExampleRun.current!.description)\"\(message)")
   }
   
   @MainActor
@@ -121,7 +172,7 @@ extension ExampleRun {
   }
 
   @MainActor
-  public static func runActivity(_ group: ExampleGroup) throws {
+  public static func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
     let run = ExampleRun()
 
     if let current {
@@ -129,7 +180,7 @@ extension ExampleRun {
     }
     try ExampleRun.$current.withValue(run) {
       try run.withElementActivity(group) {
-        try run.runActivity(group)
+        try run.runActivity(group, under: test)
       }
     }
   }

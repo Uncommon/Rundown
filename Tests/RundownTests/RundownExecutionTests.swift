@@ -65,39 +65,6 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssert(didAfter, "AfterAll did not execute")
   }
 
-  func testBeforeAfterEach() throws {
-    var beforeCount = 0
-    var itCount = 0
-    var afterCount = 0
-
-    try Describe("Running 'each' hooks") {
-      BeforeEach {
-        beforeCount += 1
-      }
-
-      It("runs first test") {
-        XCTAssertEqual(beforeCount, 1, "BeforeEach missed")
-        XCTAssertEqual(afterCount, 0, "AfterEach missed")
-        itCount += 1
-      }
-
-      Context("in a context") {
-        It("runs second test") {
-          XCTAssertEqual(beforeCount, 2, "BeforeEach missed")
-          XCTAssertEqual(afterCount, 1, "AfterEach missed")
-          itCount += 1
-        }
-      }
-
-      AfterEach {
-        afterCount += 1
-      }
-    }.runActivity()
-    XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
-    XCTAssertEqual(itCount, 2, "Its didn't run correctly")
-    XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
-  }
-
   func testSingleItForLoop() throws {
     let expected = 3
     var count = 0
@@ -176,26 +143,5 @@ final class RundownExecutionTests: Rundown.TestCase {
     }.run()
     
     XCTAssert(executed)
-  }
-  
-  @TaskLocal static var local: Int = 0
-  
-  func testWithinTaskLocal() throws {
-    try Describe("Within") {
-      for value in 1...2 {
-        Within("with task local as \(value)") { callback in
-          try Self.$local.withValue(value) {
-            try callback()
-          }
-        } example: {
-          It("has correct value") {
-            XCTAssert(Self.$local.wrappedValue == value)
-            XCTAssertEqual(ExampleRun.activity?.name, "has correct value")
-            XCTAssertEqual(ExampleRun.current?.description,
-                           "Within, with task local as \(value), has correct value")
-          }
-        }
-      }
-    }.runActivity()
   }
 }

@@ -22,7 +22,7 @@ public struct Hook<Phase: HookPhase>: Element {
   }
   let block: () throws -> Void
   
-  public init(_ name: String = "", execute: @escaping () -> Void) {
+  public init(_ name: String = "", execute: @escaping () throws -> Void) {
     self.name = name
     self.block = execute
   }
@@ -132,7 +132,7 @@ public struct It: ExampleElement {
   public let description: String
   let block: () throws -> Void
   
-  public init(_ description: String, execute: @escaping () -> Void) {
+  public init(_ description: String, execute: @escaping () throws -> Void) {
     self.description = description
     self.block = execute
   }
