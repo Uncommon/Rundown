@@ -73,17 +73,6 @@ Describe("this thing") {
 This is what `spec()` does internally. Call `runActivity()` to get the `XCTActivity` behavior.
 
 ``` swift
-@TestExample
-func testSomething() throws {
-  It("works") {
-    // ···
-  }
-}
-```
-
-`@TestExample` is a function body macro, which is clean and simple but has the drawback that source code locations - test failures, compile time errors, and breakpoints - are relative to the macro-generated code, not the original.
-
-``` swift
 @Example @ExampleBuilder
 func something() throws -> ExampleGroup {
   It("works") {
@@ -92,7 +81,7 @@ func something() throws -> ExampleGroup {
 }
 ```
 
-`@Example` is a peer macro that generates another function prefixed with "test" so that it's discoverable by XCTest. This doesn't have the drawbacks of the body macro, but it does require the additional boilerplate of explicitly specifying the `@ExampleBuilder` result builder and the `ExampleGroup` result type.
+`@Example` is a peer macro that generates another function prefixed with "test" so that it's discoverable by XCTest, and the test function calls the original.
 
 ## Goals and plans
 

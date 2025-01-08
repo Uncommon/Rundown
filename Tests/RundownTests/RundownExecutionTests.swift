@@ -3,12 +3,6 @@ import XCTest
 
 @MainActor
 final class RundownExecutionTests: Rundown.TestCase {
-  @TestExample
-  func testOneIt() throws {
-    It("works") {
-      XCTAssert(true)
-    }
-  }
 
   func testOneItFails() throws {
     try spec {

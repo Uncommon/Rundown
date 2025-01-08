@@ -11,28 +11,6 @@ fileprivate func runCall(for context: some MacroExpansionContext) -> String {
   return isClass ? "runActivity(under: self)" : "run()"
 }
 
-public struct TestExampleMacro: BodyMacro {
-  public static func expansion(of node: AttributeSyntax,
-                               providingBodyFor declaration: some DeclSyntaxProtocol & WithOptionalCodeBlockSyntax,
-                               in context: some MacroExpansionContext) throws
-  -> [CodeBlockItemSyntax] {
-    guard let function = declaration.as(FunctionDeclSyntax.self)
-    else { return [] }
-    let name = function.name.text.droppingPrefix("test")
-    // TODO: eliminate extra space before ".run()"
-    let describeNode: CodeBlockItemSyntax = """
-      try Describe("\(raw: name)") {\(raw: function.body?.statements.description ?? "")
-      }.\(raw: runCall(for: context))
-      """
-
-    // If it's Swift Testing (ie not inside a class):
-    // - take the root element and gather the list of spec names/identifiers
-    // - create a Test using __function() that treats each spec as a test case
-
-    return [describeNode]
-  }
-}
-
 struct NotAFunctionMessage: DiagnosticMessage {
   var message: String { "@Example must be attached to a function" }
   var diagnosticID: SwiftDiagnostics.MessageID {
@@ -110,7 +88,6 @@ public struct ExampleMacro: PeerMacro {
 @main
 struct RundownPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [
-    TestExampleMacro.self,
     ExampleMacro.self,
   ]
 }
