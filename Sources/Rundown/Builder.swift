@@ -35,6 +35,7 @@ public enum ExamplePhase: FinalPhase {
 
 public struct EmptyElement: Element {
   public var description: String { "" }
+  public var traits: [any Trait] { [] }
   public func execute(in run: ExampleRun) throws {}
 }
 
@@ -186,6 +187,7 @@ public struct ExampleBuilder {
   public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
     // TODO: preserve the example description
     .init(description: "",
+          traits: [],
           beforeAll: component.phaseHooks(BeforeAllPhase.self),
           beforeEach: component.phaseHooks(BeforeEachPhase.self),
           afterEach: component.phaseHooks(AfterEachPhase.self),

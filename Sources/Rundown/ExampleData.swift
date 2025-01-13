@@ -4,6 +4,8 @@ import XCTest
 
 public protocol Element {
   var description: String { get }
+  var traits: [any Trait] { get }
+  
   func execute(in run: ExampleRun) throws
 }
 
@@ -20,10 +22,14 @@ public struct Hook<Phase: HookPhase>: Element {
   public var description: String {
     Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
+  public let traits: [any Trait]
   let block: () throws -> Void
   
-  public init(_ name: String = "", execute: @escaping () throws -> Void) {
+  public init(_ name: String = "",
+              _ traits: [any Trait] = [],
+              execute: @escaping () throws -> Void) {
     self.name = name
+    self.traits = traits
     self.block = execute
   }
   
@@ -41,17 +47,21 @@ public protocol ExampleElement: Element {}
 
 public struct ExampleGroup: ExampleElement {
   public let description: String
+  public let traits: [any Trait]
   let beforeAll: [BeforeAll]
   let beforeEach: [BeforeEach]
   let afterEach: [AfterEach]
   let afterAll: [AfterAll]
   let elements: [any ExampleElement]
 
-  public init(_ description: String, @ExampleBuilder builder: () -> ExampleGroup)
+  public init(_ description: String,
+              _ traits: [any Trait] = [],
+              @ExampleBuilder builder: () -> ExampleGroup)
   {
     let builtGroup = builder()
     
     self.description = description
+    self.traits = traits
     self.beforeAll = builtGroup.beforeAll
     self.beforeEach = builtGroup.beforeEach
     self.afterEach = builtGroup.afterEach
@@ -59,8 +69,11 @@ public struct ExampleGroup: ExampleElement {
     self.elements = builtGroup.elements
   }
 
-  internal init(_ description: String = "", elements: [any ExampleElement]) {
+  internal init(_ description: String = "",
+                _ traits: [any Trait] = [],
+                elements: [any ExampleElement]) {
     self.description = description
+    self.traits = traits
     self.beforeAll = []
     self.beforeEach = []
     self.afterEach = []
@@ -69,12 +82,14 @@ public struct ExampleGroup: ExampleElement {
   }
 
   init(description: String,
+       traits: [any Trait],
        beforeAll: [BeforeAll],
        beforeEach: [BeforeEach],
        afterEach: [AfterEach],
        afterAll: [AfterAll],
        elements: [any ExampleElement]) {
     self.description = description
+    self.traits = traits
     self.beforeAll = beforeAll
     self.beforeEach = beforeEach
     self.afterEach = afterEach
@@ -85,6 +100,7 @@ public struct ExampleGroup: ExampleElement {
   /// Returns the group with a different name
   public func named(_ name: String) -> Self {
     return Self.init(description: name,
+                     traits: traits,
                      beforeAll: beforeAll,
                      beforeEach: beforeEach,
                      afterEach: afterEach,
@@ -106,14 +122,17 @@ public struct ExampleGroup: ExampleElement {
 public struct Within: ExampleElement {
   public typealias Executor = (() throws -> Void) throws -> Void
   
+  public let traits: [any Trait]
   let executor: Executor
   let group: ExampleGroup
   
   public var description: String { group.description }
   
   public init(_ description: String,
-       executor: @escaping Executor,
-       @ExampleBuilder example: () -> ExampleGroup) {
+              _ traits: [any Trait] = [],
+              executor: @escaping Executor,
+              @ExampleBuilder example: () -> ExampleGroup) {
+    self.traits = traits
     self.executor = executor
     self.group = .init(description, builder: example)
   }
@@ -130,10 +149,14 @@ public typealias Context = ExampleGroup
 
 public struct It: ExampleElement {
   public let description: String
+  public let traits: [any Trait]
   let block: () throws -> Void
   
-  public init(_ description: String, execute: @escaping () throws -> Void) {
+  public init(_ description: String,
+              _ traits: [any Trait] = [],
+              execute: @escaping () throws -> Void) {
     self.description = description
+    self.traits = traits
     self.block = execute
   }
   
