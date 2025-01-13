@@ -44,8 +44,12 @@ public class ExampleRun: @unchecked Sendable {
         }
       }
     }
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+    
     try runHooks(group.beforeAll)
-    for element in group.elements {
+    for element in elements {
       try runHooks(group.beforeEach)
       try with(element) {
         switch element {
@@ -58,6 +62,13 @@ public class ExampleRun: @unchecked Sendable {
       try runHooks(group.afterEach)
     }
     try runHooks(group.afterAll)
+  }
+  
+  func filterFocusSkip(_ elements: [any ExampleElement]) -> [any ExampleElement] {
+    let nonSkipped = elements.filter { !$0.isSkipped }
+    let focused = nonSkipped.filter(\.isDeepFocused)
+    
+    return focused.isEmpty ? nonSkipped : focused
   }
   
   public func run(_ within: Within) throws {
@@ -79,3 +90,4 @@ public class ExampleRun: @unchecked Sendable {
     }
   }
 }
+

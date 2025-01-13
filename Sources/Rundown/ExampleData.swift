@@ -53,6 +53,10 @@ public struct ExampleGroup: ExampleElement {
   let afterEach: [AfterEach]
   let afterAll: [AfterAll]
   let elements: [any ExampleElement]
+  
+  var isDeepFocused: Bool {
+    isFocused || elements.contains(where: \.isDeepFocused)
+  }
 
   public init(_ description: String,
               _ traits: [any Trait] = [],
