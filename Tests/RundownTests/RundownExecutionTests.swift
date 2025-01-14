@@ -155,4 +155,111 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     XCTAssert(executed)
   }
+  
+  func testSkipOneOfTwo() throws {
+    var ranBeforeAll = false
+    var ranBeforeEach = false
+    var ran1 = false
+    var ran2 = false
+    var ranAfterEach = false
+    var ranAfterAll = false
+    
+    try Describe("Skip one of two") {
+      BeforeAll {
+        ranBeforeAll = true
+      }
+      BeforeEach {
+        ranBeforeEach = true
+      }
+      It("one", [.skipped]) {
+        ran1 = true
+      }
+      It("two") {
+        ran2 = true
+      }
+      AfterEach {
+        ranAfterEach = true
+      }
+      AfterAll {
+        ranAfterAll = true
+      }
+    }.run()
+    
+    XCTAssertTrue(ranBeforeAll)
+    XCTAssertTrue(ranBeforeEach)
+    XCTAssertFalse(ran1)
+    XCTAssertTrue(ran2)
+    XCTAssertTrue(ranAfterEach)
+    XCTAssertTrue(ranAfterAll)
+  }
+  
+  // No hooks should run if all elements are skipped
+  func testSkipHooks() throws {
+    var ranBeforeAll = false
+    var ranBeforeEach = false
+    var ranIt = false
+    var ranAfterEach = false
+    var ranAfterAll = false
+    
+    try Describe("Skip hooks") {
+      BeforeAll {
+        ranBeforeAll = true
+      }
+      BeforeEach {
+        ranBeforeEach = true
+      }
+      It("skips", [.skipped]) {
+        ranIt = true
+      }
+      AfterEach {
+        ranAfterEach = true
+      }
+      AfterAll {
+        ranAfterAll = true
+      }
+    }.run()
+    
+    XCTAssertFalse(ranBeforeAll)
+    XCTAssertFalse(ranBeforeEach)
+    XCTAssertFalse(ranIt)
+    XCTAssertFalse(ranAfterEach)
+    XCTAssertFalse(ranAfterAll)
+  }
+
+  func testFocusOneOfTwo() throws {
+    var ranBeforeAll = false
+    var ranBeforeEach = false
+    var ran1 = false
+    var ran2 = false
+    var ranAfterEach = false
+    var ranAfterAll = false
+    
+    try Describe("Skip one of two") {
+      BeforeAll {
+        ranBeforeAll = true
+      }
+      BeforeEach {
+        ranBeforeEach = true
+      }
+      It("one", [.focused]) {
+        ran1 = true
+      }
+      It("two") {
+        ran2 = true
+      }
+      AfterEach {
+        ranAfterEach = true
+      }
+      AfterAll {
+        ranAfterAll = true
+      }
+    }.run()
+    
+    XCTAssertTrue(ranBeforeAll)
+    XCTAssertTrue(ranBeforeEach)
+    XCTAssertTrue(ran1)
+    XCTAssertFalse(ran2)
+    XCTAssertTrue(ranAfterEach)
+    XCTAssertTrue(ranAfterAll)
+  }
 }
