@@ -52,7 +52,9 @@ public typealias BeforeEach = Hook<BeforeEachPhase>
 public typealias AfterEach = Hook<AfterEachPhase>
 public typealias AfterAll = Hook<AfterAllPhase>
 
-public protocol ExampleElement: Element {}
+public protocol ExampleElement: Element {
+  var isDeepFocused: Bool { get }
+}
 
 public struct ExampleGroup: ExampleElement {
   public let description: String
@@ -63,7 +65,7 @@ public struct ExampleGroup: ExampleElement {
   let afterAll: [AfterAll]
   let elements: [any ExampleElement]
   
-  var isDeepFocused: Bool {
+  public var isDeepFocused: Bool {
     isFocused || elements.contains(where: \.isDeepFocused)
   }
 

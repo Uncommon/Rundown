@@ -240,4 +240,42 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertTrue(ranAfterEach)
     XCTAssertTrue(ranAfterAll)
   }
+  
+  func testDeepFocus() throws {
+    var ranBeforeAll1 = false
+    var ranAfterAll1 = false
+    var ranBeforeAll2 = false
+    var ranAfterAll2 = false
+    var beforeEachCount1 = 0
+    var afterEachCount1 = 0
+    var beforeEachCount2 = 0
+    var afterEachCount2 = 0
+    var ran2 = false
+    
+    try Describe("Deep focus") {
+      BeforeAll { ranBeforeAll1 = true }
+      BeforeEach { beforeEachCount1 += 1 }
+      It("skips") { XCTFail("ran outer unfocused test") }
+      Describe("subgroup") {
+        BeforeAll { ranBeforeAll2 = true }
+        BeforeEach { beforeEachCount2 += 1 }
+        It("runs focused", .focused) { ran2 = true }
+        It("skips") { XCTFail("ran inner unfocused test") }
+        AfterEach { afterEachCount2 += 1}
+        AfterAll { ranAfterAll2 = true}
+      }
+      AfterEach { afterEachCount1 += 1 }
+      AfterAll { ranAfterAll1 = true }
+    }.run()
+    
+    XCTAssert(ranBeforeAll1)
+    XCTAssertEqual(beforeEachCount1, 1)
+    XCTAssert(ranBeforeAll2)
+    XCTAssertEqual(beforeEachCount2, 1)
+    XCTAssert(ran2)
+    XCTAssertEqual(afterEachCount2, 1)
+    XCTAssert(ranAfterAll2)
+    XCTAssertEqual(afterEachCount1, 1)
+    XCTAssert(ranAfterAll1)
+  }
 }
