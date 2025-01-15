@@ -26,7 +26,7 @@ public extension ExampleElement {
 
 /// Shortcut for adding a `.focused` trait to `Describe`.
 func fDescribe(_ description: String,
-               _ traits: [any Trait] = [],
+               _ traits: (any Trait)...,
                @ExampleBuilder builder: () -> ExampleGroup) -> Describe {
   .init(description, traits + [.focused], builder: builder)
 }
@@ -40,7 +40,7 @@ func fContext(_ description: String,
 
 /// Shortcut for adding a `.focused` trait to `Within`.
 func fWithin(_ description: String,
-             _ traits: [any Trait] = [],
+             _ traits: (any Trait)...,
              executor: @escaping Within.Executor,
              @ExampleBuilder example: () -> ExampleGroup) -> Within {
   .init(description, traits + [.focused],
@@ -49,7 +49,7 @@ func fWithin(_ description: String,
 
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,
-         _ traits: [any Trait] = [],
+         _ traits: (any Trait)...,
          execute: @escaping () throws -> Void) -> It {
   .init(description, traits + [.focused], execute: execute)
 }

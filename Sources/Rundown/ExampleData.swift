@@ -26,13 +26,22 @@ public struct Hook<Phase: HookPhase>: Element {
   let block: () throws -> Void
   
   public init(_ name: String = "",
-              _ traits: [any Trait] = [],
+              _ traits: (any Trait)...,
+              execute: @escaping () throws -> Void) {
+    self.init(name, traits, execute: execute)
+  }
+  
+  // Since Swift doesn't yet support "splatting" variadic arguments,
+  // each of these constructors must have both versions for the sake
+  // of convenience functions that add a trait to a supplied list.
+  public init(_ name: String = "",
+              _ traits: [any Trait],
               execute: @escaping () throws -> Void) {
     self.name = name
     self.traits = traits
     self.block = execute
   }
-  
+
   public func execute(in run: ExampleRun) throws {
     try block()
   }
@@ -59,7 +68,13 @@ public struct ExampleGroup: ExampleElement {
   }
 
   public init(_ description: String,
-              _ traits: [any Trait] = [],
+              _ traits: (any Trait)...,
+              @ExampleBuilder builder: () -> ExampleGroup) {
+    self.init(description, traits, builder: builder)
+  }
+
+  public init(_ description: String,
+              _ traits: [any Trait],
               @ExampleBuilder builder: () -> ExampleGroup)
   {
     let builtGroup = builder()
@@ -133,9 +148,16 @@ public struct Within: ExampleElement {
   public var description: String { group.description }
   
   public init(_ description: String,
-              _ traits: [any Trait] = [],
+              _ traits: (any Trait)...,
               executor: @escaping Executor,
               @ExampleBuilder example: () -> ExampleGroup) {
+    self.init(description, traits, executor: executor, example: example)
+  }
+  
+  public init(_ description: String,
+            _ traits: [any Trait],
+            executor: @escaping Executor,
+            @ExampleBuilder example: () -> ExampleGroup) {
     self.traits = traits
     self.executor = executor
     self.group = .init(description, builder: example)
@@ -157,7 +179,13 @@ public struct It: ExampleElement {
   let block: () throws -> Void
   
   public init(_ description: String,
-              _ traits: [any Trait] = [],
+              _ traits: (any Trait)...,
+              execute: @escaping () throws -> Void) {
+    self.init(description, traits, execute: execute)
+  }
+  
+  public init(_ description: String,
+              _ traits: [any Trait],
               execute: @escaping () throws -> Void) {
     self.description = description
     self.traits = traits

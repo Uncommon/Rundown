@@ -171,7 +171,7 @@ final class RundownExecutionTests: Rundown.TestCase {
       BeforeEach {
         ranBeforeEach = true
       }
-      It("one", [.skipped]) {
+      It("one", .skipped) {
         ran1 = true
       }
       It("two") {
@@ -202,21 +202,11 @@ final class RundownExecutionTests: Rundown.TestCase {
     var ranAfterAll = false
     
     try Describe("Skip hooks") {
-      BeforeAll {
-        ranBeforeAll = true
-      }
-      BeforeEach {
-        ranBeforeEach = true
-      }
-      It("skips", [.skipped]) {
-        ranIt = true
-      }
-      AfterEach {
-        ranAfterEach = true
-      }
-      AfterAll {
-        ranAfterAll = true
-      }
+      BeforeAll { ranBeforeAll = true }
+      BeforeEach { ranBeforeEach = true }
+      It("skips", .skipped) { ranIt = true }
+      AfterEach { ranAfterEach = true }
+      AfterAll { ranAfterAll = true }
     }.run()
     
     XCTAssertFalse(ranBeforeAll)
@@ -235,24 +225,12 @@ final class RundownExecutionTests: Rundown.TestCase {
     var ranAfterAll = false
     
     try Describe("Skip one of two") {
-      BeforeAll {
-        ranBeforeAll = true
-      }
-      BeforeEach {
-        ranBeforeEach = true
-      }
-      It("one", [.focused]) {
-        ran1 = true
-      }
-      It("two") {
-        ran2 = true
-      }
-      AfterEach {
-        ranAfterEach = true
-      }
-      AfterAll {
-        ranAfterAll = true
-      }
+      BeforeAll { ranBeforeAll = true }
+      BeforeEach { ranBeforeEach = true }
+      It("one", .focused) { ran1 = true }
+      It("two") { ran2 = true }
+      AfterEach { ranAfterEach = true }
+      AfterAll { ranAfterAll = true }
     }.run()
     
     XCTAssertTrue(ranBeforeAll)
