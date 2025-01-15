@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 import XCTest
 
-public protocol Element {
+public protocol TestElement {
   var description: String { get }
   var traits: [any Trait] { get }
   
@@ -17,7 +17,7 @@ public protocol HookScope {}
 public enum AllScope: HookScope {}
 public enum EachScope: HookScope {}
 
-public struct Hook<Phase: HookPhase>: Element {
+public struct TestHook<Phase: HookPhase>: TestElement {
   public let name: String
   public var description: String {
     Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
@@ -47,19 +47,19 @@ public struct Hook<Phase: HookPhase>: Element {
   }
 }
 
-public typealias BeforeAll = Hook<BeforeAllPhase>
-public typealias BeforeEach = Hook<BeforeEachPhase>
-public typealias AfterEach = Hook<AfterEachPhase>
-public typealias AfterAll = Hook<AfterAllPhase>
+public typealias BeforeAll = TestHook<BeforeAllPhase>
+public typealias BeforeEach = TestHook<BeforeEachPhase>
+public typealias AfterEach = TestHook<AfterEachPhase>
+public typealias AfterAll = TestHook<AfterAllPhase>
 
-public protocol ExampleElement: Element {
+public protocol TestExample: TestElement {
   var isDeepFocused: Bool { get }
 }
 
 
 /// Example group that allows for callback-based setup and teardown, such as
 /// `TaskLocal.withValue()`
-public struct Within: ExampleElement {
+public struct Within: TestExample {
   public typealias Executor = (() throws -> Void) throws -> Void
   
   public let traits: [any Trait]
@@ -90,7 +90,7 @@ public struct Within: ExampleElement {
 }
 
 
-public struct It: ExampleElement {
+public struct It: TestExample {
   public let description: String
   public let traits: [any Trait]
   let block: () throws -> Void

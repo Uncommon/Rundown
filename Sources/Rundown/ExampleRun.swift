@@ -9,7 +9,7 @@ public class ExampleRun: @unchecked Sendable {
   private let lock = NSRecursiveLock()
   internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
 
-  var elementStack: [any Element] = []
+  var elementStack: [any TestElement] = []
   var description: String {
     withLock {
       elementStack.map { $0.description }.joined(separator: ", ")
@@ -27,7 +27,7 @@ public class ExampleRun: @unchecked Sendable {
     return try block()
   }
 
-  func with(_ element: some Element, block: () throws -> Void) rethrows {
+  func with(_ element: some TestElement, block: () throws -> Void) rethrows {
     withLock { elementStack.append(element) }
     defer { withLock { _ = elementStack.popLast() } }
     try block()
@@ -37,7 +37,7 @@ public class ExampleRun: @unchecked Sendable {
   /// the group itself because the run can have logic that it needs to apply
   /// at each step.
   public func run(_ group: ExampleGroup) throws {
-    func runHooks<P>(_ hooks: [Hook<P>]) throws {
+    func runHooks<P>(_ hooks: [TestHook<P>]) throws {
       for hook in hooks {
         try with(hook) {
           try hook.execute(in: self)
@@ -64,7 +64,7 @@ public class ExampleRun: @unchecked Sendable {
     try runHooks(group.afterAll)
   }
   
-  func filterFocusSkip(_ elements: [any ExampleElement]) -> [any ExampleElement] {
+  func filterFocusSkip(_ elements: [any TestExample]) -> [any TestExample] {
     let nonSkipped = elements.filter { !$0.isSkipped }
     let focused = nonSkipped.filter(\.isDeepFocused)
     
@@ -77,7 +77,7 @@ public class ExampleRun: @unchecked Sendable {
     }
   }
 
-  public static func run(_ element: some ExampleElement) throws {
+  public static func run(_ element: some TestExample) throws {
     let run = ExampleRun()
 
     if let current {

@@ -15,7 +15,7 @@ public extension Trait where Self == FocusedTrait {
   static var focused: Self { .init() }
 }
 
-public extension ExampleElement {
+public extension TestExample {
   /// Returns `true` if this element has a `FocusedTrait`
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }
   

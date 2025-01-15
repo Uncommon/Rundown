@@ -86,14 +86,14 @@ extension ExampleRun {
   /// Throwing `XCTSkip` in `AfterEach` or `AfterAll` hooks will not be caught.
   @MainActor
   public func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
-    func runHooks<P>(_ hooks: [Hook<P>]) throws {
+    func runHooks<P>(_ hooks: [TestHook<P>]) throws {
       for hook in hooks {
         try withElementActivity(hook) {
           try hook.execute(in: self)
         }
       }
     }
-    func runElement(_ element: some ExampleElement) throws {
+    func runElement(_ element: some TestExample) throws {
       try withElementActivity(element) {
         switch element {
           case let subgroup as ExampleGroup:
@@ -157,14 +157,14 @@ extension ExampleRun {
   }
   
   @MainActor
-  func logSkip(_ skip: XCTSkip, element: Element) {
+  func logSkip(_ skip: XCTSkip, element: TestElement) {
     let message = skip.message.map { ": (\($0))" } ?? ""
     
     ExampleRun.logger.info("Skipped \"\(ExampleRun.current!.description)\"\(message)")
   }
   
   @MainActor
-  func withElementActivity(_ element: some Element,
+  func withElementActivity(_ element: some TestElement,
                            block: () throws -> Void) rethrows {
     try with(element) {
       try Self.withCurrentActivity(named: element.description, block: block)

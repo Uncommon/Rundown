@@ -7,7 +7,7 @@ public extension Trait where Self == SkippedTrait {
   static var skipped: Self { .init() }
 }
 
-public extension Element {
+public extension TestElement {
   var isSkipped: Bool { traits.contains { $0 is SkippedTrait } }
 }
 

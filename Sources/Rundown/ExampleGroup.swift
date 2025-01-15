@@ -1,11 +1,11 @@
-public struct ExampleGroup: ExampleElement {
+public struct ExampleGroup: TestExample {
   public let description: String
   public let traits: [any Trait]
   let beforeAll: [BeforeAll]
   let beforeEach: [BeforeEach]
   let afterEach: [AfterEach]
   let afterAll: [AfterAll]
-  let elements: [any ExampleElement]
+  let elements: [any TestExample]
   
   public var isDeepFocused: Bool {
     isFocused || elements.contains(where: \.isDeepFocused)
@@ -34,7 +34,7 @@ public struct ExampleGroup: ExampleElement {
 
   internal init(_ description: String = "",
                 _ traits: [any Trait] = [],
-                elements: [any ExampleElement]) {
+                elements: [any TestExample]) {
     self.description = description
     self.traits = traits
     self.beforeAll = []
@@ -50,7 +50,7 @@ public struct ExampleGroup: ExampleElement {
        beforeEach: [BeforeEach],
        afterEach: [AfterEach],
        afterAll: [AfterAll],
-       elements: [any ExampleElement]) {
+       elements: [any TestExample]) {
     self.description = description
     self.traits = traits
     self.beforeAll = beforeAll

@@ -33,7 +33,7 @@ public enum ExamplePhase: FinalPhase {
   public typealias Scope = EachScope
 }
 
-public struct EmptyElement: Element {
+public struct EmptyElement: TestElement {
   public var description: String { "" }
   public var traits: [any Trait] { [] }
   public func execute(in run: ExampleRun) throws {}
@@ -54,7 +54,7 @@ extension Dictionary {
 }
 
 public struct Accumulator<Phase: AccumulatorPhase> {
-  typealias AccumulatorData = [ObjectIdentifier: [any Element]]
+  typealias AccumulatorData = [ObjectIdentifier: [any TestElement]]
 
   var data: AccumulatorData
 
@@ -70,20 +70,20 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     self.data = other.data
   }
 
-  func adding<E: Element>(_ element: E) -> Self where Phase: HookPhase {
+  func adding<E: TestElement>(_ element: E) -> Self where Phase: HookPhase {
     var result = self
     result.data.appendOrSet(.init(E.self), element)
     return result
   }
 
-  func adding<E: ExampleElement>(_ example: E) -> Self where Phase == ExamplePhase {
+  func adding<E: TestExample>(_ example: E) -> Self where Phase == ExamplePhase {
     var result = self
-    result.data.appendOrSet(.init(ExampleElement.self), example)
+    result.data.appendOrSet(.init(TestExample.self), example)
     return result
   }
 
-  mutating func add<E: ExampleElement>(_ example: E) where Phase == ExamplePhase {
-    data.appendOrSet(.init(ExampleElement.self), example)
+  mutating func add<E: TestExample>(_ example: E) where Phase == ExamplePhase {
+    data.appendOrSet(.init(TestExample.self), example)
   }
 
   mutating func add<P: AccumulatorPhase>(_ other: Accumulator<P>) {
@@ -92,20 +92,20 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     }
   }
 
-  func transitioned<P: HookPhase>(with element: some Element) -> Accumulator<P> {
+  func transitioned<P: HookPhase>(with element: some TestElement) -> Accumulator<P> {
     .init(data: data).adding(element)
   }
 
-  func transitioned(with element: some ExampleElement) -> Accumulator<ExamplePhase> {
+  func transitioned(with element: some TestExample) -> Accumulator<ExamplePhase> {
     .init(data: data).adding(element)
   }
 
-  func phaseHooks<P: HookPhase>(_ phase: P.Type) -> [Hook<P>] {
-    data[.init(Hook<P>.self)]?.compactMap { $0 as? Hook<P> } ?? []
+  func phaseHooks<P: HookPhase>(_ phase: P.Type) -> [TestHook<P>] {
+    data[.init(TestHook<P>.self)]?.compactMap { $0 as? TestHook<P> } ?? []
   }
 
-  func examples() -> [ExampleElement] {
-    data[.init(ExampleElement.self)]?.compactMap { $0 as? ExampleElement } ?? []
+  func examples() -> [TestExample] {
+    data[.init(TestExample.self)]?.compactMap { $0 as? TestExample } ?? []
   }
 }
 
@@ -114,12 +114,12 @@ public struct ExampleBuilder {
   // All hooks can repeat
   public static func buildPartialBlock<Phase: AccumulatorPhase>(
       accumulated: Accumulator<Phase>,
-      next: Hook<Phase>) -> Accumulator<Phase> {
+      next: TestHook<Phase>) -> Accumulator<Phase> {
     accumulated.adding(next)
   }
 
   // BeforeEach and BeforeAll can start
-  public static func buildPartialBlock<Phase: BeforePhase>(first: Hook<Phase>) -> Accumulator<Phase> {
+  public static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase>) -> Accumulator<Phase> {
     .init().adding(first)
   }
 
@@ -131,26 +131,26 @@ public struct ExampleBuilder {
   }
 
   // Examples can start and repeat
-  public static func buildPartialBlock(first: any ExampleElement) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock(first: any TestExample) -> Accumulator<ExamplePhase> {
     .init().adding(first)
   }
   public static func buildPartialBlock(
       accumulated: Accumulator<ExamplePhase>,
-      next: any ExampleElement) -> Accumulator<ExamplePhase> {
+      next: any TestExample) -> Accumulator<ExamplePhase> {
     accumulated.adding(next)
   }
 
   // Examples can follow BeforeEach/BeforeAll
   public static func buildPartialBlock<Phase: BeforePhase>(
       accumulated: Accumulator<Phase>,
-      next: any ExampleElement) -> Accumulator<ExamplePhase> {
+      next: any TestExample) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
 
   // After hooks can follow examples
   public static func buildPartialBlock<Phase: AfterPhase>(
       accumulated: Accumulator<ExamplePhase>,
-      next: Hook<Phase>) -> Accumulator<Phase> {
+      next: TestHook<Phase>) -> Accumulator<Phase> {
     accumulated.transitioned(with: next)
   }
 
@@ -162,10 +162,10 @@ public struct ExampleBuilder {
   }
 
   // if/else for examples
-  public static func buildEither<E: Element>(first component: E) -> E {
+  public static func buildEither<E: TestElement>(first component: E) -> E {
     component
   }
-  public static func buildEither<E: Element>(second component: E) -> E {
+  public static func buildEither<E: TestElement>(second component: E) -> E {
     component
   }
 
