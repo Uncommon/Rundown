@@ -59,11 +59,8 @@ final class RundownTests: Rundown.TestCase {
   func testWithinTaskLocal() throws {
     try spec("Within") {
       for value in 1...2 {
-        Within("with task local as \(value)") { callback in
-          try Self.$local.withValue(value) {
-            try callback()
-          }
-        } example: {
+        Within("with task local as \(value)",
+               local: Self.$local, value) {
           It("has correct value") {
             XCTAssert(Self.$local.wrappedValue == value)
             XCTAssertEqual(ExampleRun.activity?.name, "has correct value")

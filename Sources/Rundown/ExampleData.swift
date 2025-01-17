@@ -89,6 +89,23 @@ public struct Within: TestExample {
   }
 }
 
+extension Within {
+  /// Convenience initializer for using a task local value.
+  public init<Value>(_ description: String,
+                     _ traits: (any Trait)...,
+                     local: TaskLocal<Value>,
+                     _ value: Value,
+                     @ExampleBuilder example: () -> ExampleGroup)where Value: Sendable {
+    self.traits = traits
+    self.executor = { callback in
+      try local.withValue(value) {
+        try callback()
+      }
+    }
+    self.group = .init(description, builder: example)
+  }
+}
+
 
 public struct It: TestExample {
   public let description: String
