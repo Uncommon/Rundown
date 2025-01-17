@@ -87,7 +87,7 @@ extension ExampleRun {
   @MainActor
   public func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
     func runHooks<P>(_ hooks: [TestHook<P>]) throws {
-      for hook in hooks {
+      for hook in filterSkip(hooks) {
         try withElementActivity(hook) {
           try hook.execute(in: self)
         }
@@ -123,7 +123,11 @@ extension ExampleRun {
         }
       }
     }
-    
+
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+
     do {
       try runHooks(group.beforeAll)
     }
@@ -137,7 +141,7 @@ extension ExampleRun {
       }
     }
     else {
-      for element in group.elements {
+      for element in elements {
         // Use XCTContext.runActivity, but not the ExampleRun version,
         // to group items in the output without affecting the description.
         try Self.withCurrentActivity(named: element.description) {

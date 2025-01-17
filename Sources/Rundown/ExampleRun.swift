@@ -38,7 +38,7 @@ public class ExampleRun: @unchecked Sendable {
   /// at each step.
   public func run(_ group: ExampleGroup) throws {
     func runHooks<P>(_ hooks: [TestHook<P>]) throws {
-      for hook in hooks {
+      for hook in filterSkip(hooks) {
         try with(hook) {
           try hook.execute(in: self)
         }
@@ -62,6 +62,10 @@ public class ExampleRun: @unchecked Sendable {
       try runHooks(group.afterEach)
     }
     try runHooks(group.afterAll)
+  }
+  
+  func filterSkip(_ elements: [any TestElement]) -> [any TestElement] {
+    elements.filter({ !$0.isSkipped })
   }
   
   func filterFocusSkip(_ elements: [any TestExample]) -> [any TestExample] {
