@@ -9,14 +9,6 @@ public protocol TestElement {
   func execute(in run: ExampleRun) throws
 }
 
-public protocol HookTime {}
-public enum BeforeTime: HookTime {}
-public enum ExampleTime: HookTime {}
-public enum AfterTime: HookTime {}
-public protocol HookScope {}
-public enum AllScope: HookScope {}
-public enum EachScope: HookScope {}
-
 public struct TestHook<Phase: HookPhase>: TestElement {
   public let name: String
   public var description: String {
@@ -141,18 +133,4 @@ public func spec(@ExampleBuilder builder: () -> ExampleGroup,
 public func spec(_ description: String,
                  @ExampleBuilder builder: () -> ExampleGroup) throws {
   try Describe(description, builder: builder).run()
-}
-
-extension String
-{
-  // TODO: Consolidate this because it's also in the macro target
-  /// Returns the string with the given prefix removed, or returns the string
-  /// unchanged if the prefix does not match.
-  func droppingPrefix(_ prefix: String) -> String
-  {
-    guard hasPrefix(prefix)
-    else { return self }
-    
-    return String(self[prefix.endIndex...])
-  }
 }
