@@ -1,22 +1,20 @@
 import XCTest
-import Rundown
+@testable import Rundown
 
 @MainActor
 final class RundownExecutionTests: Rundown.TestCase {
-  @TestExample
-  func testOneIt() throws {
-    It("works") {
-      XCTAssert(true)
-    }
-  }
 
-  @TestExample
-  func testFailureMessage() throws {
-    It("logs correctly") {
-      XCTExpectFailure(strict: true) {
-        $0.compactDescription.starts(with: "FailureMessage, logs correctly")
+  func testOneItFails() throws {
+    try spec {
+      It("fails") {
+        let expectedDescription = "OneItFails, fails"
+        
+        XCTAssertEqual(ExampleRun.current?.description, expectedDescription)
+        XCTExpectFailure(strict: true) {
+          $0.compactDescription.starts(with: expectedDescription)
+        }
+        XCTAssert(false)
       }
-      XCTAssert(false)
     }
   }
   
@@ -36,6 +34,23 @@ final class RundownExecutionTests: Rundown.TestCase {
       }
     }.run()
     XCTAssert(executed)
+  }
+  
+  func testDescriptions() throws {
+    try Describe("ExampleRun") {
+      Context("first context") {
+        It("has correct description") {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "ExampleRun, first context, has correct description")
+        }
+      }
+      Context("second context") {
+        It("has correct description") {
+          XCTAssertEqual(ExampleRun.current!.description,
+                         "ExampleRun, second context, has correct description")
+        }
+      }
+    }.run()
   }
 
   func testBeforeAfterAll() throws {
@@ -59,39 +74,6 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssert(didBefore, "BeforeAll did not execute")
     XCTAssert(didIt, "It did not execute")
     XCTAssert(didAfter, "AfterAll did not execute")
-  }
-
-  func testBeforeAfterEach() throws {
-    var beforeCount = 0
-    var itCount = 0
-    var afterCount = 0
-
-    try Describe("Running 'each' hooks") {
-      BeforeEach {
-        beforeCount += 1
-      }
-
-      It("runs first test") {
-        XCTAssertEqual(beforeCount, 1, "BeforeEach missed")
-        XCTAssertEqual(afterCount, 0, "AfterEach missed")
-        itCount += 1
-      }
-
-      Context("in a context") {
-        It("runs second test") {
-          XCTAssertEqual(beforeCount, 2, "BeforeEach missed")
-          XCTAssertEqual(afterCount, 1, "AfterEach missed")
-          itCount += 1
-        }
-      }
-
-      AfterEach {
-        afterCount += 1
-      }
-    }.runActivity()
-    XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
-    XCTAssertEqual(itCount, 2, "Its didn't run correctly")
-    XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
   }
 
   func testSingleItForLoop() throws {
@@ -154,5 +136,23 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertEqual(count2, expected)
     XCTAssertEqual(beforeCount, expected)
     XCTAssertEqual(afterCount, expected)
+  }
+  
+  func testWithin() throws {
+    var executed = false
+
+    try Describe("Within") {
+      Within("inside a callback") { callback in
+        try "".withCString { _ in
+          try callback()
+        }
+      } example: {
+        It("works") {
+          executed = true
+        }
+      }
+    }.run()
+    
+    XCTAssert(executed)
   }
 }

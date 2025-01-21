@@ -2,207 +2,135 @@ import Foundation
 import OSLog
 import XCTest
 
-public protocol Element {
+public protocol TestElement {
   var description: String { get }
-  func execute() throws
+  var traits: [any Trait] { get }
+  
+  func execute(in run: ExampleRun) throws
 }
 
-public protocol HookTime {}
-public enum BeforeTime: HookTime {}
-public enum ExampleTime: HookTime {}
-public enum AfterTime: HookTime {}
-public protocol HookScope {}
-public enum AllScope: HookScope {}
-public enum EachScope: HookScope {}
-
-public struct Hook<Phase: HookPhase>: Element {
+public struct TestHook<Phase: HookPhase>: TestElement {
   public let name: String
   public var description: String {
     Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
+  public let traits: [any Trait]
   let block: () throws -> Void
   
-  public init(_ name: String = "", execute: @escaping () -> Void) {
+  public init(_ name: String = "",
+              _ traits: (any Trait)...,
+              execute: @escaping () throws -> Void) {
+    self.init(name, traits, execute: execute)
+  }
+  
+  // Since Swift doesn't yet support "splatting" variadic arguments,
+  // each of these constructors must have both versions for the sake
+  // of convenience functions that add a trait to a supplied list.
+  public init(_ name: String = "",
+              _ traits: [any Trait],
+              execute: @escaping () throws -> Void) {
     self.name = name
+    self.traits = traits
     self.block = execute
-  }
-  
-  public func execute() throws {
-    try block()
-  }
-}
-
-public typealias BeforeAll = Hook<BeforeAllPhase>
-public typealias BeforeEach = Hook<BeforeEachPhase>
-public typealias AfterEach = Hook<AfterEachPhase>
-public typealias AfterAll = Hook<AfterAllPhase>
-
-public protocol ExampleElement: Element {
-  func execute(in run: ExampleRun) throws
-}
-
-extension ExampleElement {
-  public func execute() throws {
-    try ExampleRun.run(self)
-  }
-}
-
-public struct ExampleGroup: ExampleElement {
-  public let description: String
-  let beforeAll: [BeforeAll]
-  let beforeEach: [BeforeEach]
-  let afterEach: [AfterEach]
-  let afterAll: [AfterAll]
-  let elements: [any ExampleElement]
-
-  public init(_ description: String, @ExampleBuilder builder: () -> ExampleGroup)
-  {
-    let builtGroup = builder()
-    
-    self.description = description
-    self.beforeAll = builtGroup.beforeAll
-    self.beforeEach = builtGroup.beforeEach
-    self.afterEach = builtGroup.afterEach
-    self.afterAll = builtGroup.afterAll
-    self.elements = builtGroup.elements
-  }
-
-  internal init(_ description: String = "", elements: [any ExampleElement]) {
-    self.description = description
-    self.beforeAll = []
-    self.beforeEach = []
-    self.afterEach = []
-    self.afterAll = []
-    self.elements = elements
-  }
-
-  init(description: String,
-       beforeAll: [BeforeAll],
-       beforeEach: [BeforeEach],
-       afterEach: [AfterEach],
-       afterAll: [AfterAll],
-       elements: [any ExampleElement]) {
-    self.description = description
-    self.beforeAll = beforeAll
-    self.beforeEach = beforeEach
-    self.afterEach = afterEach
-    self.afterAll = afterAll
-    self.elements = elements
-  }
-  
-  public func named(_ name: String) -> Self {
-    return Self.init(description: name,
-                     beforeAll: beforeAll,
-                     beforeEach: beforeEach,
-                     afterEach: afterEach,
-                     afterAll: afterAll,
-                     elements: elements)
-  }
-
-  func execute(_ wrapper: (any Element) throws -> Void) throws {
-    for hook in beforeAll {
-      try wrapper(hook)
-    }
-    for element in elements {
-      for hook in beforeEach {
-        try wrapper(hook)
-      }
-      try wrapper(element)
-      for hook in afterEach {
-        try wrapper(hook)
-      }
-    }
-    for hook in afterAll {
-      try wrapper(hook)
-    }
-  }
-
-  @MainActor
-  public func executeMain() throws {
-    try execute {
-      element in
-      try XCTContext.runActivity(named: element.description) { _ in
-        try element.execute()
-      }
-    }
   }
 
   public func execute(in run: ExampleRun) throws {
-    try execute {
-      element in
-      try run.withElement(self) {
-        if let example = element as? ExampleElement {
-          try example.execute(in: run)
-        }
-        else {
-          try element.execute()
-        }
-      }
-    }
+    try block()
+  }
+}
+
+public typealias BeforeAll = TestHook<BeforeAllPhase>
+public typealias BeforeEach = TestHook<BeforeEachPhase>
+public typealias AfterEach = TestHook<AfterEachPhase>
+public typealias AfterAll = TestHook<AfterAllPhase>
+
+public protocol TestExample: TestElement {
+  var isDeepFocused: Bool { get }
+}
+
+
+/// Example group that allows for callback-based setup and teardown, such as
+/// `TaskLocal.withValue()`
+public struct Within: TestExample {
+  public typealias Executor = (() throws -> Void) throws -> Void
+  
+  public let traits: [any Trait]
+  let executor: Executor
+  let group: ExampleGroup
+  
+  public var description: String { group.description }
+  
+  public init(_ description: String,
+              _ traits: (any Trait)...,
+              executor: @escaping Executor,
+              @ExampleBuilder example: () -> ExampleGroup) {
+    self.init(description, traits, executor: executor, example: example)
   }
   
-  public func run() throws {
-    try ExampleRun.run(self)
+  public init(_ description: String,
+            _ traits: [any Trait],
+            executor: @escaping Executor,
+            @ExampleBuilder example: () -> ExampleGroup) {
+    self.traits = traits
+    self.executor = executor
+    self.group = .init(description, builder: example)
+  }
+  
+  public func execute(in run: ExampleRun) throws {
+    try executor { try group.execute(in: run) }
   }
 }
 
-public class ExampleRun: @unchecked Sendable {
-  // Manual lock for unchecked sendability
-  private let lock = NSRecursiveLock()
-  internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
-
-  var elementStack: [any Element] = []
-  var description: String {
-    withLock {
-      elementStack.map { $0.description }.joined(separator: ", ")
+extension Within {
+  /// Convenience initializer for using a task local value.
+  public init<Value>(_ description: String,
+                     _ traits: (any Trait)...,
+                     local: TaskLocal<Value>,
+                     _ value: Value,
+                     @ExampleBuilder example: () -> ExampleGroup)where Value: Sendable {
+    self.traits = traits
+    self.executor = { callback in
+      try local.withValue(value) {
+        try callback()
+      }
     }
-  }
-
-  @TaskLocal
-  static var current: ExampleRun? = nil
-
-  internal init() {}
-
-  private func withLock<T>(_ block: () throws -> T) rethrows -> T {
-    lock.lock()
-    defer { lock.unlock() }
-    return try block()
-  }
-
-  func withElement(_ element: some Element, block: () throws -> Void) rethrows {
-    withLock { elementStack.append(element) }
-    try block()
-    withLock { _ = elementStack.popLast() }
-  }
-
-  public static func run(_ element: some ExampleElement) throws {
-    let run = ExampleRun()
-
-    if let current {
-      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
-    }
-    try ExampleRun.$current.withValue(run) {
-      try element.execute(in: run)
-    }
+    self.group = .init(description, builder: example)
   }
 }
 
-public typealias Describe = ExampleGroup
-public typealias Context = ExampleGroup
 
-public struct It: ExampleElement {
+public struct It: TestExample {
   public let description: String
+  public let traits: [any Trait]
   let block: () throws -> Void
   
-  public init(_ description: String, execute: @escaping () -> Void) {
+  public init(_ description: String,
+              _ traits: (any Trait)...,
+              execute: @escaping () throws -> Void) {
+    self.init(description, traits, execute: execute)
+  }
+  
+  public init(_ description: String,
+              _ traits: [any Trait],
+              execute: @escaping () throws -> Void) {
     self.description = description
+    self.traits = traits
     self.block = execute
   }
   
   public func execute(in run: ExampleRun) throws {
-    try run.withElement(self) {
-      try block()
-    }
+    try block()
   }
 }
 
+public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+                 function: String = #function) throws {
+  let description = String(function.prefix { $0.isIdentifier })
+    .droppingPrefix("test")
+  try Describe(description, builder: builder).run()
+}
+
+public func spec(_ description: String,
+                 @ExampleBuilder builder: () -> ExampleGroup) throws {
+  try Describe(description, builder: builder).run()
+}

@@ -26,54 +26,184 @@ open class TestCase: XCTestCase {
 
     super.record(newIssue)
   }
+  
+  @MainActor
+  public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+                   function: String = #function) throws {
+    let description = String(function.prefix { $0.isIdentifier })
+      .droppingPrefix("test")
+    try Describe(description, builder: builder).runActivity(under: self)
+  }
+  
+  @MainActor
+  public func spec(_ description: String,
+                   @ExampleBuilder builder: () -> ExampleGroup) throws {
+    try Describe(description, builder: builder).runActivity(under: self)
+  }
+}
+
+extension Character {
+  var isIdentifier: Bool {
+    // Technically incomplete, but enough for most cases
+    isLetter || isNumber || self == "_"
+  }
 }
 
 extension ExampleGroup {
   /// Runs the example with each element run as an `XCTContext` activity.
   /// Call this version instead of `run()` when using `XCTest`.
+  ///
+  /// See `ExampleRun.runActivity()` for more details.`
   @MainActor
-  public func runActivity() throws {
-    try ExampleRun.runActivity(self)
-  }
-  
-  @MainActor
-  func executeActivity(in run: ExampleRun) throws {
-    try execute {
-      element in
-      try run.withElementActivity(element) { _ in
-        switch element {
-          case let group as ExampleGroup:
-            try group.executeActivity(in: run)
-          case let example as ExampleElement:
-            try example.execute(in: run)
-          default:
-            try element.execute()
-        }
-      }
-    }
+  public func runActivity(under test: XCTestCase) throws {
+    try ExampleRun.runActivity(self, under: test)
   }
 }
 
 extension ExampleRun {
+  @TaskLocal
+  private static var activityBox: ActivityBox?
+  
+  /// The `XCTActivity` for the currently executing test element.
   @MainActor
-  public static func runActivity(_ element: ExampleGroup) throws {
+  static var activity: XCTActivity? { activityBox?.activity }
+  
+  /// Runs the elements of the given group, with each executing inside
+  /// `XCTContext.runActivity()`.
+  ///
+  /// If an `XCTSkip` is caught while running `BeforeAll` hooks, the rest of
+  /// the group is skipped, including any remaining `BeforeAll` and `AfterAll`
+  /// hooks.
+  ///
+  /// If an `XCTSkip` is caught while running `BeforeEach` hooks, the rest of
+  /// that element is skipped, including any remaining `BeforeEach` and
+  ///  `AfterEach` hooks.
+  ///
+  /// If an `XCTSkip` is caught while running a test example, such as `It`,
+  /// the corresponding `AfterEach` hooks will still run, and execution will
+  /// continue with the next item in the group.
+  ///
+  /// Throwing `XCTSkip` in `AfterEach` or `AfterAll` hooks will not be caught.
+  @MainActor
+  public func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
+    func runHooks<P>(_ hooks: [TestHook<P>]) throws {
+      for hook in filterSkip(hooks) {
+        try withElementActivity(hook) {
+          try hook.execute(in: self)
+        }
+      }
+    }
+    func runElement(_ element: some TestExample) throws {
+      try withElementActivity(element) {
+        switch element {
+          case let subgroup as ExampleGroup:
+            try runActivity(subgroup, under: test)
+          case let within as Within:
+            // Do the "within" logic manually to maintain @MainActor and
+            // the use of runActivity
+            try within.executor {
+              try runActivity(within.group, under: test)
+            }
+          default:
+            do {
+              try element.execute(in: self)
+            }
+            catch let skip as XCTSkip {
+              logSkip(skip, element: element)
+            }
+            catch let error {
+              // It's not clear if this should be .thrownError or .uncaughtException
+              let issue = XCTIssue(type: .uncaughtException,
+                                   compactDescription: "uncaught exception",
+                                   detailedDescription: error.localizedDescription,
+                                   sourceCodeContext: .init(),
+                                   associatedError: error)
+              test.record(issue)
+            }
+        }
+      }
+    }
+
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+
+    do {
+      try runHooks(group.beforeAll)
+    }
+    catch let skip as XCTSkip {
+      logSkip(skip, element: group)
+      return
+    }
+    if group.beforeEach.isEmpty && group.afterEach.isEmpty {
+      for element in group.elements {
+        try runElement(element)
+      }
+    }
+    else {
+      for element in elements {
+        // Use XCTContext.runActivity, but not the ExampleRun version,
+        // to group items in the output without affecting the description.
+        try Self.withCurrentActivity(named: element.description) {
+          do {
+            try runHooks(group.beforeEach)
+          }
+          catch let skip as XCTSkip {
+            logSkip(skip, element: element)
+            return // from withCurrentActivity()
+          }
+          try runElement(element)
+          try runHooks(group.afterEach)
+        }
+      }
+    }
+    try runHooks(group.afterAll)
+  }
+  
+  @MainActor
+  func logSkip(_ skip: XCTSkip, element: TestElement) {
+    let message = skip.message.map { ": (\($0))" } ?? ""
+    
+    ExampleRun.logger.info("Skipped \"\(ExampleRun.current!.description)\"\(message)")
+  }
+  
+  @MainActor
+  func withElementActivity(_ element: some TestElement,
+                           block: () throws -> Void) rethrows {
+    try with(element) {
+      try Self.withCurrentActivity(named: element.description, block: block)
+    }
+  }
+
+  @MainActor
+  public static func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
     let run = ExampleRun()
 
     if let current {
-      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
+      logger.error("running new element \"\(group.description)\" when already running \"\(current.description)\"")
     }
     try ExampleRun.$current.withValue(run) {
-      try run.withElementActivity(element) { _ in
-        try element.executeActivity(in: run)
+      try run.withElementActivity(group) {
+        try run.runActivity(group, under: test)
       }
     }
   }
   
   @MainActor
-  func withElementActivity(_ element: some Element,
-                           block: (XCTActivity) throws -> Void) rethrows {
-    try withElement(element) {
-      try XCTContext.runActivity(named: element.description, block: block)
+  static func withCurrentActivity(named name: String, block: () throws -> Void) rethrows {
+    try XCTContext.runActivity(named: name) { activity in
+      try Self.$activityBox.withValue(.init(activity)) {
+        try block()
+      }
     }
+  }
+  
+  /// Sendable container to hold an `XCTActivity` in task-local storage.
+  /// Since `XCTContext.runActivity()` is a `@MainActor` function, the
+  /// task-local variable will only ever be set on the main actor, so data
+  /// race issues are ignored.
+  class ActivityBox: @unchecked Sendable {
+    let activity: XCTActivity
+    init(_ activity: XCTActivity) { self.activity = activity }
   }
 }

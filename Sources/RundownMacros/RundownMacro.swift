@@ -4,33 +4,11 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-fileprivate func runFuncName(for context: some MacroExpansionContext) -> String {
+fileprivate func runCall(for context: some MacroExpansionContext) -> String {
   // Assume if it's in a class then it's XCTestCase or a subclass.
   // Swift Testing recommends using structs over classes.
   let isClass = context.lexicalContext.first?.as(ClassDeclSyntax.self) != nil
-  return isClass ? "runActivity" : "run"
-}
-
-public struct TestExampleMacro: BodyMacro {
-  public static func expansion(of node: AttributeSyntax,
-                               providingBodyFor declaration: some DeclSyntaxProtocol & WithOptionalCodeBlockSyntax,
-                               in context: some MacroExpansionContext) throws
-  -> [CodeBlockItemSyntax] {
-    guard let function = declaration.as(FunctionDeclSyntax.self)
-    else { return [] }
-    let name = function.name.text.droppingPrefix("test")
-    // TODO: eliminate extra space before ".run()"
-    let describeNode: CodeBlockItemSyntax = """
-      try Describe("\(raw: name)") {\(raw: function.body?.statements.description ?? "")
-      }.\(raw: runFuncName(for: context))()
-      """
-
-    // If it's Swift Testing (ie not inside a class):
-    // - take the root element and gather the list of spec names/identifiers
-    // - create a Test using __function() that treats each spec as a test case
-
-    return [describeNode]
-  }
+  return isClass ? "runActivity(under: self)" : "run()"
 }
 
 struct NotAFunctionMessage: DiagnosticMessage {
@@ -99,7 +77,7 @@ public struct ExampleMacro: PeerMacro {
                        effectSpecifiers: .init(throwsClause: .init(throwsSpecifier: "throws"))),
       body: """
         {
-          try \(function.name)().named("\(function.name)").\(raw: runFuncName(for: context))()
+          try \(function.name)().named("\(function.name)").\(raw: runCall(for: context))
         }
         """)
 
@@ -110,7 +88,6 @@ public struct ExampleMacro: PeerMacro {
 @main
 struct RundownPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [
-    TestExampleMacro.self,
     ExampleMacro.self,
   ]
 }
