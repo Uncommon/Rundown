@@ -19,7 +19,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0-latest"),
+        .package(url: "https://github.com/swiftlang/swift-testing.git", branch: "main"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0-latest"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -34,7 +35,10 @@ let package = Package(
         ),
 
         // Library that exposes a macro as part of its API, which is used in client programs.
-        .target(name: "Rundown", dependencies: ["RundownMacros"]),
+        .target(name: "Rundown", dependencies: [
+          .product(name: "Testing", package: "swift-testing"),
+          "RundownMacros",
+        ]),
 
         // A client of the library, which is able to use the macro in its own code.
         .executableTarget(name: "RundownClient", dependencies: ["Rundown"]),
