@@ -9,17 +9,17 @@ public protocol TestElement {
   func execute(in run: ExampleRun) throws
 }
 
-public struct TestHook<Phase: HookPhase>: TestElement {
+public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
   public let name: String
   public var description: String {
     Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
   public let traits: [any Trait]
-  let block: () throws -> Void
-  
+  let block: @Sendable () throws -> Void
+
   public init(_ name: String = "",
               _ traits: (any Trait)...,
-              execute: @escaping () throws -> Void) {
+              execute: @escaping @Sendable () throws -> Void) {
     self.init(name, traits, execute: execute)
   }
   
@@ -28,7 +28,7 @@ public struct TestHook<Phase: HookPhase>: TestElement {
   // of convenience functions that add a trait to a supplied list.
   public init(_ name: String = "",
               _ traits: [any Trait],
-              execute: @escaping () throws -> Void) {
+              execute: @escaping @Sendable () throws -> Void) {
     self.name = name
     self.traits = traits
     self.block = execute

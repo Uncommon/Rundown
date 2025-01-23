@@ -1,4 +1,4 @@
-public protocol Trait {}
+public protocol Trait: Sendable {}
 
 public protocol ExampleTrait: Trait {}
 
