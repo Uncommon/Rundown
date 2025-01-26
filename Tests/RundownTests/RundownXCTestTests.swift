@@ -22,36 +22,36 @@ final class RundownTests: Rundown.TestCase {
   }
 
   func testBeforeAfterEach() throws {
-    var beforeCount = 0
-    var itCount = 0
-    var afterCount = 0
+    let beforeCount = Box(0)
+    let itCount = Box(0)
+    let afterCount = Box(0)
 
     try spec("Running 'each' hooks") {
       BeforeEach {
-        beforeCount += 1
+        beforeCount.bump()
       }
 
       It("runs first test") {
-        XCTAssertEqual(beforeCount, 1, "BeforeEach missed")
-        XCTAssertEqual(afterCount, 0, "AfterEach missed")
-        itCount += 1
+        XCTAssertEqual(beforeCount.wrappedValue, 1, "BeforeEach missed")
+        XCTAssertEqual(afterCount.wrappedValue, 0, "AfterEach missed")
+        itCount.bump()
       }
 
       Context("in a context") {
         It("runs second test") {
-          XCTAssertEqual(beforeCount, 2, "BeforeEach missed")
-          XCTAssertEqual(afterCount, 1, "AfterEach missed")
-          itCount += 1
+          XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEach missed")
+          XCTAssertEqual(afterCount.wrappedValue, 1, "AfterEach missed")
+          itCount.bump()
         }
       }
 
       AfterEach {
-        afterCount += 1
+        afterCount.bump()
       }
     }
-    XCTAssertEqual(beforeCount, 2, "BeforeEach didn't run correctly")
-    XCTAssertEqual(itCount, 2, "Its didn't run correctly")
-    XCTAssertEqual(afterCount, 2, "AfterEach didn't run correctly")
+    XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEach didn't run correctly")
+    XCTAssertEqual(itCount.wrappedValue, 2, "Its didn't run correctly")
+    XCTAssertEqual(afterCount.wrappedValue, 2, "AfterEach didn't run correctly")
   }
 
   @TaskLocal static var local: Int = 0
@@ -73,10 +73,10 @@ final class RundownTests: Rundown.TestCase {
   }
   
   func testSkip() throws {
-    var ranSecond = false
-    var ranAfterEach = false
-    var ranAfterAll1 = false
-    var ranAfterAll2 = false
+    let ranSecond = Box(false)
+    let ranAfterEach = Box(false)
+    let ranAfterAll1 = Box(false)
+    let ranAfterAll2 = Box(false)
 
     try spec {
       Context("no hooks") {
@@ -84,7 +84,7 @@ final class RundownTests: Rundown.TestCase {
           try XCTSkipIf(true, "skip It")
         }
         It("runs second thing") {
-          ranSecond = true
+          ranSecond.set()
         }
       }
       Context("skipping in BeforeAll") {
@@ -117,7 +117,7 @@ final class RundownTests: Rundown.TestCase {
           XCTFail("should not run AfterEach")
         }
         AfterAll {
-          ranAfterAll1 = true
+          ranAfterAll1.set()
         }
       }
       Context("skipping in It") {
@@ -125,16 +125,16 @@ final class RundownTests: Rundown.TestCase {
           try XCTSkipIf(true, "skip It")
         }
         AfterEach {
-          ranAfterEach = true
+          ranAfterEach.set()
         }
         AfterAll {
-          ranAfterAll2 = true
+          ranAfterAll2.set()
         }
       }
     }
-    XCTAssert(ranSecond, "second element did not run")
-    XCTAssert(ranAfterEach, "AfterEach did not run")
-    XCTAssert(ranAfterAll1, "AfterAll did not run")
-    XCTAssert(ranAfterAll2, "AfterAll did not run")
+    XCTAssert(ranSecond.wrappedValue, "second element did not run")
+    XCTAssert(ranAfterEach.wrappedValue, "AfterEach did not run")
+    XCTAssert(ranAfterAll1.wrappedValue, "AfterAll did not run")
+    XCTAssert(ranAfterAll2.wrappedValue, "AfterAll did not run")
   }
 }

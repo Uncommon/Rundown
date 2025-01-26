@@ -50,6 +50,6 @@ func fWithin(_ description: String,
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,
          _ traits: (any Trait)...,
-         execute: @escaping () throws -> Void) -> It {
+         execute: @escaping TestCallback) -> It {
   .init(description, traits + [.focused], execute: execute)
 }
