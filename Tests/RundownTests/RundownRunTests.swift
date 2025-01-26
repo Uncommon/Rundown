@@ -20,134 +20,134 @@ class RundownRunTests: XCTestCase {
   
   func testSkipOneOfTwo() throws {
     try useAllRunners { runner in
-      var ranBeforeAll = false
-      var ranBeforeEach = false
-      var ran1 = false
-      var ran2 = false
-      var ranAfterEach = false
-      var ranAfterAll = false
-      
+      let ranBeforeAll = Box(false)
+      let ranBeforeEach = Box(false)
+      let ran1 = Box(false)
+      let ran2 = Box(false)
+      let ranAfterEach = Box(false)
+      let ranAfterAll = Box(false)
+
       let describe = Describe("Skip one of two") {
         BeforeAll {
-          ranBeforeAll = true
+          ranBeforeAll.set()
         }
         BeforeEach {
-          ranBeforeEach = true
+          ranBeforeEach.set()
         }
         It("one", .skipped) {
-          ran1 = true
+          ran1.set()
         }
         It("two") {
-          ran2 = true
+          ran2.set()
         }
         AfterEach {
-          ranAfterEach = true
+          ranAfterEach.set()
         }
         AfterAll {
-          ranAfterAll = true
+          ranAfterAll.set()
         }
       }
       
       try runner(describe)
       
-      XCTAssertTrue(ranBeforeAll)
-      XCTAssertTrue(ranBeforeEach)
-      XCTAssertFalse(ran1)
-      XCTAssertTrue(ran2)
-      XCTAssertTrue(ranAfterEach)
-      XCTAssertTrue(ranAfterAll)
+      XCTAssertTrue(ranBeforeAll.wrappedValue)
+      XCTAssertTrue(ranBeforeEach.wrappedValue)
+      XCTAssertFalse(ran1.wrappedValue)
+      XCTAssertTrue(ran2.wrappedValue)
+      XCTAssertTrue(ranAfterEach.wrappedValue)
+      XCTAssertTrue(ranAfterAll.wrappedValue)
     }
   }
   
   // No hooks should run if all elements are skipped
   func testSkipHooks() throws {
     try useAllRunners { runner in
-      var ranBeforeAll = false
-      var ranBeforeEach = false
-      var ranIt = false
-      var ranAfterEach = false
-      var ranAfterAll = false
-      
+      let ranBeforeAll = Box(false)
+      let ranBeforeEach = Box(false)
+      let ranIt = Box(false)
+      let ranAfterEach = Box(false)
+      let ranAfterAll = Box(false)
+
       try Describe("Skip hooks") {
-        BeforeAll { ranBeforeAll = true }
-        BeforeEach { ranBeforeEach = true }
-        It("skips", .skipped) { ranIt = true }
-        AfterEach { ranAfterEach = true }
-        AfterAll { ranAfterAll = true }
+        BeforeAll { ranBeforeAll.set() }
+        BeforeEach { ranBeforeEach.set() }
+        It("skips", .skipped) { ranIt.set() }
+        AfterEach { ranAfterEach.set() }
+        AfterAll { ranAfterAll.set() }
       }.run()
       
-      XCTAssertFalse(ranBeforeAll)
-      XCTAssertFalse(ranBeforeEach)
-      XCTAssertFalse(ranIt)
-      XCTAssertFalse(ranAfterEach)
-      XCTAssertFalse(ranAfterAll)
+      XCTAssertFalse(ranBeforeAll.wrappedValue)
+      XCTAssertFalse(ranBeforeEach.wrappedValue)
+      XCTAssertFalse(ranIt.wrappedValue)
+      XCTAssertFalse(ranAfterEach.wrappedValue)
+      XCTAssertFalse(ranAfterAll.wrappedValue)
     }
   }
 
   func testFocusOneOfTwo() throws {
     try useAllRunners { runner in
-      var ranBeforeAll = false
-      var ranBeforeEach = false
-      var ran1 = false
-      var ran2 = false
-      var ranAfterEach = false
-      var ranAfterAll = false
-      
+      let ranBeforeAll = Box(false)
+      let ranBeforeEach = Box(false)
+      let ran1 = Box(false)
+      let ran2 = Box(false)
+      let ranAfterEach = Box(false)
+      let ranAfterAll = Box(false)
+
       try Describe("Skip one of two") {
-        BeforeAll { ranBeforeAll = true }
-        BeforeEach { ranBeforeEach = true }
-        It("one", .focused) { ran1 = true }
-        It("two") { ran2 = true }
-        AfterEach { ranAfterEach = true }
-        AfterAll { ranAfterAll = true }
+        BeforeAll { ranBeforeAll.set() }
+        BeforeEach { ranBeforeEach.set() }
+        It("one", .focused) { ran1.set() }
+        It("two") { ran2.set() }
+        AfterEach { ranAfterEach.set() }
+        AfterAll { ranAfterAll.set() }
       }.run()
       
-      XCTAssertTrue(ranBeforeAll)
-      XCTAssertTrue(ranBeforeEach)
-      XCTAssertTrue(ran1)
-      XCTAssertFalse(ran2)
-      XCTAssertTrue(ranAfterEach)
-      XCTAssertTrue(ranAfterAll)
+      XCTAssertTrue(ranBeforeAll.wrappedValue)
+      XCTAssertTrue(ranBeforeEach.wrappedValue)
+      XCTAssertTrue(ran1.wrappedValue)
+      XCTAssertFalse(ran2.wrappedValue)
+      XCTAssertTrue(ranAfterEach.wrappedValue)
+      XCTAssertTrue(ranAfterAll.wrappedValue)
     }
   }
   
   func testDeepFocus() throws {
     try useAllRunners { runner in
-      var ranBeforeAll1 = false
-      var ranAfterAll1 = false
-      var ranBeforeAll2 = false
-      var ranAfterAll2 = false
-      var beforeEachCount1 = 0
-      var afterEachCount1 = 0
-      var beforeEachCount2 = 0
-      var afterEachCount2 = 0
-      var ran2 = false
-      
+      let ranBeforeAll1 = Box(false)
+      let ranAfterAll1 = Box(false)
+      let ranBeforeAll2 = Box(false)
+      let ranAfterAll2 = Box(false)
+      let beforeEachCount1 = Box(0)
+      let afterEachCount1 = Box(0)
+      let beforeEachCount2 = Box(0)
+      let afterEachCount2 = Box(0)
+      let ran2 = Box(false)
+
       try Describe("Deep focus") {
-        BeforeAll { ranBeforeAll1 = true }
-        BeforeEach { beforeEachCount1 += 1 }
+        BeforeAll { ranBeforeAll1.set() }
+        BeforeEach { beforeEachCount1.bump() }
         It("skips") { XCTFail("ran outer unfocused test") }
         Describe("subgroup") {
-          BeforeAll { ranBeforeAll2 = true }
-          BeforeEach { beforeEachCount2 += 1 }
-          It("runs focused", .focused) { ran2 = true }
+          BeforeAll { ranBeforeAll2.set() }
+          BeforeEach { beforeEachCount2.bump() }
+          It("runs focused", .focused) { ran2.set() }
           It("skips") { XCTFail("ran inner unfocused test") }
-          AfterEach { afterEachCount2 += 1}
-          AfterAll { ranAfterAll2 = true}
+          AfterEach { afterEachCount2.bump() }
+          AfterAll { ranAfterAll2.set() }
         }
-        AfterEach { afterEachCount1 += 1 }
-        AfterAll { ranAfterAll1 = true }
+        AfterEach { afterEachCount1.bump() }
+        AfterAll { ranAfterAll1.set() }
       }.run()
       
-      XCTAssert(ranBeforeAll1)
-      XCTAssertEqual(beforeEachCount1, 1)
-      XCTAssert(ranBeforeAll2)
-      XCTAssertEqual(beforeEachCount2, 1)
-      XCTAssert(ran2)
-      XCTAssertEqual(afterEachCount2, 1)
-      XCTAssert(ranAfterAll2)
-      XCTAssertEqual(afterEachCount1, 1)
-      XCTAssert(ranAfterAll1)
+      XCTAssert(ranBeforeAll1.wrappedValue)
+      XCTAssertEqual(beforeEachCount1.wrappedValue, 1)
+      XCTAssert(ranBeforeAll2.wrappedValue)
+      XCTAssertEqual(beforeEachCount2.wrappedValue, 1)
+      XCTAssert(ran2.wrappedValue)
+      XCTAssertEqual(afterEachCount2.wrappedValue, 1)
+      XCTAssert(ranAfterAll2.wrappedValue)
+      XCTAssertEqual(afterEachCount1.wrappedValue, 1)
+      XCTAssert(ranAfterAll1.wrappedValue)
     }
   }
 }
