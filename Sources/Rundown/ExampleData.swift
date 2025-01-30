@@ -4,11 +4,41 @@ import XCTest
 
 public typealias TestCallback = @Sendable () throws -> Void
 
+public enum Callback: Sendable {
+  public typealias Sync = @Sendable () throws -> Void
+  public typealias Async = @Sendable () async throws -> Void
+
+  case sync(Sync)
+  case async(Async)
+
+  func call() throws {
+    guard case .sync(let block) = self else {
+      preconditionFailure("calling async callback as sync")
+    }
+    try block()
+  }
+
+  func call() async throws {
+    switch self {
+      case .async(let block):
+        try await block()
+      case .sync(let block):
+        try block()
+    }
+  }
+}
+
+public protocol CallType: Sendable {}
+
+public enum SyncCall: CallType {}
+public enum AsyncCall: CallType {}
+
 public protocol TestElement: Sendable {
   var description: String { get }
   var traits: [any Trait] { get }
   
   func execute(in run: ExampleRun) throws
+  func execute(in run: ExampleRun) async throws
 }
 
 public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
@@ -17,11 +47,11 @@ public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
     Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
   public let traits: [any Trait]
-  let block: TestCallback
+  let block: Callback
 
   public init(_ name: String = "",
               _ traits: (any Trait)...,
-              execute: @escaping TestCallback) {
+              execute: @escaping Callback.Sync) {
     self.init(name, traits, execute: execute)
   }
   
@@ -30,14 +60,26 @@ public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
   // of convenience functions that add a trait to a supplied list.
   public init(_ name: String = "",
               _ traits: [any Trait],
-              execute: @escaping TestCallback) {
+              execute: @escaping Callback.Sync) {
     self.name = name
     self.traits = traits
-    self.block = execute
+    self.block = .sync(execute)
+  }
+
+  public init(_ name: String = "",
+              _ traits: [any Trait],
+              execute: @escaping Callback.Async) {
+    self.name = name
+    self.traits = traits
+    self.block = .async(execute)
   }
 
   public func execute(in run: ExampleRun) throws {
-    try block()
+    try block.call()
+  }
+
+  public func execute(in run: ExampleRun) async throws {
+    try await block.call()
   }
 }
 
@@ -104,24 +146,28 @@ extension Within {
 public struct It: TestExample {
   public let description: String
   public let traits: [any Trait]
-  let block: TestCallback
+  let block: Callback
 
   public init(_ description: String,
               _ traits: (any Trait)...,
-              execute: @escaping TestCallback) {
+              execute: @escaping Callback.Sync) {
     self.init(description, traits, execute: execute)
   }
   
   public init(_ description: String,
               _ traits: [any Trait],
-              execute: @escaping TestCallback) {
+              execute: @escaping Callback.Sync) {
     self.description = description
     self.traits = traits
-    self.block = execute
+    self.block = .sync(execute)
   }
   
   public func execute(in run: ExampleRun) throws {
-    try block()
+    try block.call()
+  }
+
+  public func execute(in run: ExampleRun) async throws {
+    try await block.call()
   }
 }
 
@@ -134,5 +180,10 @@ public func spec(@ExampleBuilder builder: () -> ExampleGroup,
 
 public func spec(_ description: String,
                  @ExampleBuilder builder: () -> ExampleGroup) throws {
+  try Describe(description, builder: builder).run()
+}
+
+public func spec(_ description: String,
+                 @ExampleBuilder builder: () -> ExampleGroup) async throws {
   try Describe(description, builder: builder).run()
 }

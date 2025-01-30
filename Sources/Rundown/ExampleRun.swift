@@ -32,7 +32,13 @@ public class ExampleRun: @unchecked Sendable {
     defer { withLock { _ = elementStack.popLast() } }
     try block()
   }
-  
+
+  func with(_ element: some TestElement, block: () async throws -> Void) async rethrows {
+    withLock { elementStack.append(element) }
+    defer { withLock { _ = elementStack.popLast() } }
+    try await block()
+  }
+
   /// Executes the elements of a group. This is managed by the run instead of
   /// the group itself because the run can have logic that it needs to apply
   /// at each step.
@@ -63,7 +69,36 @@ public class ExampleRun: @unchecked Sendable {
     }
     try runHooks(group.afterAll)
   }
-  
+
+  // same as above but with `await` sprinkled in
+  public func run(_ group: ExampleGroup) async throws {
+    func runHooks<P>(_ hooks: [TestHook<P>]) async throws {
+      for hook in filterSkip(hooks) {
+        try await with(hook) {
+          try await hook.execute(in: self)
+        }
+      }
+    }
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+
+    try await runHooks(group.beforeAll)
+    for element in elements {
+      try await runHooks(group.beforeEach)
+      try await with(element) {
+        switch element {
+          case let subgroup as ExampleGroup:
+            try await run(subgroup)
+          default:
+            try await element.execute(in: self)
+        }
+      }
+      try await runHooks(group.afterEach)
+    }
+    try await runHooks(group.afterAll)
+  }
+
   func filterSkip(_ elements: [any TestElement]) -> [any TestElement] {
     elements.filter({ !$0.isSkipped })
   }
