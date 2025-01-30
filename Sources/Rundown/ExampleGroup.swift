@@ -72,10 +72,10 @@ public struct ExampleGroup: TestExample {
   }
   
   public func run() throws {
-    try ExampleRun.run(self)
+    try ExampleRunner.run(self)
   }
   
-  public func execute(in run: ExampleRun) throws {
+  public func execute(in run: ExampleRunner) throws {
     try run.run(self)
   }
 }

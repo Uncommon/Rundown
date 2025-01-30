@@ -5,16 +5,16 @@ import XCTest
 final class RundownTests: Rundown.TestCase {
   
   func testDescriptions() throws {
-    try spec("ExampleRun") {
+    try spec("ExampleRunner") {
       Context("first context") {
         It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, first context, has correct description")
         }
       }
       Context("second context") {
         It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, second context, has correct description")
         }
       }
@@ -65,8 +65,8 @@ final class RundownTests: Rundown.TestCase {
             // TODO: Can this assumeIsolated be made unneccessary?
             MainActor.assumeIsolated {
               XCTAssert(Self.local == value)
-              XCTAssertEqual(ExampleRun.activity?.name, "has correct value")
-              XCTAssertEqual(ExampleRun.current?.description,
+              XCTAssertEqual(ExampleRunner.activity?.name, "has correct value")
+              XCTAssertEqual(ExampleRunner.current?.description,
                              "Within, with task local as \(value), has correct value")
             }
           }
@@ -109,7 +109,7 @@ final class RundownTests: Rundown.TestCase {
       }
       Context("skipping in BeforeEach") {
         BeforeEach {
-          XCTAssertEqual(ExampleRun.current!.description,
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "Skip, skipping in BeforeEach, before each")
           try XCTSkipIf(true, "skip BeforeEach")
         }

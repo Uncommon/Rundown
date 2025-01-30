@@ -8,7 +8,7 @@ public protocol TestElement: Sendable {
   var description: String { get }
   var traits: [any Trait] { get }
   
-  func execute(in run: ExampleRun) throws
+  func execute(in run: ExampleRunner) throws
 }
 
 public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
@@ -36,7 +36,7 @@ public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
     self.block = execute
   }
 
-  public func execute(in run: ExampleRun) throws {
+  public func execute(in run: ExampleRunner) throws {
     try block()
   }
 }
@@ -78,7 +78,7 @@ public struct Within: TestExample {
     self.group = .init(description, builder: example)
   }
   
-  public func execute(in run: ExampleRun) throws {
+  public func execute(in run: ExampleRunner) throws {
     try executor { try group.execute(in: run) }
   }
 }
@@ -120,7 +120,7 @@ public struct It: TestExample {
     self.block = execute
   }
   
-  public func execute(in run: ExampleRun) throws {
+  public func execute(in run: ExampleRunner) throws {
     try block()
   }
 }

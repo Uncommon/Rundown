@@ -8,9 +8,9 @@ open class TestCase: XCTestCase {
 
   /// Adds the full test element description to the issue before recording
   public override func record(_ issue: XCTIssue) {
-    guard let run = ExampleRun.current
+    guard let run = ExampleRunner.current
     else {
-      logger.warning("issue logged when no ExampleRun is set")
+      logger.warning("issue logged when no ExampleRunner is set")
       super.record(issue)
       return
     }
@@ -53,14 +53,14 @@ extension ExampleGroup {
   /// Runs the example with each element run as an `XCTContext` activity.
   /// Call this version instead of `run()` when using `XCTest`.
   ///
-  /// See `ExampleRun.runActivity()` for more details.`
+  /// See `ExampleRunner.runActivity()` for more details.`
   @MainActor
   public func runActivity(under test: XCTestCase) throws {
-    try ExampleRun.runActivity(self, under: test)
+    try ExampleRunner.runActivity(self, under: test)
   }
 }
 
-extension ExampleRun {
+extension ExampleRunner {
   @TaskLocal
   private static var activityBox: ActivityBox?
   
@@ -142,7 +142,7 @@ extension ExampleRun {
     }
     else {
       for element in elements {
-        // Use XCTContext.runActivity, but not the ExampleRun version,
+        // Use XCTContext.runActivity, but not the ExampleRunner version,
         // to group items in the output without affecting the description.
         try Self.withCurrentActivity(named: element.description) {
           do {
@@ -164,7 +164,7 @@ extension ExampleRun {
   func logSkip(_ skip: XCTSkip, element: TestElement) {
     let message = skip.message.map { ": (\($0))" } ?? ""
     
-    ExampleRun.logger.info("Skipped \"\(ExampleRun.current!.description)\"\(message)")
+    ExampleRunner.logger.info("Skipped \"\(ExampleRunner.current!.description)\"\(message)")
   }
   
   @MainActor
@@ -177,14 +177,14 @@ extension ExampleRun {
 
   @MainActor
   public static func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
-    let run = ExampleRun()
+    let runner = ExampleRunner()
 
     if let current {
       logger.error("running new element \"\(group.description)\" when already running \"\(current.description)\"")
     }
-    try ExampleRun.$current.withValue(run) {
-      try run.withElementActivity(group) {
-        try run.runActivity(group, under: test)
+    try ExampleRunner.$current.withValue(runner) {
+      try runner.withElementActivity(group) {
+        try runner.runActivity(group, under: test)
       }
     }
   }

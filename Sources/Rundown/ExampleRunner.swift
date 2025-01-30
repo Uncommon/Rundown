@@ -4,7 +4,7 @@ import XCTest
 
 /// Tracks the execution of an example group in order to construct the full name
 /// of the current element.
-public class ExampleRun: @unchecked Sendable {
+public class ExampleRunner: @unchecked Sendable {
   // Manual lock for unchecked sendability
   private let lock = NSRecursiveLock()
   internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
@@ -17,7 +17,7 @@ public class ExampleRun: @unchecked Sendable {
   }
 
   @TaskLocal
-  static var current: ExampleRun? = nil
+  static var current: ExampleRunner? = nil
 
   internal init() {}
 
@@ -53,10 +53,10 @@ public class ExampleRun: @unchecked Sendable {
       try runHooks(group.beforeEach)
       try with(element) {
         switch element {
-            case let subgroup as ExampleGroup:
-              try run(subgroup)
-            default:
-                try element.execute(in: self)
+          case let subgroup as ExampleGroup:
+            try run(subgroup)
+          default:
+              try element.execute(in: self)
         }
       }
       try runHooks(group.afterEach)
@@ -82,14 +82,14 @@ public class ExampleRun: @unchecked Sendable {
   }
 
   public static func run(_ element: some TestExample) throws {
-    let run = ExampleRun()
+    let runner = ExampleRunner()
 
     if let current {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
-    try ExampleRun.$current.withValue(run) {
-      try run.with(element) {
-        try element.execute(in: run)
+    try ExampleRunner.$current.withValue(runner) {
+      try runner.with(element) {
+        try element.execute(in: runner)
       }
     }
   }

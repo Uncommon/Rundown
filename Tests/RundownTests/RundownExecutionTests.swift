@@ -10,7 +10,7 @@ final class RundownExecutionTests: Rundown.TestCase {
       It("fails") {
         let expectedDescription = "OneItFails, fails"
         
-        XCTAssertEqual(ExampleRun.current?.description, expectedDescription)
+        XCTAssertEqual(ExampleRunner.current?.description, expectedDescription)
         XCTExpectFailure(strict: true) {
           $0.compactDescription.starts(with: expectedDescription)
         }
@@ -38,17 +38,17 @@ final class RundownExecutionTests: Rundown.TestCase {
   }
   
   func testDescriptions() throws {
-    try Describe("ExampleRun") {
+    try Describe("ExampleRunner") {
       Context("first context") {
         It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, first context, has correct description")
         }
       }
       Context("second context") {
         It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
-                         "ExampleRun, second context, has correct description")
+          XCTAssertEqual(ExampleRunner.current!.description,
+                         "ExampleRunner, second context, has correct description")
         }
       }
     }.run()
