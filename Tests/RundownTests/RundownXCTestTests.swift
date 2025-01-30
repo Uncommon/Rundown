@@ -62,10 +62,13 @@ final class RundownTests: Rundown.TestCase {
         Within("with task local as \(value)",
                local: Self.$local, value) {
           It("has correct value") {
-            XCTAssert(Self.$local.wrappedValue == value)
-            XCTAssertEqual(ExampleRun.activity?.name, "has correct value")
-            XCTAssertEqual(ExampleRun.current?.description,
-                           "Within, with task local as \(value), has correct value")
+            // TODO: Can this assumeIsolated be made unneccessary?
+            MainActor.assumeIsolated {
+              XCTAssert(Self.local == value)
+              XCTAssertEqual(ExampleRun.activity?.name, "has correct value")
+              XCTAssertEqual(ExampleRun.current?.description,
+                             "Within, with task local as \(value), has correct value")
+            }
           }
         }
       }
