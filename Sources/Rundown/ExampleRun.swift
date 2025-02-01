@@ -111,9 +111,9 @@ public class ExampleRun: @unchecked Sendable {
   }
   
   public func run(_ within: Within) throws {
-    try within.executor {
-      try run(within.group)
-    }
+    try within.executor.call(.sync {
+      try self.run(within.group)
+    })
   }
 
   public static func run(_ element: some TestExample) throws {
@@ -125,6 +125,19 @@ public class ExampleRun: @unchecked Sendable {
     try ExampleRun.$current.withValue(run) {
       try run.with(element) {
         try element.execute(in: run)
+      }
+    }
+  }
+
+  public static func run(_ element: some TestExample) async throws {
+    let run = ExampleRun()
+
+    if let current {
+      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
+    }
+    try await ExampleRun.$current.withValue(run) {
+      try await run.with(element) {
+        try await element.execute(in: run)
       }
     }
   }

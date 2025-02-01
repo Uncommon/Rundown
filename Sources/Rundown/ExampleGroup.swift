@@ -32,18 +32,6 @@ public struct ExampleGroup: TestExample {
     self.elements = builtGroup.elements
   }
 
-  internal init(_ description: String = "",
-                _ traits: [any Trait] = [],
-                elements: [any TestExample]) {
-    self.description = description
-    self.traits = traits
-    self.beforeAll = []
-    self.beforeEach = []
-    self.afterEach = []
-    self.afterAll = []
-    self.elements = elements
-  }
-
   init(description: String,
        traits: [any Trait],
        beforeAll: [BeforeAll],
@@ -74,9 +62,17 @@ public struct ExampleGroup: TestExample {
   public func run() throws {
     try ExampleRun.run(self)
   }
-  
+
+  public func run() async throws {
+    try await ExampleRun.run(self)
+  }
+
   public func execute(in run: ExampleRun) throws {
     try run.run(self)
+  }
+
+  public func execute(in run: ExampleRun) async throws {
+    try await run.run(self)
   }
 }
 

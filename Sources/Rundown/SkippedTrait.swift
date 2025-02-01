@@ -29,7 +29,7 @@ func xContext(_ description: String,
 /// Shortcut for adding a `.skipped` trait to `Within`.
 func xWithin(_ description: String,
              _ traits: [any Trait] = [],
-             executor: @escaping Within.Executor,
+             executor: Within.Executor,
              @ExampleBuilder example: () -> ExampleGroup) -> Within {
   .init(description, traits + [.skipped],
         executor: executor, example: example)
