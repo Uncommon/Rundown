@@ -145,7 +145,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     try Describe("Within") {
       Within("inside a callback") { callback in
         try "".withCString { _ in
-          try callback()
+          try callback.call()
         }
       } example: {
         It("works") {

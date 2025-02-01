@@ -41,7 +41,7 @@ func fContext(_ description: String,
 /// Shortcut for adding a `.focused` trait to `Within`.
 func fWithin(_ description: String,
              _ traits: (any Trait)...,
-             executor: @escaping Within.Executor,
+             executor: Within.Executor,
              @ExampleBuilder example: () -> ExampleGroup) -> Within {
   .init(description, traits + [.focused],
         executor: executor, example: example)
