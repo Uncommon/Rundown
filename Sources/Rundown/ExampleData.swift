@@ -201,7 +201,21 @@ public struct It: TestExample {
     self.traits = traits
     self.block = .sync(execute)
   }
-  
+
+  public init(_ description: String,
+              _ traits: (any Trait)...,
+              execute: @escaping Callback.Async) {
+    self.init(description, traits, execute: execute)
+  }
+
+  public init(_ description: String,
+              _ traits: [any Trait],
+              execute: @escaping Callback.Async) {
+    self.description = description
+    self.traits = traits
+    self.block = .async(execute)
+  }
+
   public func execute(in run: ExampleRun) throws {
     try block.call()
   }
@@ -218,12 +232,19 @@ public func spec(@ExampleBuilder builder: () -> ExampleGroup,
   try Describe(description, builder: builder).run()
 }
 
+public func spec(@ExampleBuilder builder: @Sendable () -> ExampleGroup,
+                 function: String = #function) async throws {
+  let description = String(function.prefix { $0.isIdentifier })
+    .droppingPrefix("test")
+  try await Describe(description, builder: builder).run()
+}
+
 public func spec(_ description: String,
                  @ExampleBuilder builder: () -> ExampleGroup) throws {
   try Describe(description, builder: builder).run()
 }
 
 public func spec(_ description: String,
-                 @ExampleBuilder builder: () -> ExampleGroup) async throws {
+                 @ExampleBuilder builder: @Sendable () -> ExampleGroup) async throws {
   try await Describe(description, builder: builder).run()
 }
