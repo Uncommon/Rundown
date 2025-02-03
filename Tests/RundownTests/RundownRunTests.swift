@@ -28,7 +28,20 @@ class RundownRunTests: XCTestCase {
     try await test(xcTestRunner)
     try await test(asyncRunner)
   }
-  
+
+  func testAsyncIt() async throws {
+    let ran = Box(false)
+
+    try await Rundown.spec {
+      It("does an async thing") {
+        try await Task.sleep(for: .milliseconds(100))
+        ran.set()
+      }
+    }
+
+    XCTAssert(ran.wrappedValue)
+  }
+
   func testSkipOneOfTwo() async throws {
     try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
