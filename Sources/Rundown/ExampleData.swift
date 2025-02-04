@@ -2,8 +2,6 @@ import Foundation
 import OSLog
 import XCTest
 
-public typealias TestCallback = @Sendable () throws -> Void
-
 /// Contains either a sync or async callback with no parameters.
 public enum Callback: Sendable {
   public typealias Sync = @Sendable () throws -> Void

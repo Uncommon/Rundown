@@ -38,6 +38,13 @@ func xWithin(_ description: String,
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],
-         execute: @escaping TestCallback) -> It {
+         execute: @escaping Callback.Sync) -> It {
+  .init(description, traits + [.skipped], execute: execute)
+}
+
+/// Shortcut for adding a `.skipped` trait to `It`.
+func xIt(_ description: String,
+         _ traits: [any Trait] = [],
+         execute: @escaping Callback.Async) -> It {
   .init(description, traits + [.skipped], execute: execute)
 }
