@@ -1,4 +1,9 @@
-public struct ExampleGroup: TestExample {
+public struct ExampleGroup<Call: CallType>: TestExample {
+  typealias BeforeAll = TestHook<BeforeAllPhase, Call>
+  typealias BeforeEach = TestHook<BeforeEachPhase, Call>
+  typealias AfterEach = TestHook<AfterEachPhase, Call>
+  typealias AfterAll = TestHook<AfterAllPhase, Call>
+
   public let description: String
   public let traits: [any Trait]
   let beforeAll: [BeforeAll]
@@ -13,13 +18,13 @@ public struct ExampleGroup: TestExample {
 
   public init(_ description: String,
               _ traits: (any Trait)...,
-              @ExampleBuilder builder: () -> ExampleGroup) {
+              @ExampleBuilder<Call> builder: () -> ExampleGroup<Call>) {
     self.init(description, traits, builder: builder)
   }
 
   public init(_ description: String,
               _ traits: [any Trait],
-              @ExampleBuilder builder: () -> ExampleGroup)
+              @ExampleBuilder<Call> builder: () -> ExampleGroup<Call>)
   {
     let builtGroup = builder()
     

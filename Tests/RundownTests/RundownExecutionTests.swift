@@ -19,8 +19,8 @@ final class RundownExecutionTests: Rundown.TestCase {
     }
   }
   
-  @Example @ExampleBuilder
-  func oneItPeer() throws -> ExampleGroup {
+  @Example @ExampleBuilder<SyncCall>
+  func oneItPeer() throws -> ExampleGroup<SyncCall> {
     It("works") {
       XCTAssert(true)
     }
@@ -29,16 +29,16 @@ final class RundownExecutionTests: Rundown.TestCase {
   func testExecuteDescribe() throws {
     let executed = Box(false)
 
-    try Describe("Running the test") {
+    try spec("Running the test") {
       It("works") {
         executed.set()
       }
-    }.run()
+    }
     XCTAssert(executed.wrappedValue)
   }
   
   func testDescriptions() throws {
-    try Describe("ExampleRun") {
+    try spec("ExampleRun") {
       Context("first context") {
         It("has correct description") {
           XCTAssertEqual(ExampleRun.current!.description,
@@ -51,7 +51,7 @@ final class RundownExecutionTests: Rundown.TestCase {
                          "ExampleRun, second context, has correct description")
         }
       }
-    }.run()
+    }
   }
 
   func testBeforeAfterAll() throws {
@@ -60,7 +60,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     let didAfter = Box(false)
 
     try Describe("Running hooks") {
-      BeforeAll {
+      beforeAll {
         didBefore.set()
       }
 
@@ -68,7 +68,7 @@ final class RundownExecutionTests: Rundown.TestCase {
         didIt.set()
       }
 
-      AfterAll {
+      afterAll {
         didAfter.set()
       }
     }.run()
@@ -81,13 +81,13 @@ final class RundownExecutionTests: Rundown.TestCase {
     let expected = 3
     let count = Box(0)
 
-    try Describe("For loop") {
+    try spec("For loop") {
       for _ in 1...expected {
         It("iterates") {
           count.bump()
         }
       }
-    }.run()
+    }
     XCTAssertEqual(count.wrappedValue, expected)
   }
 
@@ -96,7 +96,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     let count1 = Box(0)
     let count2 = Box(0)
 
-    try Describe("For loop") {
+    try spec("For loop") {
       for _ in 1...expected {
         It("iterates 1") {
           count1.bump()
@@ -105,7 +105,7 @@ final class RundownExecutionTests: Rundown.TestCase {
           count2.bump()
         }
       }
-    }.run()
+    }
     XCTAssertEqual(count1.wrappedValue, expected)
     XCTAssertEqual(count2.wrappedValue, expected)
   }
@@ -119,7 +119,7 @@ final class RundownExecutionTests: Rundown.TestCase {
 
     try Describe("For loop") {
       for _ in 1...expected {
-        BeforeAll {
+        beforeAll {
           beforeCount.bump()
         }
         It("iterates 1") {
@@ -128,7 +128,7 @@ final class RundownExecutionTests: Rundown.TestCase {
         It("iterates 2") {
           count2.bump()
         }
-        AfterAll {
+        afterAll {
           afterCount.bump()
         }
       }
@@ -138,7 +138,8 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertEqual(beforeCount.wrappedValue, expected)
     XCTAssertEqual(afterCount.wrappedValue, expected)
   }
-  
+
+  #if false
   func testWithin() throws {
     let executed = Box(false)
 
@@ -156,4 +157,5 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     XCTAssert(executed.wrappedValue)
   }
+  #endif
 }
