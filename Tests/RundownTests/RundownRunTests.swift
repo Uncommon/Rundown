@@ -93,11 +93,11 @@ class RundownRunTests: XCTestCase {
       let ranAfterAll = Box(false)
 
       let group = Describe("Skip hooks") {
-        BeforeAll { ranBeforeAll.set() }
-        BeforeEach { ranBeforeEach.set() }
+        beforeAll { ranBeforeAll.set() }
+        beforeEach { ranBeforeEach.set() }
         It("skips", .skipped) { ranIt.set() }
-        AfterEach { ranAfterEach.set() }
-        AfterAll { ranAfterAll.set() }
+        afterEach { ranAfterEach.set() }
+        afterAll { ranAfterAll.set() }
       }
 
       try await runner(group)
@@ -119,12 +119,12 @@ class RundownRunTests: XCTestCase {
       let ranAfterAll = Box(false)
 
       let group = Describe("Skip one of two") {
-        BeforeAll { ranBeforeAll.set() }
-        BeforeEach { ranBeforeEach.set() }
+        beforeAll { ranBeforeAll.set() }
+        beforeEach { ranBeforeEach.set() }
         It("one", .focused) { ran1.set() }
         It("two") { ran2.set() }
-        AfterEach { ranAfterEach.set() }
-        AfterAll { ranAfterAll.set() }
+        afterEach { ranAfterEach.set() }
+        afterAll { ranAfterAll.set() }
       }
 
       try await runner(group)

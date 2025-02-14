@@ -42,8 +42,8 @@ public class ExampleRun: @unchecked Sendable {
   /// Executes the elements of a group. This is managed by the run instead of
   /// the group itself because the run can have logic that it needs to apply
   /// at each step.
-  public func run(_ group: ExampleGroup) throws {
-    func runHooks<P>(_ hooks: [TestHook<P>]) throws {
+  public func run(_ group: ExampleGroup<SyncCall>) throws {
+    func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
       for hook in filterSkip(hooks) {
         try with(hook) {
           try hook.execute(in: self)
@@ -59,10 +59,10 @@ public class ExampleRun: @unchecked Sendable {
       try runHooks(group.beforeEach)
       try with(element) {
         switch element {
-            case let subgroup as ExampleGroup:
-              try run(subgroup)
-            default:
-                try element.execute(in: self)
+          case let subgroup as ExampleGroup<SyncCall>:
+            try run(subgroup)
+          default:
+              try element.execute(in: self)
         }
       }
       try runHooks(group.afterEach)
@@ -71,8 +71,8 @@ public class ExampleRun: @unchecked Sendable {
   }
 
   // same as above but with `await` sprinkled in
-  public func run(_ group: ExampleGroup) async throws {
-    func runHooks<P>(_ hooks: [TestHook<P>]) async throws {
+  public func run(_ group: ExampleGroup<AsyncCall>) async throws {
+    func runHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
       for hook in filterSkip(hooks) {
         try await with(hook) {
           try await hook.execute(in: self)
@@ -88,7 +88,7 @@ public class ExampleRun: @unchecked Sendable {
       try await runHooks(group.beforeEach)
       try await with(element) {
         switch element {
-          case let subgroup as ExampleGroup:
+          case let subgroup as ExampleGroup<AsyncCall>:
             try await run(subgroup)
           default:
             try await element.execute(in: self)
@@ -109,12 +109,14 @@ public class ExampleRun: @unchecked Sendable {
     
     return focused.isEmpty ? nonSkipped : focused
   }
-  
+
+  #if false
   public func run(_ within: Within) throws {
     try within.executor.call(.sync {
       try self.run(within.group)
     })
   }
+  #endif
 
   public static func run(_ element: some TestExample) throws {
     let run = ExampleRun()

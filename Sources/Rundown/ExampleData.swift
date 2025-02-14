@@ -68,38 +68,13 @@ public protocol TestElement: Sendable {
   func execute(in run: ExampleRun) async throws
 }
 
-public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
+public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable {
   public let name: String
   public var description: String {
     Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
   public let traits: [any Trait]
   let block: Callback
-
-  public init(_ name: String = "",
-              _ traits: (any Trait)...,
-              execute: @escaping Callback.Sync) {
-    self.init(name, traits, execute: execute)
-  }
-  
-  // Since Swift doesn't yet support "splatting" variadic arguments,
-  // each of these constructors must have both versions for the sake
-  // of convenience functions that add a trait to a supplied list.
-  public init(_ name: String = "",
-              _ traits: [any Trait],
-              execute: @escaping Callback.Sync) {
-    self.name = name
-    self.traits = traits
-    self.block = .sync(execute)
-  }
-
-  public init(_ name: String = "",
-              _ traits: [any Trait],
-              execute: @escaping Callback.Async) {
-    self.name = name
-    self.traits = traits
-    self.block = .async(execute)
-  }
 
   public func execute(in run: ExampleRun) throws {
     try block.call()
@@ -110,16 +85,81 @@ public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
   }
 }
 
-public typealias BeforeAll = TestHook<BeforeAllPhase>
-public typealias BeforeEach = TestHook<BeforeEachPhase>
-public typealias AfterEach = TestHook<AfterEachPhase>
-public typealias AfterAll = TestHook<AfterAllPhase>
+extension TestHook where Call == SyncCall {
+  public init(_ name: String = "",
+              _ traits: (any Trait)...,
+              execute: @escaping Callback.Sync) {
+    self.init(name, traits, execute: execute)
+  }
+
+  // Since Swift doesn't yet support "splatting" variadic arguments,
+  // each of these constructors must have both versions for the sake
+  // of convenience functions that add a trait to a supplied list.
+  public init(_ name: String = "",
+              _ traits: [any Trait],
+              execute: @escaping Callback.Sync) {
+    self.name = name
+    self.traits = traits
+    self.block = .sync(execute)
+  }
+}
+
+extension TestHook where Call == AsyncCall {
+  public init(_ name: String = "",
+              _ traits: [any Trait],
+              execute: @escaping Callback.Async) {
+    self.name = name
+    self.traits = traits
+    self.block = .async(execute)
+  }
+}
+
+public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping Callback.Sync) -> TestHook<BeforeAllPhase, SyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping Callback.Async) -> TestHook<BeforeAllPhase, AsyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func beforeEach(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping Callback.Sync) -> TestHook<BeforeEachPhase, SyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func beforeEach(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping Callback.Async) -> TestHook<BeforeEachPhase, AsyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func afterEach(_ name: String = "", _ traits: (any Trait)...,
+                       execute: @escaping Callback.Sync) -> TestHook<AfterEachPhase, SyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func afterEach(_ name: String = "", _ traits: (any Trait)...,
+                       execute: @escaping Callback.Async) -> TestHook<AfterEachPhase, AsyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func afterAll(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping Callback.Sync) -> TestHook<AfterAllPhase, SyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+public func afterAll(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping Callback.Async) -> TestHook<AfterAllPhase, AsyncCall> {
+  .init(name, traits, execute: execute)
+}
 
 public protocol TestExample: TestElement {
   var isDeepFocused: Bool { get }
 }
 
 
+#if false // TODO: figure out async Within
 /// Example group that allows for callback-based setup and teardown, such as
 /// `TaskLocal.withValue()`
 public struct Within: TestExample {
@@ -179,6 +219,7 @@ extension Within {
     self.group = .init(description, builder: example)
   }
 }
+#endif
 
 
 public struct It: TestExample {
@@ -223,14 +264,14 @@ public struct It: TestExample {
   }
 }
 
-public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
                  function: String = #function) throws {
   let description = String(function.prefix { $0.isIdentifier })
     .droppingPrefix("test")
   try Describe(description, builder: builder).run()
 }
 
-public func spec(@ExampleBuilder builder: @Sendable () -> ExampleGroup,
+public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
                  function: String = #function) async throws {
   let description = String(function.prefix { $0.isIdentifier })
     .droppingPrefix("test")
@@ -238,11 +279,11 @@ public func spec(@ExampleBuilder builder: @Sendable () -> ExampleGroup,
 }
 
 public func spec(_ description: String,
-                 @ExampleBuilder builder: () -> ExampleGroup) throws {
+                 @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
   try Describe(description, builder: builder).run()
 }
 
 public func spec(_ description: String,
-                 @ExampleBuilder builder: @Sendable () -> ExampleGroup) async throws {
+                 @ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async throws {
   try await Describe(description, builder: builder).run()
 }
