@@ -65,19 +65,19 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   }
   
   public func run() throws {
-    try ExampleRun.run(self)
+    try ExampleRunner.run(self)
   }
 
   public func run() async throws {
-    try await ExampleRun.run(self)
+    try await ExampleRunner.run(self)
   }
 
-  public func execute(in run: ExampleRun) throws {
-    try run.run(self)
+  public func execute(in runner: ExampleRunner) throws {
+    try runner.run(self)
   }
 
-  public func execute(in run: ExampleRun) async throws {
-    try await run.run(self)
+  public func execute(in runner: ExampleRunner) async throws {
+    try await runner.run(self)
   }
 }
 
