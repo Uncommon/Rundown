@@ -64,8 +64,8 @@ public protocol TestElement: Sendable {
   var description: String { get }
   var traits: [any Trait] { get }
   
-  func execute(in run: ExampleRun) throws
-  func execute(in run: ExampleRun) async throws
+  func execute(in runner: ExampleRunner) throws
+  func execute(in runner: ExampleRunner) async throws
 }
 
 public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable {
@@ -76,11 +76,11 @@ public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable 
   public let traits: [any Trait]
   let block: Callback
 
-  public func execute(in run: ExampleRun) throws {
+  public func execute(in runner: ExampleRunner) throws {
     try block.call()
   }
 
-  public func execute(in run: ExampleRun) async throws {
+  public func execute(in runner: ExampleRunner) async throws {
     try await block.call()
   }
 }
@@ -194,12 +194,12 @@ public struct Within: TestExample {
     self.group = .init(description, builder: example)
   }
   
-  public func execute(in run: ExampleRun) throws {
-    try executor.call(.sync { try group.execute(in: run) })
+  public func execute(in runner: ExampleRunner) throws {
+    try executor.call(.sync { try group.execute(in: runner) })
   }
 
-  public func execute(in run: ExampleRun) async throws {
-    try await executor.call(.async { try await group.execute(in: run) })
+  public func execute(in runner: ExampleRunner) async throws {
+    try await executor.call(.async { try await group.execute(in: runner) })
   }
 }
 
@@ -255,11 +255,11 @@ public struct It: TestExample {
     self.block = .async(execute)
   }
 
-  public func execute(in run: ExampleRun) throws {
+  public func execute(in runner: ExampleRunner) throws {
     try block.call()
   }
 
-  public func execute(in run: ExampleRun) async throws {
+  public func execute(in runner: ExampleRunner) async throws {
     try await block.call()
   }
 }

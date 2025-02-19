@@ -16,5 +16,5 @@ public macro Example() = #externalMacro(module: "RundownMacros", type: "ExampleM
 // into this:
 // func thing() throws -> ExampleGroup { ··· }
 // func testThing() throws {
-//   try ExampleRun.run(thing())
+//   try ExampleRunner.run(thing())
 // }

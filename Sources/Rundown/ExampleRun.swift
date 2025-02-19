@@ -4,10 +4,10 @@ import XCTest
 
 /// Tracks the execution of an example group in order to construct the full name
 /// of the current element.
-public class ExampleRun: @unchecked Sendable {
+public class ExampleRunner: @unchecked Sendable {
   // Manual lock for unchecked sendability
   private let lock = NSRecursiveLock()
-  internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
+  internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRunner")
 
   var elementStack: [any TestElement] = []
   var description: String {
@@ -17,7 +17,7 @@ public class ExampleRun: @unchecked Sendable {
   }
 
   @TaskLocal
-  static var current: ExampleRun? = nil
+  static var current: ExampleRunner? = nil
 
   internal init() {}
 
@@ -39,8 +39,8 @@ public class ExampleRun: @unchecked Sendable {
     try await block()
   }
 
-  /// Executes the elements of a group. This is managed by the run instead of
-  /// the group itself because the run can have logic that it needs to apply
+  /// Executes the elements of a group. This is managed by the runner instead of
+  /// the group itself because the runner can have logic that it needs to apply
   /// at each step.
   public func run(_ group: ExampleGroup<SyncCall>) throws {
     func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
@@ -119,27 +119,27 @@ public class ExampleRun: @unchecked Sendable {
   #endif
 
   public static func run(_ element: some TestExample) throws {
-    let run = ExampleRun()
+    let runner = ExampleRunner()
 
     if let current {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
-    try ExampleRun.$current.withValue(run) {
-      try run.with(element) {
-        try element.execute(in: run)
+    try ExampleRunner.$current.withValue(runner) {
+      try runner.with(element) {
+        try element.execute(in: runner)
       }
     }
   }
 
   public static func run(_ element: some TestExample) async throws {
-    let run = ExampleRun()
+    let runner = ExampleRunner()
 
     if let current {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
-    try await ExampleRun.$current.withValue(run) {
-      try await run.with(element) {
-        try await element.execute(in: run)
+    try await ExampleRunner.$current.withValue(runner) {
+      try await runner.with(element) {
+        try await element.execute(in: runner)
       }
     }
   }
