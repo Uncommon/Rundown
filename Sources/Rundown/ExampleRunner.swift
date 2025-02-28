@@ -44,7 +44,7 @@ public class ExampleRunner: @unchecked Sendable {
   /// at each step.
   public func run(_ group: ExampleGroup<SyncCall>) throws {
     func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
-      for hook in filterSkip(hooks) {
+      for hook in hooks.filter({ !$0.isSkipped }) {
         try with(hook) {
           try hook.execute(in: self)
         }
@@ -61,8 +61,13 @@ public class ExampleRunner: @unchecked Sendable {
         switch element {
           case let subgroup as ExampleGroup<SyncCall>:
             try run(subgroup)
+          case let it as It<SyncCall>:
+            try it.execute(in: self)
+          case _ as ExampleGroup<AsyncCall>, _ as It<AsyncCall>:
+            // TestBuilder should prevent this from happening
+            throw UnexpectedAsyncError()
           default:
-              try element.execute(in: self)
+            preconditionFailure("unexpected element type")
         }
       }
       try runHooks(group.afterEach)
@@ -90,8 +95,10 @@ public class ExampleRunner: @unchecked Sendable {
         switch element {
           case let subgroup as ExampleGroup<AsyncCall>:
             try await run(subgroup)
+          case let it as It<AsyncCall>:
+            try await it.execute(in: self)
           default:
-            try await element.execute(in: self)
+            preconditionFailure("unexpected element type")
         }
       }
       try await runHooks(group.afterEach)
@@ -99,7 +106,7 @@ public class ExampleRunner: @unchecked Sendable {
     try await runHooks(group.afterAll)
   }
 
-  func filterSkip(_ elements: [any TestElement]) -> [any TestElement] {
+  func filterSkip<E: TestElement>(_ elements: [E]) -> [E] {
     elements.filter({ !$0.isSkipped })
   }
   
@@ -118,7 +125,7 @@ public class ExampleRunner: @unchecked Sendable {
   }
   #endif
 
-  public static func run(_ element: some TestExample) throws {
+  public static func run(_ element: ExampleGroup<SyncCall>) throws {
     let runner = ExampleRunner()
 
     if let current {
@@ -131,7 +138,7 @@ public class ExampleRunner: @unchecked Sendable {
     }
   }
 
-  public static func run(_ element: some TestExample) async throws {
+  public static func run(_ element: ExampleGroup<AsyncCall>) async throws {
     let runner = ExampleRunner()
 
     if let current {

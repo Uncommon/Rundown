@@ -27,36 +27,38 @@ public extension TestExample {
 /// Shortcut for adding a `.focused` trait to `Describe`.
 func fDescribe(_ description: String,
                _ traits: (any Trait)...,
-               @ExampleBuilder builder: () -> ExampleGroup) -> Describe {
+               @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
   .init(description, traits + [.focused], builder: builder)
 }
 
 /// Shortcut for adding a `.focused` trait to `Context`.
 func fContext(_ description: String,
               _ traits: [any Trait] = [],
-              @ExampleBuilder builder: () -> ExampleGroup) -> Context {
+              @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
   .init(description, traits + [.focused], builder: builder)
 }
 
+#if false
 /// Shortcut for adding a `.focused` trait to `Within`.
 func fWithin(_ description: String,
              _ traits: (any Trait)...,
              executor: Within.Executor,
-             @ExampleBuilder example: () -> ExampleGroup) -> Within {
+             @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within {
   .init(description, traits + [.focused],
         executor: executor, example: example)
 }
+#endif
 
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,
          _ traits: (any Trait)...,
-         execute: @escaping Callback.Sync) -> It {
+         execute: @escaping Callback.Sync) -> It<SyncCall> {
   .init(description, traits + [.focused], execute: execute)
 }
 
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,
          _ traits: (any Trait)...,
-         execute: @escaping Callback.Async) -> It {
+         execute: @escaping Callback.Async) -> It<AsyncCall> {
   .init(description, traits + [.focused], execute: execute)
 }

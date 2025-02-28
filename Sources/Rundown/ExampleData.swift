@@ -25,6 +25,17 @@ public enum Callback: Sendable {
         try block()
     }
   }
+  
+  func toAsync() -> Callback {
+    switch self {
+      case .async:
+        return self
+      case .sync(let block):
+        return .async {
+          try block()
+        }
+    }
+  }
 }
 
 // The initial thought was to use a parameter pack and have a single enum
@@ -60,12 +71,12 @@ public protocol CallType: Sendable {}
 public enum SyncCall: CallType {}
 public enum AsyncCall: CallType {}
 
+/// An async test element was found while running a non-async test
+public struct UnexpectedAsyncError: Error {}
+
 public protocol TestElement: Sendable {
   var description: String { get }
   var traits: [any Trait] { get }
-  
-  func execute(in runner: ExampleRunner) throws
-  func execute(in runner: ExampleRunner) async throws
 }
 
 public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable {
@@ -111,6 +122,12 @@ extension TestHook where Call == AsyncCall {
     self.name = name
     self.traits = traits
     self.block = .async(execute)
+  }
+  
+  public init(fromSync other: TestHook<Phase, SyncCall>) {
+    self.name = other.name
+    self.traits = other.traits
+    self.block = other.block.toAsync()
   }
 }
 
@@ -222,7 +239,7 @@ extension Within {
 #endif
 
 
-public struct It: TestExample {
+public struct It<Call: CallType>: TestExample {
   public let description: String
   public let traits: [any Trait]
   let block: Callback
@@ -264,26 +281,48 @@ public struct It: TestExample {
   }
 }
 
+extension It where Call == AsyncCall {
+  public init(fromSync other: It<SyncCall>) {
+    self.description = other.description
+    self.traits = other.traits
+    self.block = other.block.toAsync()
+  }
+}
+
+public func it(_ description: String,
+               _ traits: (any Trait)...,
+               execute: @escaping Callback.Sync) -> It<SyncCall> {
+  .init(description, traits, execute: execute)
+}
+
+public func it(_ description: String,
+               _ traits: (any Trait)...,
+               execute: @escaping Callback.Async) -> It<AsyncCall> {
+  .init(description, traits, execute: execute)
+}
+
+// async overload
+
 public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
                  function: String = #function) throws {
   let description = String(function.prefix { $0.isIdentifier })
     .droppingPrefix("test")
-  try Describe(description, builder: builder).run()
+  try describe(description, builder: builder).run()
 }
 
 public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
                  function: String = #function) async throws {
   let description = String(function.prefix { $0.isIdentifier })
     .droppingPrefix("test")
-  try await Describe(description, builder: builder).run()
+  try await describe(description, builder: builder).run()
 }
 
 public func spec(_ description: String,
                  @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
-  try Describe(description, builder: builder).run()
+  try describe(description, builder: builder).run()
 }
 
 public func spec(_ description: String,
                  @ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async throws {
-  try await Describe(description, builder: builder).run()
+  try await describe(description, builder: builder).run()
 }

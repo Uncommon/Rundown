@@ -7,10 +7,10 @@ final class RundownExecutionTests: Rundown.TestCase {
 
   func testOneItFails() throws {
     try spec {
-      It("fails") {
+      it("fails") {
         let expectedDescription = "OneItFails, fails"
         
-        XCTAssertEqual(ExampleRun.current?.description, expectedDescription)
+        XCTAssertEqual(ExampleRunner.current?.description, expectedDescription)
         XCTExpectFailure(strict: true) {
           $0.compactDescription.starts(with: expectedDescription)
         }
@@ -21,7 +21,7 @@ final class RundownExecutionTests: Rundown.TestCase {
   
   @Example @ExampleBuilder<SyncCall>
   func oneItPeer() throws -> ExampleGroup<SyncCall> {
-    It("works") {
+    it("works") {
       XCTAssert(true)
     }
   }
@@ -30,7 +30,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     let executed = Box(false)
 
     try spec("Running the test") {
-      It("works") {
+      it("works") {
         executed.set()
       }
     }
@@ -39,15 +39,15 @@ final class RundownExecutionTests: Rundown.TestCase {
   
   func testDescriptions() throws {
     try spec("ExampleRun") {
-      Context("first context") {
-        It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+      context("first context") {
+        it("has correct description") {
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, first context, has correct description")
         }
       }
-      Context("second context") {
-        It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+      context("second context") {
+        it("has correct description") {
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, second context, has correct description")
         }
       }
@@ -59,12 +59,12 @@ final class RundownExecutionTests: Rundown.TestCase {
     let didIt = Box(false)
     let didAfter = Box(false)
 
-    try Describe("Running hooks") {
+    try describe("Running hooks") {
       beforeAll {
         didBefore.set()
       }
 
-      It("works") {
+      it("works") {
         didIt.set()
       }
 
@@ -83,7 +83,7 @@ final class RundownExecutionTests: Rundown.TestCase {
 
     try spec("For loop") {
       for _ in 1...expected {
-        It("iterates") {
+        it("iterates") {
           count.bump()
         }
       }
@@ -98,10 +98,10 @@ final class RundownExecutionTests: Rundown.TestCase {
 
     try spec("For loop") {
       for _ in 1...expected {
-        It("iterates 1") {
+        it("iterates 1") {
           count1.bump()
         }
-        It("iterates 2") {
+        it("iterates 2") {
           count2.bump()
         }
       }
@@ -117,15 +117,15 @@ final class RundownExecutionTests: Rundown.TestCase {
     let count2 = Box(0)
     let afterCount = Box(0)
 
-    try Describe("For loop") {
+    try describe("For loop") {
       for _ in 1...expected {
         beforeAll {
           beforeCount.bump()
         }
-        It("iterates 1") {
+        it("iterates 1") {
           count1.bump()
         }
-        It("iterates 2") {
+        it("iterates 2") {
           count2.bump()
         }
         afterAll {

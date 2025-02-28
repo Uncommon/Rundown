@@ -49,8 +49,8 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     .init(data: data).adding(element)
   }
 
-  func phaseHooks<P: HookPhase>(_ phase: P.Type) -> [TestHook<P>] {
-    data[.init(TestHook<P>.self)]?.compactMap { $0 as? TestHook<P> } ?? []
+  func phaseHooks<P: HookPhase, C: CallType>(_ phase: P.Type) -> [TestHook<P, C>] {
+    data[.init(TestHook<P, C>.self)]?.compactMap { $0 as? TestHook<P, C> } ?? []
   }
 
   func examples() -> [TestExample] {

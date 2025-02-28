@@ -6,15 +6,15 @@ final class RundownTests: Rundown.TestCase {
   
   func testDescriptions() throws {
     try spec("ExampleRun") {
-      Context("first context") {
-        It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+      context("first context") {
+        it("has correct description") {
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, first context, has correct description")
         }
       }
-      Context("second context") {
-        It("has correct description") {
-          XCTAssertEqual(ExampleRun.current!.description,
+      context("second context") {
+        it("has correct description") {
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, second context, has correct description")
         }
       }
@@ -27,25 +27,25 @@ final class RundownTests: Rundown.TestCase {
     let afterCount = Box(0)
 
     try spec("Running 'each' hooks") {
-      BeforeEach {
+      beforeEach {
         beforeCount.bump()
       }
 
-      It("runs first test") {
+      it("runs first test") {
         XCTAssertEqual(beforeCount.wrappedValue, 1, "BeforeEach missed")
         XCTAssertEqual(afterCount.wrappedValue, 0, "AfterEach missed")
         itCount.bump()
       }
 
-      Context("in a context") {
-        It("runs second test") {
+      context("in a context") {
+        it("runs second test") {
           XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEach missed")
           XCTAssertEqual(afterCount.wrappedValue, 1, "AfterEach missed")
           itCount.bump()
         }
       }
 
-      AfterEach {
+      afterEach {
         afterCount.bump()
       }
     }
@@ -79,55 +79,55 @@ final class RundownTests: Rundown.TestCase {
     let ranAfterAll2 = Box(false)
 
     try spec {
-      Context("no hooks") {
-        It("skips") {
+      context("no hooks") {
+        it("skips") {
           try XCTSkipIf(true, "skip It")
         }
-        It("runs second thing") {
+        it("runs second thing") {
           ranSecond.set()
         }
       }
-      Context("skipping in BeforeAll") {
-        BeforeAll {
+      context("skipping in BeforeAll") {
+        beforeAll {
           try XCTSkipIf(true, "skip BeforeAll")
         }
-        BeforeEach {
+        beforeEach {
           XCTFail("should not run BeforeEach")
         }
-        It("skips elements") {
+        it("skips elements") {
           XCTFail("should not run It")
         }
-        AfterEach {
+        afterEach {
           XCTFail("should not run AfterEach")
         }
-        AfterAll {
+        afterAll {
           XCTFail("should not run AfterEach")
         }
       }
-      Context("skipping in BeforeEach") {
-        BeforeEach {
-          XCTAssertEqual(ExampleRun.current!.description,
+      context("skipping in BeforeEach") {
+        beforeEach {
+          XCTAssertEqual(ExampleRunner.current!.description,
                          "Skip, skipping in BeforeEach, before each")
           try XCTSkipIf(true, "skip BeforeEach")
         }
-        It("skips elements") {
+        it("skips elements") {
           XCTFail("should not run It")
         }
-        AfterEach {
+        afterEach {
           XCTFail("should not run AfterEach")
         }
-        AfterAll {
+        afterAll {
           ranAfterAll1.set()
         }
       }
-      Context("skipping in It") {
-        It("skips") {
+      context("skipping in It") {
+        it("skips") {
           try XCTSkipIf(true, "skip It")
         }
-        AfterEach {
+        afterEach {
           ranAfterEach.set()
         }
-        AfterAll {
+        afterAll {
           ranAfterAll2.set()
         }
       }
