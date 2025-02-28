@@ -63,17 +63,40 @@ public struct ExampleGroup<Call: CallType>: TestExample {
                      afterAll: afterAll,
                      elements: elements)
   }
-  
+}
+
+extension ExampleGroup where Call == SyncCall {
   public func run() throws {
     try ExampleRunner.run(self)
   }
 
-  public func run() async throws {
-    try await ExampleRunner.run(self)
-  }
-
   public func execute(in runner: ExampleRunner) throws {
     try runner.run(self)
+  }
+}
+
+extension ExampleGroup where Call == AsyncCall {
+  public init(fromSync other: ExampleGroup<SyncCall>) {
+    self.description = other.description
+    self.traits = other.traits
+    self.beforeAll = other.beforeAll.map { .init(fromSync: $0) }
+    self.beforeEach = other.beforeEach.map { .init(fromSync: $0) }
+    self.afterEach = other.afterEach.map { .init(fromSync: $0) }
+    self.afterAll = other.afterAll.map { .init(fromSync: $0) }
+    self.elements = other.elements.map {
+      switch $0 {
+        case let syncIt as It<SyncCall>:
+          It<AsyncCall>.init(fromSync: syncIt)
+        case let syncGroup as ExampleGroup<SyncCall>:
+          ExampleGroup<AsyncCall>.init(fromSync: syncGroup)
+        default:
+          preconditionFailure("unexpected element")
+      }
+    }
+  }
+
+  public func run() async throws {
+    try await ExampleRunner.run(self)
   }
 
   public func execute(in runner: ExampleRunner) async throws {
@@ -81,5 +104,26 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   }
 }
 
-public typealias Describe = ExampleGroup
-public typealias Context = ExampleGroup
+public func describe(_ description: String,
+                     _ traits: (any Trait)...,
+                     @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
+  .init(description, traits, builder: builder)
+}
+
+public func describe(_ description: String,
+                     _ traits: (any Trait)...,
+                     @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) async -> ExampleGroup<AsyncCall> {
+  .init(description, traits, builder: builder)
+}
+
+public func context(_ description: String,
+                    _ traits: (any Trait)...,
+                    @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
+  .init(description, traits, builder: builder)
+}
+
+public func context(_ description: String,
+                    _ traits: (any Trait)...,
+                    @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) async -> ExampleGroup<AsyncCall> {
+  .init(description, traits, builder: builder)
+}

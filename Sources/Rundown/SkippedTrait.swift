@@ -15,17 +15,18 @@ public extension TestElement {
 /// Shortcut for adding a `.skipped` trait to `Describe`.
 func xDescribe(_ description: String,
                _ traits: [any Trait] = [],
-               @ExampleBuilder builder: () -> ExampleGroup) -> Describe {
+               @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
   .init(description, traits + [.skipped], builder: builder)
 }
 
 /// Shortcut for adding a `.skipped` trait to `Context`.
 func xContext(_ description: String,
               _ traits: [any Trait] = [],
-              @ExampleBuilder builder: () -> ExampleGroup) -> Context {
+              @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
   .init(description, traits + [.skipped], builder: builder)
 }
 
+#if false
 /// Shortcut for adding a `.skipped` trait to `Within`.
 func xWithin(_ description: String,
              _ traits: [any Trait] = [],
@@ -34,17 +35,18 @@ func xWithin(_ description: String,
   .init(description, traits + [.skipped],
         executor: executor, example: example)
 }
+#endif
 
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],
-         execute: @escaping Callback.Sync) -> It {
+         execute: @escaping Callback.Sync) -> It<SyncCall> {
   .init(description, traits + [.skipped], execute: execute)
 }
 
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],
-         execute: @escaping Callback.Async) -> It {
+         execute: @escaping Callback.Async) -> It<AsyncCall> {
   .init(description, traits + [.skipped], execute: execute)
 }

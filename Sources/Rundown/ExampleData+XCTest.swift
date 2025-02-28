@@ -28,17 +28,17 @@ open class TestCase: XCTestCase {
   }
   
   @MainActor
-  public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+  public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
                    function: String = #function) throws {
     let description = String(function.prefix { $0.isIdentifier })
       .droppingPrefix("test")
-    try Describe(description, builder: builder).runActivity(under: self)
+    try describe(description, builder: builder).runActivity(under: self)
   }
   
   @MainActor
   public func spec(_ description: String,
-                   @ExampleBuilder builder: () -> ExampleGroup) throws {
-    try Describe(description, builder: builder).runActivity(under: self)
+                   @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
+    try describe(description, builder: builder).runActivity(under: self)
   }
 }
 
@@ -49,7 +49,7 @@ extension Character {
   }
 }
 
-extension ExampleGroup {
+extension ExampleGroup<SyncCall> {
   /// Runs the example with each element run as an `XCTContext` activity.
   /// Call this version instead of `run()` when using `XCTest`.
   ///
@@ -85,8 +85,8 @@ extension ExampleRunner {
   ///
   /// Throwing `XCTSkip` in `AfterEach` or `AfterAll` hooks will not be caught.
   @MainActor
-  public func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
-    func runHooks<P>(_ hooks: [TestHook<P>]) throws {
+  public func runActivity(_ group: ExampleGroup<SyncCall>, under test: XCTestCase) throws {
+    func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
       for hook in filterSkip(hooks) {
         try withElementActivity(hook) {
           try hook.execute(in: self)
@@ -96,17 +96,11 @@ extension ExampleRunner {
     func runElement(_ element: some TestExample) throws {
       try withElementActivity(element) {
         switch element {
-          case let subgroup as ExampleGroup:
+          case let subgroup as ExampleGroup<SyncCall>:
             try runActivity(subgroup, under: test)
-          //case let within as Within:
-          //  // Do the "within" logic manually to maintain @MainActor and
-          //  // the use of runActivity
-          //  try within.executor.call(.sync {
-          //    try runActivity(within.group, under: test)
-          //  })
-          default:
+          case let it as It<SyncCall>:
             do {
-              try element.execute(in: self)
+              try it.execute(in: self)
             }
             catch let skip as XCTSkip {
               logSkip(skip, element: element)
@@ -120,6 +114,14 @@ extension ExampleRunner {
                                    associatedError: error)
               test.record(issue)
             }
+          //case let within as Within:
+          //  // Do the "within" logic manually to maintain @MainActor and
+          //  // the use of runActivity
+          //  try within.executor.call(.sync {
+          //    try runActivity(within.group, under: test)
+          //  })
+          default:
+            preconditionFailure("unexpected element type")
         }
       }
     }
@@ -176,7 +178,7 @@ extension ExampleRunner {
   }
 
   @MainActor
-  public static func runActivity(_ group: ExampleGroup, under test: XCTestCase) throws {
+  public static func runActivity(_ group: ExampleGroup<SyncCall>, under test: XCTestCase) throws {
     let runner = ExampleRunner()
 
     if let current {
