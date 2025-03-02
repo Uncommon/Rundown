@@ -4,13 +4,16 @@ import XCTest
 
 public protocol CallType: Sendable {
   associatedtype Callback: Sendable
+  associatedtype WithinCallback: Sendable
 }
 
 public enum SyncCall: CallType {
   public typealias Callback = @Sendable () throws -> Void
+  public typealias WithinCallback = @Sendable (Callback) throws -> Void
 }
 public enum AsyncCall: CallType {
   public typealias Callback = @Sendable () async throws -> Void
+  public typealias WithinCallback = @Sendable (Callback) async throws -> Void
 }
 
 /// An async test element was found while running a non-async test
@@ -118,99 +121,6 @@ public func afterAll(_ name: String = "", _ traits: (any Trait)...,
 public protocol TestExample: TestElement {
   var isDeepFocused: Bool { get }
 }
-
-
-#if false // TODO: figure out async Within
-
-// The initial thought was to use a parameter pack and have a single enum
-// for all parameter counts, but parameter packs are currently only available
-// for functions.
-/// One-parameter variation of `Callback`.
-public enum Callback1<T>: Sendable {
-  public typealias Sync = @Sendable (T) throws -> Void
-  public typealias Async = @Sendable (T) async throws -> Void
-
-  case sync(Sync)
-  case async(Async)
-
-  func call(_ param: T) throws {
-    guard case .sync(let block) = self else {
-      preconditionFailure("calling async callback as sync")
-    }
-    try block(param)
-  }
-
-  func call(_ param: T) async throws {
-    switch self {
-      case .async(let block):
-        try await block(param)
-      case .sync(let block):
-        try block(param)
-    }
-  }
-}
-
-/// Example group that allows for callback-based setup and teardown, such as
-/// `TaskLocal.withValue()`
-public struct Within: TestExample {
-  public typealias Executor = Callback1<Callback>
-
-  public let traits: [any Trait]
-  let executor: Executor
-  let group: ExampleGroup
-  
-  public var description: String { group.description }
-  
-  public init(_ description: String,
-              _ traits: (any Trait)...,
-              executor: @escaping @Sendable (Callback) throws -> Void,
-              @ExampleBuilder example: () -> ExampleGroup) {
-    self.init(description, traits, executor: .sync(executor), example: example)
-  }
-
-  public init(_ description: String,
-              _ traits: (any Trait)...,
-              executor: @escaping @Sendable (Callback) async throws -> Void,
-              @ExampleBuilder example: () -> ExampleGroup) {
-    self.init(description, traits, executor: .async(executor), example: example)
-  }
-
-  public init(_ description: String,
-            _ traits: [any Trait],
-            executor: Executor,
-            @ExampleBuilder example: () -> ExampleGroup) {
-    self.traits = traits
-    self.executor = executor
-    self.group = .init(description, builder: example)
-  }
-  
-  public func execute(in runner: ExampleRunner) throws {
-    try executor.call(.sync { try group.execute(in: runner) })
-  }
-
-  public func execute(in runner: ExampleRunner) async throws {
-    try await executor.call(.async { try await group.execute(in: runner) })
-  }
-}
-
-extension Within {
-  /// Convenience initializer for using a task local value.
-  public init<Value>(_ description: String,
-                     _ traits: (any Trait)...,
-                     local: TaskLocal<Value>,
-                     _ value: Value,
-                     @ExampleBuilder example: () -> ExampleGroup) where Value: Sendable {
-    self.traits = traits
-    self.executor = .sync { callback in
-      try local.withValue(value) {
-        try callback.call()
-      }
-    }
-    self.group = .init(description, builder: example)
-  }
-}
-
-#endif
 
 
 public struct It<Call: CallType>: TestExample {
