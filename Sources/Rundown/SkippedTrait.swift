@@ -40,13 +40,13 @@ func xWithin(_ description: String,
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],
-         execute: @escaping Callback.Sync) -> It<SyncCall> {
+         execute: @escaping SyncCall.Callback) -> It<SyncCall> {
   .init(description, traits + [.skipped], execute: execute)
 }
 
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],
-         execute: @escaping Callback.Async) -> It<AsyncCall> {
+         execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
   .init(description, traits + [.skipped], execute: execute)
 }

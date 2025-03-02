@@ -52,13 +52,13 @@ func fWithin(_ description: String,
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,
          _ traits: (any Trait)...,
-         execute: @escaping Callback.Sync) -> It<SyncCall> {
+         execute: @escaping SyncCall.Callback) -> It<SyncCall> {
   .init(description, traits + [.focused], execute: execute)
 }
 
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,
          _ traits: (any Trait)...,
-         execute: @escaping Callback.Async) -> It<AsyncCall> {
+         execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
   .init(description, traits + [.focused], execute: execute)
 }
