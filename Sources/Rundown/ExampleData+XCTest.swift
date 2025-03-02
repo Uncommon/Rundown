@@ -114,12 +114,17 @@ extension ExampleRunner {
                                    associatedError: error)
               test.record(issue)
             }
-          //case let within as Within:
-          //  // Do the "within" logic manually to maintain @MainActor and
-          //  // the use of runActivity
-          //  try within.executor.call(.sync {
-          //    try runActivity(within.group, under: test)
-          //  })
+          case let within as Within<SyncCall>:
+            XCTFail("Within is not currently supported in runActivity")
+#if false
+            // Do the "within" logic manually to maintain @MainActor and
+            // the use of runActivity
+            try within.executor {
+              try MainActor.assumeIsolated {
+                try runActivity(within.group, under: test)
+              }
+            }
+#endif
           default:
             preconditionFailure("unexpected element type")
         }

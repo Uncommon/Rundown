@@ -38,16 +38,22 @@ func fContext(_ description: String,
   .init(description, traits + [.focused], builder: builder)
 }
 
-#if false
 /// Shortcut for adding a `.focused` trait to `Within`.
 func fWithin(_ description: String,
              _ traits: (any Trait)...,
-             executor: Within.Executor,
-             @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within {
+             executor: @escaping SyncCall.WithinCallback,
+             @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
   .init(description, traits + [.focused],
         executor: executor, example: example)
 }
-#endif
+/// Shortcut for adding a `.focused` trait to `Within`.
+func fWithin(_ description: String,
+             _ traits: (any Trait)...,
+             executor: @escaping AsyncCall.WithinCallback,
+             @ExampleBuilder<AsyncCall> example: () -> ExampleGroup<AsyncCall>) -> Within<AsyncCall> {
+  .init(description, traits + [.focused],
+        executor: executor, example: example)
+}
 
 /// Shortcut for adding a `.focused` trait to `It`.
 func fIt(_ description: String,

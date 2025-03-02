@@ -26,16 +26,22 @@ func xContext(_ description: String,
   .init(description, traits + [.skipped], builder: builder)
 }
 
-#if false
 /// Shortcut for adding a `.skipped` trait to `Within`.
 func xWithin(_ description: String,
              _ traits: [any Trait] = [],
-             executor: Within.Executor,
-             @ExampleBuilder example: () -> ExampleGroup) -> Within {
+             executor: @escaping SyncCall.WithinCallback,
+             @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
   .init(description, traits + [.skipped],
         executor: executor, example: example)
 }
-#endif
+/// Shortcut for adding a `.skipped` trait to `Within`.
+func xWithin(_ description: String,
+             _ traits: [any Trait] = [],
+             executor: @escaping AsyncCall.WithinCallback,
+             @ExampleBuilder<AsyncCall> example: () -> ExampleGroup<AsyncCall>) -> Within<AsyncCall> {
+  .init(description, traits + [.skipped],
+        executor: executor, example: example)
+}
 
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,

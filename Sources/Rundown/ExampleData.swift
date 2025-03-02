@@ -3,6 +3,10 @@ import OSLog
 import XCTest
 
 public protocol CallType: Sendable {
+  // These types will be function types, but there is currently no way
+  // to express that in Swift. As a result, several functions are
+  // duplicated to explicitly work with the concrete types so that
+  // parameters can be @escaping.
   associatedtype Callback: Sendable
   associatedtype WithinCallback: Sendable
 }

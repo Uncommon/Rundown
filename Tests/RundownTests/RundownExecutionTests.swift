@@ -139,17 +139,16 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertEqual(afterCount.wrappedValue, expected)
   }
 
-  #if false
   func testWithin() throws {
     let executed = Box(false)
 
-    try Describe("Within") {
+    try describe("Within") {
       Within("inside a callback") { callback in
         try "".withCString { _ in
-          try callback.call()
+          try callback()
         }
       } example: {
-        It("works") {
+        it("works") {
           executed.set()
         }
       }
@@ -157,5 +156,4 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     XCTAssert(executed.wrappedValue)
   }
-  #endif
 }

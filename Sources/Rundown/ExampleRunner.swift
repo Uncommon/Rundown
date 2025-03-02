@@ -63,8 +63,11 @@ public class ExampleRunner: @unchecked Sendable {
             try run(subgroup)
           case let it as It<SyncCall>:
             try it.execute(in: self)
+          case let within as Within<SyncCall>:
+            try within.execute(in: self)
           case _ as ExampleGroup<AsyncCall>, _ as It<AsyncCall>:
-            // TestBuilder should prevent this from happening
+            // TestBuilder<SyncCall> shouldn't accept any AsyncCall
+            // elements, so this shouldn't happen.
             throw UnexpectedAsyncError()
           default:
             preconditionFailure("unexpected element type")
@@ -97,6 +100,8 @@ public class ExampleRunner: @unchecked Sendable {
             try await run(subgroup)
           case let it as It<AsyncCall>:
             try await it.execute(in: self)
+          case let within as Within<AsyncCall>:
+            try await within.execute(in: self)
           default:
             preconditionFailure("unexpected element type")
         }
@@ -117,13 +122,17 @@ public class ExampleRunner: @unchecked Sendable {
     return focused.isEmpty ? nonSkipped : focused
   }
 
-  #if false
-  public func run(_ within: Within) throws {
-    try within.executor.call(.sync {
+  public func run(_ within: Within<SyncCall>) throws {
+    try within.executor {
       try self.run(within.group)
-    })
+    }
   }
-  #endif
+
+  public func run(_ within: Within<AsyncCall>) async throws {
+    try await within.executor {
+      try await self.run(within.group)
+    }
+  }
 
   public static func run(_ element: ExampleGroup<SyncCall>) throws {
     let runner = ExampleRunner()
