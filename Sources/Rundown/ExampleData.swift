@@ -3,10 +3,6 @@ import OSLog
 import XCTest
 
 public protocol CallType: Sendable {
-  // These types will be function types, but there is currently no way
-  // to express that in Swift. As a result, several functions are
-  // duplicated to explicitly work with the concrete types so that
-  // parameters can be @escaping.
   associatedtype Callback: Sendable
   associatedtype WithinCallback: Sendable
 }
@@ -38,35 +34,15 @@ public struct It<Call: CallType>: TestExample {
   public let traits: [any Trait]
   let block: Call.Callback
 
-  // These pairs of functions are identical except for the
-  // "where Call ==" clause. They must be duplicated because there is
-  // no way to express that Call.Callback is always a function type
-  // and therefore can be @escaping.
   public init(_ description: String,
               _ traits: (any Trait)...,
-              execute: @escaping Call.Callback)
-              where Call == SyncCall {
-    self.init(description, traits, execute: execute)
-  }
-  public init(_ description: String,
-              _ traits: (any Trait)...,
-              execute: @escaping Call.Callback)
-              where Call == AsyncCall {
-    self.init(description, traits, execute: execute)
+              executing block:  Call.Callback) {
+    self.init(description, traits, execute: block)
   }
 
   public init(_ description: String,
               _ traits: [any Trait],
-              execute: @escaping Call.Callback)
-              where Call == SyncCall {
-    self.description = description
-    self.traits = traits
-    self.block = execute
-  }
-  public init(_ description: String,
-              _ traits: [any Trait],
-              execute: @escaping Call.Callback)
-              where Call == AsyncCall {
+              execute: Call.Callback) {
     self.description = description
     self.traits = traits
     self.block = execute
@@ -77,7 +53,7 @@ public struct It<Call: CallType>: TestExample {
               where Call == AsyncCall {
     self.description = other.description
     self.traits = other.traits
-    self.block = { try other.block() }
+    self.block = other.block
   }
 
   public func execute(in runner: ExampleRunner) throws

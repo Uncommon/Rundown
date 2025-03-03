@@ -170,11 +170,3 @@ public struct ExampleBuilder<Call: CallType> {
     fatalError("unavailable")
   }
 }
-
-extension ExampleBuilder where Call == AsyncCall {
-
-}
-
-extension ExampleBuilder where Call == SyncCall {
-
-}

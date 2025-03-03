@@ -12,33 +12,15 @@ public struct Within<Call: CallType>: TestExample {
   
   public init(_ description: String,
               _ traits: (any Trait)...,
-              executor: @escaping Call.WithinCallback,
-              @ExampleBuilder<Call> example: () -> ExampleGroup<Call>)
-              where Call == SyncCall {
-    self.init(description, traits, executor: executor, example: example)
-  }
-  public init(_ description: String,
-              _ traits: (any Trait)...,
-              executor: @escaping Call.WithinCallback,
-              @ExampleBuilder<Call> example: () -> ExampleGroup<Call>)
-              where Call == AsyncCall {
+              executor: Call.WithinCallback,
+              @ExampleBuilder<Call> example: () -> ExampleGroup<Call>) {
     self.init(description, traits, executor: executor, example: example)
   }
 
   public init(_ description: String,
               _ traits: [any Trait],
-              executor: @escaping Call.WithinCallback,
-              @ExampleBuilder<Call> example: () -> ExampleGroup<Call>)
-              where Call == SyncCall {
-    self.traits = traits
-    self.executor = executor
-    self.group = .init(description, builder: example)
-  }
-  public init(_ description: String,
-              _ traits: [any Trait],
-              executor: @escaping Call.WithinCallback,
-              @ExampleBuilder<Call> example: () -> ExampleGroup<Call>)
-              where Call == AsyncCall {
+              executor: Call.WithinCallback,
+              @ExampleBuilder<Call> example: () -> ExampleGroup<Call>) {
     self.traits = traits
     self.executor = executor
     self.group = .init(description, builder: example)
@@ -55,16 +37,10 @@ public struct Within<Call: CallType>: TestExample {
   }
 }
 
-public func within(_ description: String,
+public func within<Call: CallType>(_ description: String,
                    _ traits: (any Trait)...,
-                   executor: @escaping SyncCall.WithinCallback,
-                   @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
-  .init(description, traits, executor: executor, example: example)
-}
-public func within(_ description: String,
-                   _ traits: (any Trait)...,
-                   executor: @escaping AsyncCall.WithinCallback,
-                   @ExampleBuilder<AsyncCall> example: () -> ExampleGroup<AsyncCall>) -> Within<AsyncCall> {
+                   executor: Call.WithinCallback,
+                   @ExampleBuilder<Call> example: () -> ExampleGroup<Call>) -> Within<Call> {
   .init(description, traits, executor: executor, example: example)
 }
 
