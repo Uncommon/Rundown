@@ -56,21 +56,24 @@ final class RundownTests: Rundown.TestCase {
 
   @TaskLocal static var local: Int = 0
   
-  //func testWithinTaskLocal() throws {
-  //  try spec("Within") {
-  //    for value in 1...2 {
-  //      within("with task local as \(value)",
-  //             local: Self.$local, value) {
-  //        it("has correct value") {
-  //          XCTAssert(Self.$local.wrappedValue == value)
-  //          XCTAssertEqual(ExampleRun.activity?.name, "has correct value")
-  //          XCTAssertEqual(ExampleRun.current?.description,
-  //                         "Within, with task local as \(value), has correct value")
-  //        }
-  //      }
-  //    }
-  //  }
-  //}
+  func testWithinTaskLocal() throws {
+    // Use the global version of spec() because within doesn't work
+    // with runActivity()
+    try Rundown.spec("Within") {
+      for value in 1...2 {
+        within("with task local as \(value)",
+               local: Self.$local, value) {
+          it("has correct value") {
+            MainActor.assumeIsolated {
+              XCTAssert(Self.$local.wrappedValue == value)
+              XCTAssertEqual(ExampleRunner.current?.description,
+                             "Within, with task local as \(value), has correct value")
+            }
+          }
+        }
+      }
+    }
+  }
 
   func testSkip() throws {
     let ranSecond = Box(false)
