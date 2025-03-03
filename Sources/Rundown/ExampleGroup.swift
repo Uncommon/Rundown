@@ -1,4 +1,9 @@
-public struct ExampleGroup: TestExample {
+public struct ExampleGroup<Call: CallType>: TestExample {
+  typealias BeforeAll = TestHook<BeforeAllPhase, Call>
+  typealias BeforeEach = TestHook<BeforeEachPhase, Call>
+  typealias AfterEach = TestHook<AfterEachPhase, Call>
+  typealias AfterAll = TestHook<AfterAllPhase, Call>
+
   public let description: String
   public let traits: [any Trait]
   let beforeAll: [BeforeAll]
@@ -13,13 +18,13 @@ public struct ExampleGroup: TestExample {
 
   public init(_ description: String,
               _ traits: (any Trait)...,
-              @ExampleBuilder builder: () -> ExampleGroup) {
+              @ExampleBuilder<Call> builder: () -> ExampleGroup<Call>) {
     self.init(description, traits, builder: builder)
   }
 
   public init(_ description: String,
               _ traits: [any Trait],
-              @ExampleBuilder builder: () -> ExampleGroup)
+              @ExampleBuilder<Call> builder: () -> ExampleGroup<Call>)
   {
     let builtGroup = builder()
     
@@ -30,18 +35,6 @@ public struct ExampleGroup: TestExample {
     self.afterEach = builtGroup.afterEach
     self.afterAll = builtGroup.afterAll
     self.elements = builtGroup.elements
-  }
-
-  internal init(_ description: String = "",
-                _ traits: [any Trait] = [],
-                elements: [any TestExample]) {
-    self.description = description
-    self.traits = traits
-    self.beforeAll = []
-    self.beforeEach = []
-    self.afterEach = []
-    self.afterAll = []
-    self.elements = elements
   }
 
   init(description: String,
@@ -70,15 +63,67 @@ public struct ExampleGroup: TestExample {
                      afterAll: afterAll,
                      elements: elements)
   }
-  
+}
+
+extension ExampleGroup where Call == SyncCall {
   public func run() throws {
     try ExampleRunner.run(self)
   }
-  
-  public func execute(in run: ExampleRunner) throws {
-    try run.run(self)
+
+  public func execute(in runner: ExampleRunner) throws {
+    try runner.run(self)
   }
 }
 
-public typealias Describe = ExampleGroup
-public typealias Context = ExampleGroup
+extension ExampleGroup where Call == AsyncCall {
+  public init(fromSync other: ExampleGroup<SyncCall>) {
+    self.description = other.description
+    self.traits = other.traits
+    self.beforeAll = other.beforeAll.map { .init(fromSync: $0) }
+    self.beforeEach = other.beforeEach.map { .init(fromSync: $0) }
+    self.afterEach = other.afterEach.map { .init(fromSync: $0) }
+    self.afterAll = other.afterAll.map { .init(fromSync: $0) }
+    self.elements = other.elements.map {
+      switch $0 {
+        case let syncIt as It<SyncCall>:
+          It<AsyncCall>.init(fromSync: syncIt)
+        case let syncGroup as ExampleGroup<SyncCall>:
+          ExampleGroup<AsyncCall>.init(fromSync: syncGroup)
+        default:
+          preconditionFailure("unexpected element")
+      }
+    }
+  }
+
+  public func run() async throws {
+    try await ExampleRunner.run(self)
+  }
+
+  public func execute(in runner: ExampleRunner) async throws {
+    try await runner.run(self)
+  }
+}
+
+public func describe(_ description: String,
+                     _ traits: (any Trait)...,
+                     @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
+  .init(description, traits, builder: builder)
+}
+
+public func describe(_ description: String,
+                     _ traits: (any Trait)...,
+                     @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) async -> ExampleGroup<AsyncCall> {
+  .init(description, traits, builder: builder)
+}
+
+public func context(_ description: String,
+                    _ traits: (any Trait)...,
+                    @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
+  .init(description, traits, builder: builder)
+}
+
+public func context(_ description: String,
+                    _ traits: (any Trait)...,
+                    @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) async -> ExampleGroup<AsyncCall> {
+  .init(description, traits, builder: builder)
+}

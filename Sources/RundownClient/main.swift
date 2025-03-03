@@ -4,9 +4,9 @@ let a = 17
 let b = 25
 
 struct Suite {
-  @Example @ExampleBuilder
-  func testThing() throws -> ExampleGroup {
-    It("works") {
+  @Example @ExampleBuilder<SyncCall>
+  func testThing() throws -> ExampleGroup<SyncCall> {
+    it("works") {
     }
   }
 }

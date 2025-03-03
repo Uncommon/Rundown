@@ -7,7 +7,7 @@ import XCTest
 public class ExampleRunner: @unchecked Sendable {
   // Manual lock for unchecked sendability
   private let lock = NSRecursiveLock()
-  internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRun")
+  internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRunner")
 
   var elementStack: [any TestElement] = []
   var description: String {
@@ -32,13 +32,19 @@ public class ExampleRunner: @unchecked Sendable {
     defer { withLock { _ = elementStack.popLast() } }
     try block()
   }
-  
-  /// Executes the elements of a group. This is managed by the run instead of
-  /// the group itself because the run can have logic that it needs to apply
+
+  func with(_ element: some TestElement, block: () async throws -> Void) async rethrows {
+    withLock { elementStack.append(element) }
+    defer { withLock { _ = elementStack.popLast() } }
+    try await block()
+  }
+
+  /// Executes the elements of a group. This is managed by the runner instead of
+  /// the group itself because the runner can have logic that it needs to apply
   /// at each step.
-  public func run(_ group: ExampleGroup) throws {
-    func runHooks<P>(_ hooks: [TestHook<P>]) throws {
-      for hook in filterSkip(hooks) {
+  public func run(_ group: ExampleGroup<SyncCall>) throws {
+    func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
+      for hook in hooks.filter({ !$0.isSkipped }) {
         try with(hook) {
           try hook.execute(in: self)
         }
@@ -53,18 +59,59 @@ public class ExampleRunner: @unchecked Sendable {
       try runHooks(group.beforeEach)
       try with(element) {
         switch element {
-          case let subgroup as ExampleGroup:
+          case let subgroup as ExampleGroup<SyncCall>:
             try run(subgroup)
+          case let it as It<SyncCall>:
+            try it.execute(in: self)
+          case let within as Within<SyncCall>:
+            try within.execute(in: self)
+          case _ as ExampleGroup<AsyncCall>, _ as It<AsyncCall>:
+            // TestBuilder<SyncCall> shouldn't accept any AsyncCall
+            // elements, so this shouldn't happen.
+            throw UnexpectedAsyncError()
           default:
-              try element.execute(in: self)
+            preconditionFailure("unexpected element type")
         }
       }
       try runHooks(group.afterEach)
     }
     try runHooks(group.afterAll)
   }
-  
-  func filterSkip(_ elements: [any TestElement]) -> [any TestElement] {
+
+  // same as above but with `await` sprinkled in
+  public func run(_ group: ExampleGroup<AsyncCall>) async throws {
+    func runHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
+      for hook in filterSkip(hooks) {
+        try await with(hook) {
+          try await hook.execute(in: self)
+        }
+      }
+    }
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+
+    try await runHooks(group.beforeAll)
+    for element in elements {
+      try await runHooks(group.beforeEach)
+      try await with(element) {
+        switch element {
+          case let subgroup as ExampleGroup<AsyncCall>:
+            try await run(subgroup)
+          case let it as It<AsyncCall>:
+            try await it.execute(in: self)
+          case let within as Within<AsyncCall>:
+            try await within.execute(in: self)
+          default:
+            preconditionFailure("unexpected element type")
+        }
+      }
+      try await runHooks(group.afterEach)
+    }
+    try await runHooks(group.afterAll)
+  }
+
+  func filterSkip<E: TestElement>(_ elements: [E]) -> [E] {
     elements.filter({ !$0.isSkipped })
   }
   
@@ -74,14 +121,20 @@ public class ExampleRunner: @unchecked Sendable {
     
     return focused.isEmpty ? nonSkipped : focused
   }
-  
-  public func run(_ within: Within) throws {
+
+  public func run(_ within: Within<SyncCall>) throws {
     try within.executor {
-      try run(within.group)
+      try self.run(within.group)
     }
   }
 
-  public static func run(_ element: some TestExample) throws {
+  public func run(_ within: Within<AsyncCall>) async throws {
+    try await within.executor {
+      try await self.run(within.group)
+    }
+  }
+
+  public static func run(_ element: ExampleGroup<SyncCall>) throws {
     let runner = ExampleRunner()
 
     if let current {
@@ -90,6 +143,19 @@ public class ExampleRunner: @unchecked Sendable {
     try ExampleRunner.$current.withValue(runner) {
       try runner.with(element) {
         try element.execute(in: runner)
+      }
+    }
+  }
+
+  public static func run(_ element: ExampleGroup<AsyncCall>) async throws {
+    let runner = ExampleRunner()
+
+    if let current {
+      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
+    }
+    try await ExampleRunner.$current.withValue(runner) {
+      try await runner.with(element) {
+        try await element.execute(in: runner)
       }
     }
   }

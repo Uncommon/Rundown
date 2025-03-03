@@ -15,22 +15,30 @@ public extension TestElement {
 /// Shortcut for adding a `.skipped` trait to `Describe`.
 func xDescribe(_ description: String,
                _ traits: [any Trait] = [],
-               @ExampleBuilder builder: () -> ExampleGroup) -> Describe {
+               @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
   .init(description, traits + [.skipped], builder: builder)
 }
 
 /// Shortcut for adding a `.skipped` trait to `Context`.
 func xContext(_ description: String,
               _ traits: [any Trait] = [],
-              @ExampleBuilder builder: () -> ExampleGroup) -> Context {
+              @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
   .init(description, traits + [.skipped], builder: builder)
 }
 
 /// Shortcut for adding a `.skipped` trait to `Within`.
 func xWithin(_ description: String,
              _ traits: [any Trait] = [],
-             executor: @escaping Within.Executor,
-             @ExampleBuilder example: () -> ExampleGroup) -> Within {
+             executor: @escaping SyncCall.WithinCallback,
+             @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
+  .init(description, traits + [.skipped],
+        executor: executor, example: example)
+}
+/// Shortcut for adding a `.skipped` trait to `Within`.
+func xWithin(_ description: String,
+             _ traits: [any Trait] = [],
+             executor: @escaping AsyncCall.WithinCallback,
+             @ExampleBuilder<AsyncCall> example: () -> ExampleGroup<AsyncCall>) -> Within<AsyncCall> {
   .init(description, traits + [.skipped],
         executor: executor, example: example)
 }
@@ -38,6 +46,13 @@ func xWithin(_ description: String,
 /// Shortcut for adding a `.skipped` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],
-         execute: @escaping TestCallback) -> It {
+         execute: @escaping SyncCall.Callback) -> It<SyncCall> {
+  .init(description, traits + [.skipped], execute: execute)
+}
+
+/// Shortcut for adding a `.skipped` trait to `It`.
+func xIt(_ description: String,
+         _ traits: [any Trait] = [],
+         execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
   .init(description, traits + [.skipped], execute: execute)
 }

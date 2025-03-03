@@ -5,21 +5,49 @@ import XCTest
 /// of the run method.
 @MainActor
 class RundownRunTests: XCTestCase {
-  func plainRunner(group: ExampleGroup) throws {
+  func plainRunner(group: ExampleGroup<SyncCall>) throws {
     try group.run()
   }
+
+  func asyncRunner(group: ExampleGroup<AsyncCall>) async throws {
+    let expectation = self.expectation(description: "run as task")
+
+    Task {
+      try await group.run()
+      expectation.fulfill()
+    }
+    await fulfillment(of: [expectation])
+  }
   
-  func xcTestRunner(group: ExampleGroup) throws {
+  func asyncRunner(group: ExampleGroup<SyncCall>) async throws {
+    try await asyncRunner(group: .init(fromSync: group))
+  }
+
+  func xcTestRunner(group: ExampleGroup<SyncCall>) throws {
     try group.runActivity(under: self)
   }
   
-  func useAllRunners(test: ((ExampleGroup) throws -> Void) throws -> Void) throws {
-    try test(plainRunner)
-    try test(xcTestRunner)
+  func useAllRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void) async throws -> Void) async throws {
+    try await test(plainRunner)
+    try await test(xcTestRunner)
+    try await test(asyncRunner)
   }
-  
-  func testSkipOneOfTwo() throws {
-    try useAllRunners { runner in
+
+  func testAsyncIt() async throws {
+    let ran = Box(false)
+
+    try await Rundown.spec {
+      it("does an async thing") {
+        try await Task.sleep(for: .milliseconds(100))
+        ran.set()
+      }
+    }
+
+    XCTAssert(ran.wrappedValue)
+  }
+
+  func testSkipOneOfTwo() async throws {
+    try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
       let ran1 = Box(false)
@@ -27,29 +55,29 @@ class RundownRunTests: XCTestCase {
       let ranAfterEach = Box(false)
       let ranAfterAll = Box(false)
 
-      let describe = Describe("Skip one of two") {
-        BeforeAll {
+      let describe = describe("Skip one of two") {
+        beforeAll {
           ranBeforeAll.set()
         }
-        BeforeEach {
+        beforeEach {
           ranBeforeEach.set()
         }
-        It("one", .skipped) {
+        it("one", .skipped) {
           ran1.set()
         }
-        It("two") {
+        it("two") {
           ran2.set()
         }
-        AfterEach {
+        afterEach {
           ranAfterEach.set()
         }
-        AfterAll {
+        afterAll {
           ranAfterAll.set()
         }
       }
       
-      try runner(describe)
-      
+      try await runner(describe)
+
       XCTAssertTrue(ranBeforeAll.wrappedValue)
       XCTAssertTrue(ranBeforeEach.wrappedValue)
       XCTAssertFalse(ran1.wrappedValue)
@@ -60,22 +88,23 @@ class RundownRunTests: XCTestCase {
   }
   
   // No hooks should run if all elements are skipped
-  func testSkipHooks() throws {
-    try useAllRunners { runner in
+  func testSkipHooks() async throws {
+    try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
       let ranIt = Box(false)
       let ranAfterEach = Box(false)
       let ranAfterAll = Box(false)
 
-      try Describe("Skip hooks") {
-        BeforeAll { ranBeforeAll.set() }
-        BeforeEach { ranBeforeEach.set() }
-        It("skips", .skipped) { ranIt.set() }
-        AfterEach { ranAfterEach.set() }
-        AfterAll { ranAfterAll.set() }
-      }.run()
-      
+      let group = describe("Skip hooks") {
+        beforeAll { ranBeforeAll.set() }
+        beforeEach { ranBeforeEach.set() }
+        it("skips", .skipped) { ranIt.set() }
+        afterEach { ranAfterEach.set() }
+        afterAll { ranAfterAll.set() }
+      }
+
+      try await runner(group)
       XCTAssertFalse(ranBeforeAll.wrappedValue)
       XCTAssertFalse(ranBeforeEach.wrappedValue)
       XCTAssertFalse(ranIt.wrappedValue)
@@ -84,8 +113,8 @@ class RundownRunTests: XCTestCase {
     }
   }
 
-  func testFocusOneOfTwo() throws {
-    try useAllRunners { runner in
+  func testFocusOneOfTwo() async throws {
+    try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
       let ran1 = Box(false)
@@ -93,15 +122,17 @@ class RundownRunTests: XCTestCase {
       let ranAfterEach = Box(false)
       let ranAfterAll = Box(false)
 
-      try Describe("Skip one of two") {
-        BeforeAll { ranBeforeAll.set() }
-        BeforeEach { ranBeforeEach.set() }
-        It("one", .focused) { ran1.set() }
-        It("two") { ran2.set() }
-        AfterEach { ranAfterEach.set() }
-        AfterAll { ranAfterAll.set() }
-      }.run()
-      
+      let group = describe("Skip one of two") {
+        beforeAll { ranBeforeAll.set() }
+        beforeEach { ranBeforeEach.set() }
+        it("one", .focused) { ran1.set() }
+        it("two") { ran2.set() }
+        afterEach { ranAfterEach.set() }
+        afterAll { ranAfterAll.set() }
+      }
+
+      try await runner(group)
+
       XCTAssertTrue(ranBeforeAll.wrappedValue)
       XCTAssertTrue(ranBeforeEach.wrappedValue)
       XCTAssertTrue(ran1.wrappedValue)
@@ -111,8 +142,8 @@ class RundownRunTests: XCTestCase {
     }
   }
   
-  func testDeepFocus() throws {
-    try useAllRunners { runner in
+  func testDeepFocus() async throws {
+    try await useAllRunners { runner in
       let ranBeforeAll1 = Box(false)
       let ranAfterAll1 = Box(false)
       let ranBeforeAll2 = Box(false)
@@ -123,22 +154,24 @@ class RundownRunTests: XCTestCase {
       let afterEachCount2 = Box(0)
       let ran2 = Box(false)
 
-      try Describe("Deep focus") {
-        BeforeAll { ranBeforeAll1.set() }
-        BeforeEach { beforeEachCount1.bump() }
-        It("skips") { XCTFail("ran outer unfocused test") }
-        Describe("subgroup") {
-          BeforeAll { ranBeforeAll2.set() }
-          BeforeEach { beforeEachCount2.bump() }
-          It("runs focused", .focused) { ran2.set() }
-          It("skips") { XCTFail("ran inner unfocused test") }
-          AfterEach { afterEachCount2.bump() }
-          AfterAll { ranAfterAll2.set() }
+      let group = describe("Deep focus") {
+        beforeAll { ranBeforeAll1.set() }
+        beforeEach { beforeEachCount1.bump() }
+        it("skips") { XCTFail("ran outer unfocused test") }
+        describe("subgroup") {
+          beforeAll { ranBeforeAll2.set() }
+          beforeEach { beforeEachCount2.bump() }
+          it("runs focused", .focused) { ran2.set() }
+          it("skips") { XCTFail("ran inner unfocused test") }
+          afterEach { afterEachCount2.bump() }
+          afterAll { ranAfterAll2.set() }
         }
-        AfterEach { afterEachCount1.bump() }
-        AfterAll { ranAfterAll1.set() }
-      }.run()
-      
+        afterEach { afterEachCount1.bump() }
+        afterAll { ranAfterAll1.set() }
+      }
+
+      try await runner(group)
+
       XCTAssert(ranBeforeAll1.wrappedValue)
       XCTAssertEqual(beforeEachCount1.wrappedValue, 1)
       XCTAssert(ranBeforeAll2.wrappedValue)

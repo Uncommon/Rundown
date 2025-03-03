@@ -27,12 +27,12 @@ public struct Accumulator<Phase: AccumulatorPhase> {
 
   func adding<E: TestExample>(_ example: E) -> Self where Phase == ExamplePhase {
     var result = self
-    result.data.appendOrSet(.init(TestExample.self), example)
+    result.data.appendOrSet(.init((any TestExample).self), example)
     return result
   }
 
   mutating func add<E: TestExample>(_ example: E) where Phase == ExamplePhase {
-    data.appendOrSet(.init(TestExample.self), example)
+    data.appendOrSet(.init((any TestExample).self), example)
   }
 
   mutating func add<P: AccumulatorPhase>(_ other: Accumulator<P>) {
@@ -49,64 +49,64 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     .init(data: data).adding(element)
   }
 
-  func phaseHooks<P: HookPhase>(_ phase: P.Type) -> [TestHook<P>] {
-    data[.init(TestHook<P>.self)]?.compactMap { $0 as? TestHook<P> } ?? []
+  func phaseHooks<P: HookPhase, C: CallType>(_ phase: P.Type) -> [TestHook<P, C>] {
+    data[.init(TestHook<P, C>.self)]?.compactMap { $0 as? TestHook<P, C> } ?? []
   }
 
-  func examples() -> [TestExample] {
-    data[.init(TestExample.self)]?.compactMap { $0 as? TestExample } ?? []
+  func examples() -> [any TestExample] {
+    data[.init((any TestExample).self)]?.compactMap { $0 as? (any TestExample) } ?? []
   }
 }
 
 @resultBuilder
-public struct ExampleBuilder {
-  // All hooks can repeat
-  public static func buildPartialBlock<Phase: AccumulatorPhase>(
+public struct ExampleBuilder<Call: CallType> {
+  // Hooks of the same sync type can repeat
+  public static func buildPartialBlock<Phase: AccumulatorPhase, C: CallType>(
       accumulated: Accumulator<Phase>,
-      next: TestHook<Phase>) -> Accumulator<Phase> {
+      next: TestHook<Phase, C>) -> Accumulator<Phase> {
     accumulated.adding(next)
   }
 
   // BeforeEach and BeforeAll can start
-  public static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase>) -> Accumulator<Phase> {
+  public static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, Call>) -> Accumulator<Phase> {
     .init().adding(first)
   }
 
   // BeforeEach can follow BeforeAll
-  public static func buildPartialBlock(
+  public static func buildPartialBlock<C: CallType>(
       accumulated: Accumulator<BeforeAllPhase>,
-      next: BeforeEach) -> Accumulator<BeforeEachPhase> {
+      next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
     accumulated.transitioned(with: next)
   }
 
   // Examples can start and repeat
-  public static func buildPartialBlock(first: any TestExample) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock(first: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     .init().adding(first)
   }
   public static func buildPartialBlock(
       accumulated: Accumulator<ExamplePhase>,
-      next: any TestExample) -> Accumulator<ExamplePhase> {
+      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     accumulated.adding(next)
   }
 
   // Examples can follow BeforeEach/BeforeAll
   public static func buildPartialBlock<Phase: BeforePhase>(
       accumulated: Accumulator<Phase>,
-      next: any TestExample) -> Accumulator<ExamplePhase> {
+      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
 
   // After hooks can follow examples
   public static func buildPartialBlock<Phase: AfterPhase>(
       accumulated: Accumulator<ExamplePhase>,
-      next: TestHook<Phase>) -> Accumulator<Phase> {
+      next: TestHook<Phase, Call>) -> Accumulator<Phase> {
     accumulated.transitioned(with: next)
   }
 
   // AfterAll follows AfterEach
   public static func buildPartialBlock(
       accumulated: Accumulator<AfterEachPhase>,
-      next: AfterAll) -> Accumulator<AfterAllPhase> {
+      next: TestHook<AfterAllPhase, Call>) -> Accumulator<AfterAllPhase> {
     accumulated.transitioned(with: next)
   }
 
@@ -133,7 +133,7 @@ public struct ExampleBuilder {
   }
 
   // Examples or AfterEach/AfterAll can end
-  public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
+  public static func buildFinalResult<Phase: FinalPhase>(_ component: Accumulator<Phase>) -> ExampleGroup<Call> {
     // TODO: preserve the example description
     .init(description: "",
           traits: [],
@@ -150,15 +150,15 @@ public struct ExampleBuilder {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "BeforeAll must precede BeforeEach")
-  public static func buildPartialBlock(
+  public static func buildPartialBlock<C: CallType>(
       accumulated: Accumulator<BeforeEachPhase>,
-      next: BeforeAll) -> Accumulator<BeforeEachPhase> {
+      next: TestHook<BeforeAllPhase, C>) -> Accumulator<BeforeEachPhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "AfterEach must precede AfterAll")
-  public static func buildPartialBlock(
+  public static func buildPartialBlock<C: CallType>(
       accumulated: Accumulator<AfterAllPhase>,
-      next: AfterEach) -> Accumulator<AfterAllPhase> {
+      next: TestHook<AfterEachPhase, C>) -> Accumulator<AfterAllPhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Loop must end in example or after element")
@@ -166,7 +166,7 @@ public struct ExampleBuilder {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Group must have examples")
-  public static func buildFinalResult<Phase: BeforePhase>(_ component: Accumulator<Phase>) -> ExampleGroup {
+  public static func buildFinalResult<Phase: BeforePhase>(_ component: Accumulator<Phase>) -> ExampleGroup<Call> {
     fatalError("unavailable")
   }
 }

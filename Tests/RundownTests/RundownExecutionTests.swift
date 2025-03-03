@@ -7,7 +7,7 @@ final class RundownExecutionTests: Rundown.TestCase {
 
   func testOneItFails() throws {
     try spec {
-      It("fails") {
+      it("fails") {
         let expectedDescription = "OneItFails, fails"
         
         XCTAssertEqual(ExampleRunner.current?.description, expectedDescription)
@@ -19,9 +19,9 @@ final class RundownExecutionTests: Rundown.TestCase {
     }
   }
   
-  @Example @ExampleBuilder
-  func oneItPeer() throws -> ExampleGroup {
-    It("works") {
+  @Example @ExampleBuilder<SyncCall>
+  func oneItPeer() throws -> ExampleGroup<SyncCall> {
+    it("works") {
       XCTAssert(true)
     }
   }
@@ -29,29 +29,29 @@ final class RundownExecutionTests: Rundown.TestCase {
   func testExecuteDescribe() throws {
     let executed = Box(false)
 
-    try Describe("Running the test") {
-      It("works") {
+    try spec("Running the test") {
+      it("works") {
         executed.set()
       }
-    }.run()
+    }
     XCTAssert(executed.wrappedValue)
   }
   
   func testDescriptions() throws {
-    try Describe("ExampleRunner") {
-      Context("first context") {
-        It("has correct description") {
+    try spec("ExampleRunner") {
+      context("first context") {
+        it("has correct description") {
           XCTAssertEqual(ExampleRunner.current!.description,
-                         "ExampleRun, first context, has correct description")
+                         "ExampleRunner, first context, has correct description")
         }
       }
-      Context("second context") {
-        It("has correct description") {
+      context("second context") {
+        it("has correct description") {
           XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRunner, second context, has correct description")
         }
       }
-    }.run()
+    }
   }
 
   func testBeforeAfterAll() throws {
@@ -59,16 +59,16 @@ final class RundownExecutionTests: Rundown.TestCase {
     let didIt = Box(false)
     let didAfter = Box(false)
 
-    try Describe("Running hooks") {
-      BeforeAll {
+    try describe("Running hooks") {
+      beforeAll {
         didBefore.set()
       }
 
-      It("works") {
+      it("works") {
         didIt.set()
       }
 
-      AfterAll {
+      afterAll {
         didAfter.set()
       }
     }.run()
@@ -81,13 +81,13 @@ final class RundownExecutionTests: Rundown.TestCase {
     let expected = 3
     let count = Box(0)
 
-    try Describe("For loop") {
+    try spec("For loop") {
       for _ in 1...expected {
-        It("iterates") {
+        it("iterates") {
           count.bump()
         }
       }
-    }.run()
+    }
     XCTAssertEqual(count.wrappedValue, expected)
   }
 
@@ -96,16 +96,16 @@ final class RundownExecutionTests: Rundown.TestCase {
     let count1 = Box(0)
     let count2 = Box(0)
 
-    try Describe("For loop") {
+    try spec("For loop") {
       for _ in 1...expected {
-        It("iterates 1") {
+        it("iterates 1") {
           count1.bump()
         }
-        It("iterates 2") {
+        it("iterates 2") {
           count2.bump()
         }
       }
-    }.run()
+    }
     XCTAssertEqual(count1.wrappedValue, expected)
     XCTAssertEqual(count2.wrappedValue, expected)
   }
@@ -117,18 +117,18 @@ final class RundownExecutionTests: Rundown.TestCase {
     let count2 = Box(0)
     let afterCount = Box(0)
 
-    try Describe("For loop") {
+    try describe("For loop") {
       for _ in 1...expected {
-        BeforeAll {
+        beforeAll {
           beforeCount.bump()
         }
-        It("iterates 1") {
+        it("iterates 1") {
           count1.bump()
         }
-        It("iterates 2") {
+        it("iterates 2") {
           count2.bump()
         }
-        AfterAll {
+        afterAll {
           afterCount.bump()
         }
       }
@@ -138,17 +138,17 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertEqual(beforeCount.wrappedValue, expected)
     XCTAssertEqual(afterCount.wrappedValue, expected)
   }
-  
+
   func testWithin() throws {
     let executed = Box(false)
 
-    try Describe("Within") {
-      Within("inside a callback") { callback in
+    try describe("Within") {
+      within("inside a callback") { callback in
         try "".withCString { _ in
           try callback()
         }
       } example: {
-        It("works") {
+        it("works") {
           executed.set()
         }
       }

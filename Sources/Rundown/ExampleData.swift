@@ -2,137 +2,108 @@ import Foundation
 import OSLog
 import XCTest
 
-public typealias TestCallback = @Sendable () throws -> Void
+public protocol CallType: Sendable {
+  associatedtype Callback: Sendable
+  associatedtype WithinCallback: Sendable
+}
+
+public enum SyncCall: CallType {
+  public typealias Callback = @Sendable () throws -> Void
+  public typealias WithinCallback = @Sendable (Callback) throws -> Void
+}
+public enum AsyncCall: CallType {
+  public typealias Callback = @Sendable () async throws -> Void
+  public typealias WithinCallback = @Sendable (Callback) async throws -> Void
+}
+
+/// An async test element was found while running a non-async test
+public struct UnexpectedAsyncError: Error {}
 
 public protocol TestElement: Sendable {
   var description: String { get }
   var traits: [any Trait] { get }
-  
-  func execute(in run: ExampleRunner) throws
 }
 
-public struct TestHook<Phase: HookPhase>: TestElement, Sendable {
-  public let name: String
-  public var description: String {
-    Phase.phaseName + (name.isEmpty ? "" : ": \(name)")
-  }
-  public let traits: [any Trait]
-  let block: TestCallback
-
-  public init(_ name: String = "",
-              _ traits: (any Trait)...,
-              execute: @escaping TestCallback) {
-    self.init(name, traits, execute: execute)
-  }
-  
-  // Since Swift doesn't yet support "splatting" variadic arguments,
-  // each of these constructors must have both versions for the sake
-  // of convenience functions that add a trait to a supplied list.
-  public init(_ name: String = "",
-              _ traits: [any Trait],
-              execute: @escaping TestCallback) {
-    self.name = name
-    self.traits = traits
-    self.block = execute
-  }
-
-  public func execute(in run: ExampleRunner) throws {
-    try block()
-  }
-}
-
-public typealias BeforeAll = TestHook<BeforeAllPhase>
-public typealias BeforeEach = TestHook<BeforeEachPhase>
-public typealias AfterEach = TestHook<AfterEachPhase>
-public typealias AfterAll = TestHook<AfterAllPhase>
-
-public protocol TestExample: TestElement {
+public protocol TestExample<Call>: TestElement {
+  associatedtype Call: CallType
   var isDeepFocused: Bool { get }
 }
 
 
-/// Example group that allows for callback-based setup and teardown, such as
-/// `TaskLocal.withValue()`
-public struct Within: TestExample {
-  public typealias Executor = @Sendable (() throws -> Void) throws -> Void
-
-  public let traits: [any Trait]
-  let executor: Executor
-  let group: ExampleGroup
-  
-  public var description: String { group.description }
-  
-  public init(_ description: String,
-              _ traits: (any Trait)...,
-              executor: @escaping Executor,
-              @ExampleBuilder example: () -> ExampleGroup) {
-    self.init(description, traits, executor: executor, example: example)
-  }
-  
-  public init(_ description: String,
-            _ traits: [any Trait],
-            executor: @escaping Executor,
-            @ExampleBuilder example: () -> ExampleGroup) {
-    self.traits = traits
-    self.executor = executor
-    self.group = .init(description, builder: example)
-  }
-  
-  public func execute(in run: ExampleRunner) throws {
-    try executor { try group.execute(in: run) }
-  }
-}
-
-extension Within {
-  /// Convenience initializer for using a task local value.
-  public init<Value>(_ description: String,
-                     _ traits: (any Trait)...,
-                     local: TaskLocal<Value>,
-                     _ value: Value,
-                     @ExampleBuilder example: () -> ExampleGroup)where Value: Sendable {
-    self.traits = traits
-    self.executor = { callback in
-      try local.withValue(value) {
-        try callback()
-      }
-    }
-    self.group = .init(description, builder: example)
-  }
-}
-
-
-public struct It: TestExample {
+public struct It<Call: CallType>: TestExample {
   public let description: String
   public let traits: [any Trait]
-  let block: TestCallback
+  let block: Call.Callback
 
   public init(_ description: String,
               _ traits: (any Trait)...,
-              execute: @escaping TestCallback) {
-    self.init(description, traits, execute: execute)
-  }
-  
+              executing block:  Call.Callback) {
+    self.init(description, traits, execute: block)
+}
+
   public init(_ description: String,
               _ traits: [any Trait],
-              execute: @escaping TestCallback) {
+              execute: Call.Callback) {
     self.description = description
     self.traits = traits
     self.block = execute
   }
-  
-  public func execute(in run: ExampleRunner) throws {
+
+  /// "Casts" a sync instance to an async one
+  public init(fromSync other: It<SyncCall>)
+              where Call == AsyncCall {
+    self.description = other.description
+    self.traits = other.traits
+    self.block = other.block
+  }
+
+  public func execute(in runner: ExampleRunner) throws
+                      where Call == SyncCall {
     try block()
+  }
+  public func execute(in runner: ExampleRunner) async throws
+                      where Call == AsyncCall {
+    try await block()
   }
 }
 
-public func spec(@ExampleBuilder builder: () -> ExampleGroup,
+// These two could be a single generic function, but that creates
+// an ambiguous call site when used in the result builder.
+public func it(_ description: String,
+               _ traits: (any Trait)...,
+               execute: @escaping SyncCall.Callback) -> It<SyncCall> {
+  .init(description, traits, execute: execute)
+}
+
+public func it(_ description: String,
+               _ traits: (any Trait)...,
+               execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
+  .init(description, traits, execute: execute)
+}
+
+public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
                  function: String = #function) throws {
-  let description = String(function.prefix { $0.isIdentifier })
+  let description = dropTestPrefix(function)
+  try describe(description, builder: builder).run()
+}
+
+public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
+                 function: String = #function) async throws {
+  let description = dropTestPrefix(function)
+  try await describe(description, builder: builder).run()
+}
+
+private func dropTestPrefix(_ string: String) -> String {
+  .init(string.prefix { $0.isIdentifier })
     .droppingPrefix("test")
-  try Describe(description, builder: builder).run()
 }
 
 public func spec(_ description: String,
-                 @ExampleBuilder builder: () -> ExampleGroup) throws {
-  try Describe(description, builder: builder).run()
+                 @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
+  try describe(description, builder: builder).run()
+}
+
+public func spec(_ description: String,
+                 @ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async throws {
+  try await describe(description, builder: builder).run()
 }
