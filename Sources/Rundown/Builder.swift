@@ -27,12 +27,12 @@ public struct Accumulator<Phase: AccumulatorPhase> {
 
   func adding<E: TestExample>(_ example: E) -> Self where Phase == ExamplePhase {
     var result = self
-    result.data.appendOrSet(.init(TestExample.self), example)
+    result.data.appendOrSet(.init((any TestExample).self), example)
     return result
   }
 
   mutating func add<E: TestExample>(_ example: E) where Phase == ExamplePhase {
-    data.appendOrSet(.init(TestExample.self), example)
+    data.appendOrSet(.init((any TestExample).self), example)
   }
 
   mutating func add<P: AccumulatorPhase>(_ other: Accumulator<P>) {
@@ -53,8 +53,8 @@ public struct Accumulator<Phase: AccumulatorPhase> {
     data[.init(TestHook<P, C>.self)]?.compactMap { $0 as? TestHook<P, C> } ?? []
   }
 
-  func examples() -> [TestExample] {
-    data[.init(TestExample.self)]?.compactMap { $0 as? TestExample } ?? []
+  func examples() -> [any TestExample] {
+    data[.init((any TestExample).self)]?.compactMap { $0 as? (any TestExample) } ?? []
   }
 }
 
@@ -80,19 +80,19 @@ public struct ExampleBuilder<Call: CallType> {
   }
 
   // Examples can start and repeat
-  public static func buildPartialBlock(first: any TestExample) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock(first: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     .init().adding(first)
   }
   public static func buildPartialBlock(
       accumulated: Accumulator<ExamplePhase>,
-      next: any TestExample) -> Accumulator<ExamplePhase> {
+      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     accumulated.adding(next)
   }
 
   // Examples can follow BeforeEach/BeforeAll
   public static func buildPartialBlock<Phase: BeforePhase>(
       accumulated: Accumulator<Phase>,
-      next: any TestExample) -> Accumulator<ExamplePhase> {
+      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
 

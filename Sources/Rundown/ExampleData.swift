@@ -24,7 +24,8 @@ public protocol TestElement: Sendable {
   var traits: [any Trait] { get }
 }
 
-public protocol TestExample: TestElement {
+public protocol TestExample<Call>: TestElement {
+  associatedtype Call: CallType
   var isDeepFocused: Bool { get }
 }
 
@@ -66,8 +67,8 @@ public struct It<Call: CallType>: TestExample {
   }
 }
 
-// These two could almost be a single generic function, except again
-// the compiler doesn't know that CallType.Callback is a function.
+// These two could be a single generic function, but that creates
+// an ambiguous call site when used in the result builder.
 public func it(_ description: String,
                _ traits: (any Trait)...,
                execute: @escaping SyncCall.Callback) -> It<SyncCall> {

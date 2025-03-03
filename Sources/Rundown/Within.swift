@@ -37,10 +37,18 @@ public struct Within<Call: CallType>: TestExample {
   }
 }
 
-public func within<Call: CallType>(_ description: String,
+// As with it(), we need two versions rather than one generic version
+// so the call site in unambiguous.
+public func within(_ description: String,
                    _ traits: (any Trait)...,
-                   executor: Call.WithinCallback,
-                   @ExampleBuilder<Call> example: () -> ExampleGroup<Call>) -> Within<Call> {
+                   executor: @escaping SyncCall.WithinCallback,
+                   @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
+  .init(description, traits, executor: executor, example: example)
+}
+public func within(_ description: String,
+                   _ traits: (any Trait)...,
+                   executor: @escaping AsyncCall.WithinCallback,
+                   @ExampleBuilder<AsyncCall> example: () -> ExampleGroup<AsyncCall>) -> Within<AsyncCall> {
   .init(description, traits, executor: executor, example: example)
 }
 

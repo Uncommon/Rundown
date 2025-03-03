@@ -143,7 +143,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     let executed = Box(false)
 
     try describe("Within") {
-      Within("inside a callback") { callback in
+      within("inside a callback") { callback in
         try "".withCString { _ in
           try callback()
         }
