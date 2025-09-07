@@ -46,7 +46,7 @@ class RundownRunTests: XCTestCase {
     XCTAssert(ran.wrappedValue)
   }
 
-  func testSkipOneOfTwo() async throws {
+  func testExcludeOneOfTwo() async throws {
     try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
@@ -55,7 +55,7 @@ class RundownRunTests: XCTestCase {
       let ranAfterEach = Box(false)
       let ranAfterAll = Box(false)
 
-      let describe = describe("Skip one of two") {
+      let describe = describe("Exclude one of two") {
         beforeAll {
           ranBeforeAll.set()
         }
@@ -88,7 +88,7 @@ class RundownRunTests: XCTestCase {
   }
   
   // No hooks should run if all elements are excluded
-  func testSkipHooks() async throws {
+  func testExcludeHooks() async throws {
     try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)

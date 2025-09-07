@@ -81,7 +81,7 @@ public class ExampleRunner: @unchecked Sendable {
   // same as above but with `await` sprinkled in
   public func run(_ group: ExampleGroup<AsyncCall>) async throws {
     func runHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
-      for hook in filterSkip(hooks) {
+      for hook in filterExcluded(hooks) {
         try await with(hook) {
           try await hook.execute(in: self)
         }
@@ -111,7 +111,7 @@ public class ExampleRunner: @unchecked Sendable {
     try await runHooks(group.afterAll)
   }
 
-  func filterSkip<E: TestElement>(_ elements: [E]) -> [E] {
+  func filterExcluded<E: TestElement>(_ elements: [E]) -> [E] {
     elements.filter({ !$0.isExcluded })
   }
   

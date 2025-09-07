@@ -87,7 +87,7 @@ extension ExampleRunner {
   @MainActor
   public func runActivity(_ group: ExampleGroup<SyncCall>, under test: XCTestCase) throws {
     func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
-      for hook in filterSkip(hooks) {
+      for hook in filterExcluded(hooks) {
         try withElementActivity(hook) {
           try hook.execute(in: self)
         }
