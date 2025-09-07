@@ -62,7 +62,7 @@ class RundownRunTests: XCTestCase {
         beforeEach {
           ranBeforeEach.set()
         }
-        it("one", .skipped) {
+        it("one", .excluded) {
           ran1.set()
         }
         it("two") {
@@ -87,7 +87,7 @@ class RundownRunTests: XCTestCase {
     }
   }
   
-  // No hooks should run if all elements are skipped
+  // No hooks should run if all elements are excluded
   func testSkipHooks() async throws {
     try await useAllRunners { runner in
       let ranBeforeAll = Box(false)
@@ -99,7 +99,7 @@ class RundownRunTests: XCTestCase {
       let group = describe("Skip hooks") {
         beforeAll { ranBeforeAll.set() }
         beforeEach { ranBeforeEach.set() }
-        it("skips", .skipped) { ranIt.set() }
+        it("excludes", .excluded) { ranIt.set() }
         afterEach { ranAfterEach.set() }
         afterAll { ranAfterAll.set() }
       }

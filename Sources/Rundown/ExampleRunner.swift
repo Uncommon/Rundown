@@ -44,7 +44,7 @@ public class ExampleRunner: @unchecked Sendable {
   /// at each step.
   public func run(_ group: ExampleGroup<SyncCall>) throws {
     func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
-      for hook in hooks.filter({ !$0.isSkipped }) {
+      for hook in hooks.filter({ !$0.isExcluded }) {
         try with(hook) {
           try hook.execute(in: self)
         }
@@ -112,11 +112,11 @@ public class ExampleRunner: @unchecked Sendable {
   }
 
   func filterSkip<E: TestElement>(_ elements: [E]) -> [E] {
-    elements.filter({ !$0.isSkipped })
+    elements.filter({ !$0.isExcluded })
   }
   
   func filterFocusSkip(_ elements: [any TestExample]) -> [any TestExample] {
-    let nonSkipped = elements.filter { !$0.isSkipped }
+    let nonSkipped = elements.filter { !$0.isExcluded }
     let focused = nonSkipped.filter(\.isDeepFocused)
     
     return focused.isEmpty ? nonSkipped : focused
