@@ -1,4 +1,5 @@
 import XCTest
+import Synchronization
 @testable import Rundown
 
 /// Tests that verify execution on both the regular and XCTest version
@@ -181,6 +182,25 @@ class RundownRunTests: XCTestCase {
       XCTAssert(ranAfterAll2.wrappedValue)
       XCTAssertEqual(afterEachCount1.wrappedValue, 1)
       XCTAssert(ranAfterAll1.wrappedValue)
+    }
+  }
+  
+  func testConcurrent() async throws {
+    try await useAllRunners { runner in
+      let stepCount = 10
+      let runCount = Atomic<Int>(0)
+      
+      let group = describe("concurrent", .concurrent) {
+        for step in 1...stepCount {
+          it("runs step \(step)") {
+            runCount.add(1, ordering: .relaxed)
+          }
+        }
+      }
+      
+      try await runner(group)
+      
+      XCTAssertEqual(runCount.load(ordering: .relaxed), stepCount)
     }
   }
 }

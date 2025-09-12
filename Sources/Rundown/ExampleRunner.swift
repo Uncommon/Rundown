@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import Synchronization
 import XCTest
 
 /// Tracks the execution of an example group in order to construct the full name
@@ -43,19 +44,14 @@ public class ExampleRunner: @unchecked Sendable {
   /// the group itself because the runner can have logic that it needs to apply
   /// at each step.
   public func run(_ group: ExampleGroup<SyncCall>) throws {
-    func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
+    @Sendable func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
       for hook in hooks.filter({ !$0.isExcluded }) {
         try with(hook) {
           try hook.execute(in: self)
         }
       }
     }
-    let elements = filterFocusSkip(group.elements)
-    guard !elements.isEmpty
-    else { return }
-    
-    try runHooks(group.beforeAll)
-    for element in elements {
+    @Sendable func runSubElement(_ element: some TestExample) throws {
       try runHooks(group.beforeEach)
       try with(element) {
         switch element {
@@ -75,6 +71,37 @@ public class ExampleRunner: @unchecked Sendable {
       }
       try runHooks(group.afterEach)
     }
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+    
+    try runHooks(group.beforeAll)
+    if group.traits.contains(where: { $0 is ConcurrentTrait }) {
+      let errorMutex = Mutex<(any Error)?>(nil)
+      
+      DispatchQueue.concurrentPerform(iterations: elements.count) {
+        let element = elements[$0]
+        
+        do {
+          try runSubElement(element)
+        }
+        catch let elementError {
+          errorMutex.withLock {
+            if $0 == nil {
+              $0 = elementError
+            }
+          }
+        }
+      }
+      if let error = errorMutex.withLock({ $0 }) {
+        throw error
+      }
+    }
+    else {
+      for element in elements {
+        try runSubElement(element)
+      }
+    }
     try runHooks(group.afterAll)
   }
 
@@ -87,12 +114,7 @@ public class ExampleRunner: @unchecked Sendable {
         }
       }
     }
-    let elements = filterFocusSkip(group.elements)
-    guard !elements.isEmpty
-    else { return }
-
-    try await runHooks(group.beforeAll)
-    for element in elements {
+    func runSubElement(_ element: some TestExample) async throws {
       try await runHooks(group.beforeEach)
       try await with(element) {
         switch element {
@@ -108,6 +130,29 @@ public class ExampleRunner: @unchecked Sendable {
       }
       try await runHooks(group.afterEach)
     }
+    
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+
+    try await runHooks(group.beforeAll)
+    
+    if group.traits.contains(where: { $0 is ConcurrentTrait }) {
+      try await withThrowingTaskGroup(of: Void.self) { taskGroup in
+        for element in elements {
+          taskGroup.addTask {
+            try await runSubElement(element)
+          }
+        }
+        try await taskGroup.waitForAll()
+      }
+    }
+    else {
+      for element in elements {
+        try await runSubElement(element)
+      }
+    }
+    
     try await runHooks(group.afterAll)
   }
 

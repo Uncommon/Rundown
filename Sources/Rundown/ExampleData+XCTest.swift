@@ -27,6 +27,11 @@ open class TestCase: XCTestCase {
     super.record(newIssue)
   }
   
+  /// Runs the given test steps using `XCTContext.runActivity()`.
+  ///
+  /// There is no `async` version of this function because
+  /// `XCTContext` only supports using `runActivity()` on the main
+  /// thread.
   @MainActor
   public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
                    function: String = #function) throws {
@@ -35,6 +40,11 @@ open class TestCase: XCTestCase {
     try describe(description, builder: builder).runActivity(under: self)
   }
   
+  /// Runs the given test steps using `XCTContext.runActivity()`.
+  ///
+  /// There is no `async` version of this function because
+  /// `XCTContext` only supports using `runActivity()` on the main
+  /// thread.
   @MainActor
   public func spec(_ description: String,
                    @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
