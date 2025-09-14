@@ -46,6 +46,27 @@ class RundownRunTests: XCTestCase {
 
     XCTAssert(ran.wrappedValue)
   }
+  
+  func testAsyncContext() async throws {
+    let ran1 = Box(false)
+    let ran2 = Box(false)
+    
+    try await Rundown.spec {
+      context("two things") {
+        it("does thing 1") {
+          try await Task.sleep(for: .milliseconds(100))
+          ran1.set()
+        }
+        it("does thing 2") {
+          try await Task.sleep(for: .milliseconds(100))
+          ran2.set()
+        }
+      }
+    }
+    
+    XCTAssert(ran1.wrappedValue)
+    XCTAssert(ran2.wrappedValue)
+  }
 
   func testExcludeOneOfTwo() async throws {
     try await useAllRunners { runner in

@@ -112,7 +112,7 @@ public func describe(_ description: String,
 
 public func describe(_ description: String,
                      _ traits: (any Trait)...,
-                     @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) async -> ExampleGroup<AsyncCall> {
+                     @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) -> ExampleGroup<AsyncCall> {
   .init(description, traits, builder: builder)
 }
 
@@ -124,6 +124,6 @@ public func context(_ description: String,
 
 public func context(_ description: String,
                     _ traits: (any Trait)...,
-                    @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) async -> ExampleGroup<AsyncCall> {
+                    @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) -> ExampleGroup<AsyncCall> {
   .init(description, traits, builder: builder)
 }
