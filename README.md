@@ -1,6 +1,6 @@
 ## Rundown
 
-Rundown is based on the pattern used in testing libraries such as RSpec, where tests are organized into steps:
+Rundown is a structured testing framework for XCTest and Swift Testing,based on the pattern used in testing libraries such as RSpec, where tests are organized into steps:
 
 ```swift
 describe("this app feature") {
@@ -37,12 +37,12 @@ Mis-ordered elements produce a compile-time error.
 
 ## Test framework support
 
-The goals is for this library to be equally useful in either XCTest or Swift Testing.
+The goal is for this library to be equally useful in either XCTest or Swift Testing.
 
 XCTest support has the following features:
 
 * Each test element is run using `XCTContext.runActivity()` so that the test structure is evident in the logs.
-* A sub class of `XCTestCase`, named `Rundown.TestCase`, is provided so that test failures include the full name of the test element, including enclosing `Describe` and `Context` elements.
+* A sub class of `XCTestCase`, named `Rundown.TestCase`, is provided so that test failures include the full name of the test element, including enclosing `describe` and `context` elements.
 * `XCTSkip` is handled so that only the remaining elements at that level are skipped.
 * Using `XCTContext.runActivity()` with `async` tests is currently not supported. It is a `@MainActor` function, which complicates things. 
 
