@@ -1,8 +1,12 @@
-/// The time component of a phase
-public protocol PhaseTime {}
-public enum BeforeTime: PhaseTime {}
-public enum ExampleTime: PhaseTime {}
-public enum AfterTime: PhaseTime {}
+// These protocols are used by the result builder to categorize elements into
+// "phases" by ordering and scope, so that it can implement compile-time
+// restrictions on element ordering.
+
+/// The ordering component of a phase
+public protocol PhaseOrdering {}
+public enum BeforeOrdering: PhaseOrdering {}
+public enum ExampleOrdering: PhaseOrdering {}
+public enum AfterOrdering: PhaseOrdering {}
 
 /// The scope component of a phase
 public protocol PhaseScope {}
@@ -13,18 +17,18 @@ public enum EachScope: PhaseScope {}
 /// types for different states in the builder's state machine. The various
 /// protocols and enums are for categorizing the states.
 public protocol AccumulatorPhase {
-  associatedtype Time: PhaseTime
+  associatedtype Ordering: PhaseOrdering
   associatedtype Scope: PhaseScope
 }
 /// Any "before" or "after" phase
 public protocol HookPhase: AccumulatorPhase {
   static var phaseName: String { get }
 }
-/// Any phase that can come at the end - example or after
+/// Any phase that can come at the end - "example" or "after"
 public protocol FinalPhase: AccumulatorPhase {}
 
-public protocol BeforePhase: HookPhase where Time == BeforeTime {}
-public protocol AfterPhase: FinalPhase, HookPhase where Time == AfterTime {}
+public protocol BeforePhase: HookPhase where Ordering == BeforeOrdering {}
+public protocol AfterPhase: FinalPhase, HookPhase where Ordering == AfterOrdering {}
 public protocol AllPhase: HookPhase where Scope == AllScope {}
 public protocol EachPhase: HookPhase where Scope == EachScope {}
 public enum BeforeAllPhase: BeforePhase, AllPhase {
@@ -40,6 +44,6 @@ public enum AfterAllPhase: AfterPhase, AllPhase {
   public static var phaseName: String { "after all" }
 }
 public enum ExamplePhase: FinalPhase {
-  public typealias Time = ExampleTime
+  public typealias Ordering = ExampleOrdering
   public typealias Scope = EachScope
 }
