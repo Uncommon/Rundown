@@ -120,8 +120,12 @@ public class ExampleRunner: @unchecked Sendable {
         switch element {
           case let subgroup as ExampleGroup<AsyncCall>:
             try await run(subgroup)
+          case let subgroup as ExampleGroup<SyncCall>:
+            try run(subgroup)
           case let it as It<AsyncCall>:
             try await it.execute(in: self)
+          case let it as It<SyncCall>:
+            try it.execute(in: self)
           case let within as Within<AsyncCall>:
             try await within.execute(in: self)
           default:

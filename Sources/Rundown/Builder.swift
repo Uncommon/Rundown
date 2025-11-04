@@ -170,3 +170,28 @@ public struct ExampleBuilder<Call: CallType> {
     fatalError("unavailable")
   }
 }
+
+// Allow sync elements in an async spec
+public extension ExampleBuilder where Call == AsyncCall {
+  static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
+    .init().adding(TestHook<Phase, AsyncCall>(fromSync: first))
+  }
+  static func buildPartialBlock<Phase: AccumulatorPhase>(
+    accumulated: Accumulator<Phase>,
+    next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
+    accumulated.adding(TestHook<Phase, AsyncCall>(fromSync: next))
+  }
+  static func buildPartialBlock(first: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+    .init().adding(first)
+  }
+  static func buildPartialBlock(
+    accumulated: Accumulator<ExamplePhase>,
+    next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+      accumulated.adding(next)
+  }
+  static func buildPartialBlock<Phase: BeforePhase>(
+    accumulated: Accumulator<Phase>,
+    next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+    accumulated.transitioned(with: next)
+  }
+}

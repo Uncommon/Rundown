@@ -110,6 +110,9 @@ public func describe(_ description: String,
   .init(description, traits, builder: builder)
 }
 
+// Disfavored overload enables mixing sync and async elements in the same test
+// without ambiguity.
+@_disfavoredOverload
 public func describe(_ description: String,
                      _ traits: (any Trait)...,
                      @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) -> ExampleGroup<AsyncCall> {
@@ -122,6 +125,7 @@ public func context(_ description: String,
   .init(description, traits, builder: builder)
 }
 
+@_disfavoredOverload
 public func context(_ description: String,
                     _ traits: (any Trait)...,
                     @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) -> ExampleGroup<AsyncCall> {

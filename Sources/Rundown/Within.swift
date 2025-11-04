@@ -45,6 +45,7 @@ public func within(_ description: String,
                    @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
   .init(description, traits, executor: executor, example: example)
 }
+@_disfavoredOverload
 public func within(_ description: String,
                    _ traits: (any Trait)...,
                    executor: @escaping AsyncCall.WithinCallback,
@@ -68,6 +69,7 @@ public func within<Value: Sendable>(
         example: example)
 }
 /// Convenience initializer for using a task local value (async).
+@_disfavoredOverload
 public func within<Value: Sendable>(
     _ description: String,
     _ traits: (any Trait)...,
