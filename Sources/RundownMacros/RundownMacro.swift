@@ -4,11 +4,11 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-fileprivate func runCall(for context: some MacroExpansionContext) -> String {
+fileprivate func runCall(for context: some MacroExpansionContext, async: Bool) -> String {
   // Assume if it's in a class then it's XCTestCase or a subclass.
   // Swift Testing recommends using structs over classes.
   let isClass = context.lexicalContext.first?.as(ClassDeclSyntax.self) != nil
-  return isClass ? "runActivity(under: self)" : "run()"
+  return isClass && !async ? "runActivity(under: self)" : "run()"
 }
 
 struct NotAFunctionMessage: DiagnosticMessage {
@@ -67,17 +67,22 @@ public struct ExampleMacro: PeerMacro {
     }
     
     // maybe check that function name doesn't start with "test"
-    
+
+    let isAsyncTest = function.signature.effectSpecifiers?.asyncSpecifier != nil
+    let awaitKeyword = isAsyncTest ? "await " : ""
     let testFuncName = "test" + function.name.text.firstCapitalized
+    let runCall = runCall(for: context, async: isAsyncTest)
     // TODO: maybe if the original function contained a single Describe,
     // unwrap to that instead of adding the function name as description
     let testFunc = FunctionDeclSyntax(
       name: .identifier(testFuncName),
       signature: .init(parameterClause: .init(parameters: []),
-                       effectSpecifiers: .init(throwsClause: .init(throwsSpecifier: "throws"))),
+                       effectSpecifiers: .init(
+                         asyncSpecifier: isAsyncTest ? .keyword(.async) : nil,
+                         throwsClause: .init(throwsSpecifier: "throws"))),
       body: """
         {
-          try \(function.name)().named("\(function.name)").\(raw: runCall(for: context))
+          try \(raw: awaitKeyword)\(function.name)().named("\(function.name)").\(raw: runCall)
         }
         """)
 

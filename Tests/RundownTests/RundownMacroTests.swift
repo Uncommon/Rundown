@@ -45,4 +45,36 @@ final class RundownMacroTests: XCTestCase {
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
   }
+
+  func testPeerAsyncMacro() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      class TestClass: XCTestCase {
+        @Example @ExampleBuilder
+        func thing() async throws -> ExampleGroup {
+          It("works") {
+          }
+        }
+      }
+      """,
+      expandedSource: """
+      class TestClass: XCTestCase {
+        @ExampleBuilder
+        func thing() async throws -> ExampleGroup {
+          It("works") {
+          }
+        }
+      
+        func testThing() async throws {
+          try await thing().named("thing").run()
+        }
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
 }

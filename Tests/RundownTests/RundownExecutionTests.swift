@@ -26,6 +26,14 @@ final class RundownExecutionTests: Rundown.TestCase {
     }
   }
 
+  @Example @ExampleBuilder<AsyncCall>
+  func oneItAsyncMacro() async throws -> ExampleGroup<AsyncCall> {
+    it("works") {
+      try await Task.sleep(nanoseconds: 500)
+      XCTAssert(true)
+    }
+  }
+
   func testExecuteDescribe() throws {
     let executed = Box(false)
 

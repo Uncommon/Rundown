@@ -16,7 +16,7 @@ public enum EachScope: PhaseScope {}
 /// The basis of a set of types that enables `Accumulator` to have different
 /// types for different states in the builder's state machine. The various
 /// protocols and enums are for categorizing the states.
-public protocol AccumulatorPhase {
+public protocol AccumulatorPhase: Sendable {
   associatedtype Ordering: PhaseOrdering
   associatedtype Scope: PhaseScope
 }
