@@ -50,12 +50,14 @@ Similar support for Swift Testing is planned, but the Swift Testing APIs do not 
 
 ## Running tests
 
-The main way to run tests looks like this:
+The main direct way to run tests looks like this:
 
 ``` swift
-spec {
-  it("works") {
-    // ···
+func testSomething() {
+  try spec {
+    it("works") {
+      // ···
+    }
   }
 }
 ```
@@ -67,6 +69,21 @@ There is also an `async` version of `spec()`, so if your test function is `async
 When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` - or more precisely, a method of the subclass `Rundown.TestCase`. This subclass should always be used so that issues can be logged with the full test element description, and this version of `spec()` uses an `XCTActivity` for each test element. 
 
 The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `XCTActivity`.
+
+## `@Example` macro
+
+There is also the `@Example` macro as an alternative:
+
+``` swift
+@Example @ExampleBuilder<SyncCall>
+func myExample() throws -> ExampleGroup<SyncCall> {
+  it("works") {
+    // ···
+  }
+}
+```
+
+This eliminates a level of indentation, but requires specifying the result builder and return type.
 
 ## Goals and plans
 
