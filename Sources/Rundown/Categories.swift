@@ -11,6 +11,7 @@ public enum AfterOrdering: PhaseOrdering {}
 /// The scope component of a phase
 public protocol PhaseScope {}
 public enum AllScope: PhaseScope {}
+public enum AroundScope: PhaseScope {}
 public enum EachScope: PhaseScope {}
 
 /// The basis of a set of types that enables `Accumulator` to have different
@@ -30,9 +31,13 @@ public protocol FinalPhase: AccumulatorPhase {}
 public protocol BeforePhase: HookPhase where Ordering == BeforeOrdering {}
 public protocol AfterPhase: FinalPhase, HookPhase where Ordering == AfterOrdering {}
 public protocol AllPhase: HookPhase where Scope == AllScope {}
+public protocol AroundPhase: HookPhase where Scope == AroundScope {}
 public protocol EachPhase: HookPhase where Scope == EachScope {}
 public enum BeforeAllPhase: BeforePhase, AllPhase {
   public static var phaseName: String { "before all" }
+}
+public enum AroundEachPhase: BeforePhase, AroundPhase {
+  public static var phaseName: String { "around each" }
 }
 public enum BeforeEachPhase: BeforePhase, EachPhase {
   public static var phaseName: String { "before each" }

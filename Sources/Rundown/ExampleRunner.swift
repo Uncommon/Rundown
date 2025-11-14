@@ -52,6 +52,7 @@ public class ExampleRunner: @unchecked Sendable {
       }
     }
     @Sendable func runSubElement(_ element: some TestExample) throws {
+      // aroundEach
       try runHooks(group.beforeEach)
       try with(element) {
         switch element {
@@ -115,6 +116,7 @@ public class ExampleRunner: @unchecked Sendable {
       }
     }
     func runSubElement(_ element: some TestExample) async throws {
+      // aroundEach
       try await runHooks(group.beforeEach)
       try await with(element) {
         switch element {

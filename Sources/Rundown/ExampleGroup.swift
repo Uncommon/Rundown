@@ -7,6 +7,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   public let description: String
   public let traits: [any Trait]
   let beforeAll: [BeforeAll]
+  let aroundEachHooks: [AroundEach]
   let beforeEach: [BeforeEach]
   let afterEach: [AfterEach]
   let afterAll: [AfterAll]

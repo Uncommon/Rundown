@@ -67,14 +67,28 @@ public struct ExampleBuilder<Call: CallType> {
     accumulated.adding(next)
   }
 
-  // BeforeEach and BeforeAll can start
+  // BeforeAll, AroundEach and BeforEach can start
   public static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, Call>) -> Accumulator<Phase> {
     .init().adding(first)
+  }
+  
+  // AroundEach can follow BeforeAll
+  public static func buildPartialBlock<C: CallType>(
+      accumulated: Accumulator<BeforeAllPhase>,
+      next: TestHook<AroundEachPhase, C>) -> Accumulator<AroundEachPhase> {
+    accumulated.transitioned(with: next)
   }
 
   // BeforeEach can follow BeforeAll
   public static func buildPartialBlock<C: CallType>(
       accumulated: Accumulator<BeforeAllPhase>,
+      next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: next)
+  }
+
+  // BeforeEach can follow AroundEach
+  public static func buildPartialBlock<C: CallType>(
+      accumulated: Accumulator<AroundEachPhase>,
       next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
     accumulated.transitioned(with: next)
   }

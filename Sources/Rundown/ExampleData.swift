@@ -39,7 +39,7 @@ public struct It<Call: CallType>: TestExample {
               _ traits: (any Trait)...,
               executing block:  Call.Callback) {
     self.init(description, traits, execute: block)
-}
+  }
 
   public init(_ description: String,
               _ traits: [any Trait],
