@@ -45,14 +45,14 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
 ///
 /// This allows for callback-based setup and teardown, such as
 /// Swift's various "with" functions like `TaskLocal.withValue()`.
-public func aroundEach(_ name: String,
+public func aroundEach(_ name: String = "",
                        _ traits: (any Trait)...,
                        executor: @escaping SyncCall.WithinCallback)
   -> AroundEach<SyncCall> {
   .init(name: name, traits: traits, block: executor)
 }
 @_disfavoredOverload
-public func aroundEach(_ name: String,
+public func aroundEach(_ name: String = "",
                        _ traits: (any Trait)...,
                        executor: @escaping AsyncCall.WithinCallback)
   -> AroundEach<AsyncCall> {

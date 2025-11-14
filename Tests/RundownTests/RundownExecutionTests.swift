@@ -164,4 +164,47 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     XCTAssert(executed.wrappedValue)
   }
+  
+  func testAroundEach() throws {
+    let executed = Box(false)
+    
+    try describe("ArounchEach") {
+      aroundEach { (callback) in
+        try "".withCString { _ in
+          try callback()
+        }
+      }
+      
+      it("works") {
+        executed.set()
+      }
+    }.run()
+    
+    XCTAssert(executed.wrappedValue)
+  }
+  
+  func testAroundEachWithHooks() throws {
+    let result = Box([String]())
+    
+    try describe("ArounchEach") {
+      beforeAll {
+        result.wrappedValue.append("beforeAny")
+      }
+      aroundEach { (callback) in
+        try "".withCString { _ in
+          try callback()
+        }
+      }
+      beforeEach {
+        result.wrappedValue.append("beforeEach")
+      }
+      
+      it("works") {
+        result.wrappedValue.append("it")
+      }
+    }.run()
+    
+    XCTAssertEqual(result.wrappedValue,
+      ["beforeAny", "beforeEach", "it"])
+  }
 }

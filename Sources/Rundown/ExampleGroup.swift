@@ -7,7 +7,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   public let description: String
   public let traits: [any Trait]
   let beforeAll: [BeforeAll]
-  let aroundEachHooks: [AroundEach]
+  let aroundEachHooks: [AroundEach<Call>]
   let beforeEach: [BeforeEach]
   let afterEach: [AfterEach]
   let afterAll: [AfterAll]
@@ -32,6 +32,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
     self.description = description
     self.traits = traits
     self.beforeAll = builtGroup.beforeAll
+    self.aroundEachHooks = builtGroup.aroundEachHooks
     self.beforeEach = builtGroup.beforeEach
     self.afterEach = builtGroup.afterEach
     self.afterAll = builtGroup.afterAll
@@ -41,6 +42,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   init(description: String,
        traits: [any Trait],
        beforeAll: [BeforeAll],
+       aroundEach: [AroundEach<Call>],
        beforeEach: [BeforeEach],
        afterEach: [AfterEach],
        afterAll: [AfterAll],
@@ -48,6 +50,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
     self.description = description
     self.traits = traits
     self.beforeAll = beforeAll
+    self.aroundEachHooks = aroundEach
     self.beforeEach = beforeEach
     self.afterEach = afterEach
     self.afterAll = afterAll
@@ -59,6 +62,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
     return Self.init(description: name,
                      traits: traits,
                      beforeAll: beforeAll,
+                     aroundEach: aroundEachHooks,
                      beforeEach: beforeEach,
                      afterEach: afterEach,
                      afterAll: afterAll,
@@ -81,6 +85,7 @@ extension ExampleGroup where Call == AsyncCall {
     self.description = other.description
     self.traits = other.traits
     self.beforeAll = other.beforeAll.map { .init(fromSync: $0) }
+    self.aroundEachHooks = [] // TODO
     self.beforeEach = other.beforeEach.map { .init(fromSync: $0) }
     self.afterEach = other.afterEach.map { .init(fromSync: $0) }
     self.afterAll = other.afterAll.map { .init(fromSync: $0) }
