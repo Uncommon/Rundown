@@ -53,7 +53,7 @@ public class ExampleRunner: @unchecked Sendable {
     }
     @Sendable func runSubElement(_ element: some TestExample) throws {
       // aroundEach
-      try runHooks(group.beforeEach)
+      try runHooks(group.beforeEachHooks)
       try with(element) {
         switch element {
           case let subgroup as ExampleGroup<SyncCall>:
@@ -70,13 +70,13 @@ public class ExampleRunner: @unchecked Sendable {
             preconditionFailure("unexpected element type")
         }
       }
-      try runHooks(group.afterEach)
+      try runHooks(group.afterEachHooks)
     }
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
     
-    try runHooks(group.beforeAll)
+    try runHooks(group.beforeAllHooks)
     if group.traits.contains(where: { $0 is ConcurrentTrait }) {
       let errorMutex = Mutex<(any Error)?>(nil)
       
@@ -103,7 +103,7 @@ public class ExampleRunner: @unchecked Sendable {
         try runSubElement(element)
       }
     }
-    try runHooks(group.afterAll)
+    try runHooks(group.afterAllHooks)
   }
 
   // same as above but with `await` sprinkled in
@@ -117,7 +117,7 @@ public class ExampleRunner: @unchecked Sendable {
     }
     func runSubElement(_ element: some TestExample) async throws {
       // aroundEach
-      try await runHooks(group.beforeEach)
+      try await runHooks(group.beforeEachHooks)
       try await with(element) {
         switch element {
           case let subgroup as ExampleGroup<AsyncCall>:
@@ -134,14 +134,14 @@ public class ExampleRunner: @unchecked Sendable {
             preconditionFailure("unexpected element type")
         }
       }
-      try await runHooks(group.afterEach)
+      try await runHooks(group.afterEachHooks)
     }
     
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
 
-    try await runHooks(group.beforeAll)
+    try await runHooks(group.beforeAllHooks)
     
     if group.traits.contains(where: { $0 is ConcurrentTrait }) {
       try await withThrowingTaskGroup(of: Void.self) { taskGroup in
@@ -159,7 +159,7 @@ public class ExampleRunner: @unchecked Sendable {
       }
     }
     
-    try await runHooks(group.afterAll)
+    try await runHooks(group.afterAllHooks)
   }
 
   func filterExcluded<E: TestElement>(_ elements: [E]) -> [E] {

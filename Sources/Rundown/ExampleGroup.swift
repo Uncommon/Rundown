@@ -6,11 +6,11 @@ public struct ExampleGroup<Call: CallType>: TestExample {
 
   public let description: String
   public let traits: [any Trait]
-  let beforeAll: [BeforeAll]
+  let beforeAllHooks: [BeforeAll]
   let aroundEachHooks: [AroundEach<Call>]
-  let beforeEach: [BeforeEach]
-  let afterEach: [AfterEach]
-  let afterAll: [AfterAll]
+  let beforeEachHooks: [BeforeEach]
+  let afterEachHooks: [AfterEach]
+  let afterAllHooks: [AfterAll]
   let elements: [any TestExample]
   
   public var isDeepFocused: Bool {
@@ -31,11 +31,11 @@ public struct ExampleGroup<Call: CallType>: TestExample {
     
     self.description = description
     self.traits = traits
-    self.beforeAll = builtGroup.beforeAll
+    self.beforeAllHooks = builtGroup.beforeAllHooks
     self.aroundEachHooks = builtGroup.aroundEachHooks
-    self.beforeEach = builtGroup.beforeEach
-    self.afterEach = builtGroup.afterEach
-    self.afterAll = builtGroup.afterAll
+    self.beforeEachHooks = builtGroup.beforeEachHooks
+    self.afterEachHooks = builtGroup.afterEachHooks
+    self.afterAllHooks = builtGroup.afterAllHooks
     self.elements = builtGroup.elements
   }
 
@@ -49,11 +49,11 @@ public struct ExampleGroup<Call: CallType>: TestExample {
        elements: [any TestExample]) {
     self.description = description
     self.traits = traits
-    self.beforeAll = beforeAll
+    self.beforeAllHooks = beforeAll
     self.aroundEachHooks = aroundEach
-    self.beforeEach = beforeEach
-    self.afterEach = afterEach
-    self.afterAll = afterAll
+    self.beforeEachHooks = beforeEach
+    self.afterEachHooks = afterEach
+    self.afterAllHooks = afterAll
     self.elements = elements
   }
   
@@ -61,11 +61,11 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   public func named(_ name: String) -> Self {
     return Self.init(description: name,
                      traits: traits,
-                     beforeAll: beforeAll,
+                     beforeAll: beforeAllHooks,
                      aroundEach: aroundEachHooks,
-                     beforeEach: beforeEach,
-                     afterEach: afterEach,
-                     afterAll: afterAll,
+                     beforeEach: beforeEachHooks,
+                     afterEach: afterEachHooks,
+                     afterAll: afterAllHooks,
                      elements: elements)
   }
 }
@@ -84,11 +84,11 @@ extension ExampleGroup where Call == AsyncCall {
   public init(fromSync other: ExampleGroup<SyncCall>) {
     self.description = other.description
     self.traits = other.traits
-    self.beforeAll = other.beforeAll.map { .init(fromSync: $0) }
+    self.beforeAllHooks = other.beforeAllHooks.map { .init(fromSync: $0) }
     self.aroundEachHooks = [] // TODO
-    self.beforeEach = other.beforeEach.map { .init(fromSync: $0) }
-    self.afterEach = other.afterEach.map { .init(fromSync: $0) }
-    self.afterAll = other.afterAll.map { .init(fromSync: $0) }
+    self.beforeEachHooks = other.beforeEachHooks.map { .init(fromSync: $0) }
+    self.afterEachHooks = other.afterEachHooks.map { .init(fromSync: $0) }
+    self.afterAllHooks = other.afterAllHooks.map { .init(fromSync: $0) }
     self.elements = other.elements.map {
       switch $0 {
         case let syncIt as It<SyncCall>:

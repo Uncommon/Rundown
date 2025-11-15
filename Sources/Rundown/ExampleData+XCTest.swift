@@ -146,13 +146,13 @@ extension ExampleRunner {
     else { return }
 
     do {
-      try runHooks(group.beforeAll)
+      try runHooks(group.beforeAllHooks)
     }
     catch let skip as XCTSkip {
       logSkip(skip, element: group)
       return
     }
-    if group.beforeEach.isEmpty && group.afterEach.isEmpty {
+    if group.beforeEachHooks.isEmpty && group.afterEachHooks.isEmpty {
       for element in group.elements {
         try runElement(element)
       }
@@ -163,18 +163,18 @@ extension ExampleRunner {
         // to group items in the output without affecting the description.
         try Self.withCurrentActivity(named: element.description) {
           do {
-            try runHooks(group.beforeEach)
+            try runHooks(group.beforeEachHooks)
           }
           catch let skip as XCTSkip {
             logSkip(skip, element: element)
             return // from withCurrentActivity()
           }
           try runElement(element)
-          try runHooks(group.afterEach)
+          try runHooks(group.afterEachHooks)
         }
       }
     }
-    try runHooks(group.afterAll)
+    try runHooks(group.afterAllHooks)
   }
   
   @MainActor
