@@ -52,6 +52,10 @@ public struct Accumulator<Phase: AccumulatorPhase> {
   func phaseHooks<P: HookPhase, C: CallType>(_ phase: P.Type) -> [TestHook<P, C>] {
     data[.init(TestHook<P, C>.self)]?.compactMap { $0 as? TestHook<P, C> } ?? []
   }
+  
+  func aroundEachHooks<C: CallType>() -> [AroundEach<C>] {
+    data[.init(AroundEach<C>.self)]?.compactMap { $0 as? AroundEach<C> } ?? []
+  }
 
   func examples() -> [any TestExample] {
     data[.init((any TestExample).self)]?.compactMap { $0 as? (any TestExample) } ?? []
@@ -164,7 +168,7 @@ public struct ExampleBuilder<Call: CallType> {
     .init(description: "",
           traits: [],
           beforeAll: component.phaseHooks(BeforeAllPhase.self),
-          aroundEach: [], // TODO
+          aroundEach: component.aroundEachHooks(),
           beforeEach: component.phaseHooks(BeforeEachPhase.self),
           afterEach: component.phaseHooks(AfterEachPhase.self),
           afterAll: component.phaseHooks(AfterAllPhase.self),
@@ -220,5 +224,22 @@ public extension ExampleBuilder where Call == AsyncCall {
     accumulated: Accumulator<Phase>,
     next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
+  }
+  
+  // AroundEach can't be converted from sync to async because it
+  // would require passing the new async callback to the old sync
+  // callback, and there's no good way to make that work.
+  // This also makes sense because every AroundEach must be able
+  // to handle every example in the group, so if any are async then
+  // every AroundEach must also be async.
+  @available(*, unavailable, message: "Every aroundEach must be async in an async test")
+  static func buildPartialBlock(first: AroundEach<SyncCall>) -> Accumulator<AroundEachPhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Every aroundEach must be async in an async test")
+  static func buildPartialBlock<Phase: AccumulatorPhase>(
+    accumulated: Accumulator<Phase>,
+    next: AroundEach<SyncCall>) -> Accumulator<AroundEachPhase> {
+    fatalError("unavailable")
   }
 }

@@ -191,9 +191,11 @@ final class RundownExecutionTests: Rundown.TestCase {
         result.wrappedValue.append("beforeAny")
       }
       aroundEach { (callback) in
+        result.wrappedValue.append("around start")
         try "".withCString { _ in
           try callback()
         }
+        result.wrappedValue.append("around end")
       }
       beforeEach {
         result.wrappedValue.append("beforeEach")
@@ -202,9 +204,16 @@ final class RundownExecutionTests: Rundown.TestCase {
       it("works") {
         result.wrappedValue.append("it")
       }
+      
+      afterEach {
+        result.wrappedValue.append("afterEach")
+      }
     }.run()
     
     XCTAssertEqual(result.wrappedValue,
-      ["beforeAny", "beforeEach", "it"])
+      ["beforeAny",
+       "around start",
+       "beforeEach", "it", "afterEach",
+       "around end"])
   }
 }

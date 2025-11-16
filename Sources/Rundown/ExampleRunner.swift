@@ -52,7 +52,25 @@ public class ExampleRunner: @unchecked Sendable {
       }
     }
     @Sendable func runSubElement(_ element: some TestExample) throws {
-      // aroundEach
+      if group.aroundEachHooks.isEmpty {
+        try runSubElementInner(element)
+      }
+      else {
+        try runAround(hooks: group.aroundEachHooks, element: element)
+      }
+    }
+    @Sendable func runAround(hooks: [AroundEach<SyncCall>], element: some TestExample) throws {
+      if let hook = hooks.first {
+        try hook.execute {
+          try runAround(hooks: Array(hooks.dropFirst()),
+                        element: element)
+        }
+      }
+      else {
+        try runSubElementInner(element)
+      }
+    }
+    @Sendable func runSubElementInner(_ element: some TestExample) throws {
       try runHooks(group.beforeEachHooks)
       try with(element) {
         switch element {
