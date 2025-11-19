@@ -8,7 +8,7 @@ import XCTest
 #if canImport(RundownMacros)
 import RundownMacros
 
-let testMacros: [String: Macro.Type] = [
+fileprivate let testMacros: [String: Macro.Type] = [
   "Example": ExampleMacro.self,
 ]
 #endif

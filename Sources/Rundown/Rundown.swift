@@ -18,3 +18,11 @@ public macro Example() = #externalMacro(module: "RundownMacros", type: "ExampleM
 // func testThing() throws {
 //   try ExampleRunner.run(thing())
 // }
+
+/// Creates a copy of the attached function with the `async` and `await`
+/// keywords stripped. All `async` functions called by the attached function
+/// are assumed to have non-`async` variants.
+@attached(peer)
+public macro DeAsync(replacingTypes: [AnyObject.Type] = [],
+                     withTypes: [AnyObject.Type] = [])
+  = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")

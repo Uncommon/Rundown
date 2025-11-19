@@ -1,0 +1,117 @@
+import SwiftSyntax
+import SwiftSyntaxBuilder
+import SwiftSyntaxMacros
+import SwiftSyntaxMacrosTestSupport
+import XCTest
+
+// Macro implementations build for the host, so the corresponding module is not available when cross-compiling. Cross-compiled tests may still make use of the macro itself in end-to-end tests.
+#if canImport(RundownMacros)
+import RundownMacros
+
+@MainActor fileprivate let testMacros: [String: Macro.Type] = [
+  "DeAsync": DeAsyncMacro.self,
+]
+#endif
+
+@MainActor
+final class DeAsyncMacroTests: XCTestCase {
+  func testSimpleAsync() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync
+      func thing() async {
+          await something()
+      }
+      """,
+      expandedSource: """
+      func thing() async {
+          await something()
+      }
+      
+      func thing() {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testThrows() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync
+      func thing() async throws {
+          try await something()
+      }
+      """,
+      expandedSource: """
+      func thing() async throws {
+          try await something()
+      }
+      
+      func thing() throws {
+          try something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testWhereCallType() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync
+      func thing() async where Call == AsyncCall {
+          await something()
+      }
+      """,
+      expandedSource: """
+      func thing() async where Call == AsyncCall {
+          await something()
+      }
+      
+      func thing() where Call == SyncCall {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+  
+  func testGenericParameterType() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync
+      func thing(param: X<AsyncCall>) async {
+          await something()
+      }
+      """,
+      expandedSource: """
+      func thing(param: X<AsyncCall>) async {
+          await something()
+      }
+      
+      func thing(param: X<SyncCall>) {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+}
