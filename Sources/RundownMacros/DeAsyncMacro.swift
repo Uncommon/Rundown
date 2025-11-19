@@ -24,16 +24,14 @@ private class AwaitStripper: SyntaxRewriter {
 }
 
 private class TypeChangeRewriter: SyntaxRewriter {
-  let oldName: String
-  let newName: String
+  let replacements: [String:String]
   
-  init(oldName: String, newName: String) {
-    self.oldName = oldName
-    self.newName = newName
+  init(replacements: [String:String]) {
+    self.replacements = replacements
   }
   
   override func visit(_ node: IdentifierTypeSyntax) -> TypeSyntax {
-    if node.name.text == oldName {
+    if let newName = replacements[node.name.text] {
       var newNode = node
       newNode.name = .identifier(newName)
       return TypeSyntax(newNode)
@@ -42,14 +40,14 @@ private class TypeChangeRewriter: SyntaxRewriter {
   }
   
   override func visit(_ node: GenericArgumentSyntax) -> GenericArgumentSyntax {
-    if node.argument.description == oldName {
+    if let newName = replacements[node.argument.description] {
       return node.with(\.argument, .init(stringLiteral: newName))
     }
     return super.visit(node)
   }
   
   override func visit(_ node: SameTypeRequirementSyntax) -> SameTypeRequirementSyntax {
-    if node.rightType.description == oldName {
+    if let newName = replacements[node.rightType.description] {
       return node.with(\.rightType, .init(stringLiteral: newName))
     }
     return super.visit(node)
@@ -57,6 +55,29 @@ private class TypeChangeRewriter: SyntaxRewriter {
 }
 
 public struct DeAsyncMacro: PeerMacro {
+  static func parseReplacementDictionary(_ node: AttributeSyntax) -> [String:String] {
+    guard let parameter = node.arguments?.children(viewMode: .all)
+                              .first?.as(LabeledExprSyntax.self),
+          let dictionary = parameter.expression.as(DictionaryExprSyntax.self),
+          case let .elements(elements) = dictionary.content
+    else { return [:] }
+    var result: [String:String] = [:]
+    
+    for element in elements {
+      guard let keySyntax = element.key.as(StringLiteralExprSyntax.self),
+            let key = keySyntax.representedLiteralValue,
+            let valueSyntax = element.value.as(StringLiteralExprSyntax.self),
+            let value = valueSyntax.representedLiteralValue,
+            !key.isEmpty, !value.isEmpty
+              else {
+        // error: must be literals
+        return [:]
+      }
+      result[key] = value
+    }
+    return result
+  }
+  
   public static func expansion(
     of node: AttributeSyntax,
     providingPeersOf declaration: some DeclSyntaxProtocol,
@@ -66,6 +87,7 @@ public struct DeAsyncMacro: PeerMacro {
       throw MacroError.message("@DeAsync can only be applied to functions.")
     }
     
+    let replacements = parseReplacementDictionary(node)
     let signature = funcDecl.signature
     let effects = signature.effectSpecifiers
     
@@ -84,11 +106,10 @@ public struct DeAsyncMacro: PeerMacro {
       newEffects = nil
     }
     
-    // TODO: parse type names from the macro invocation
-    let typeChangeRewriter = TypeChangeRewriter(oldName: "AsyncCall", newName: "SyncCall")
-    let convertedSignature = typeChangeRewriter.rewrite(signature).as(FunctionSignatureSyntax.self)!
+    let typeChangeRewriter = TypeChangeRewriter(replacements: replacements)
+    let convertedSignature = replacements.isEmpty ? signature : typeChangeRewriter.rewrite(signature).as(FunctionSignatureSyntax.self)!
     let newSignature = convertedSignature.with(\.effectSpecifiers, newEffects)
-    let whereClause = funcDecl.genericWhereClause.map {
+    let whereClause = replacements.isEmpty ? nil : funcDecl.genericWhereClause.map {
       typeChangeRewriter.rewrite($0).as(GenericWhereClauseSyntax.self)!
     }
     

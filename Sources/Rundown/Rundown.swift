@@ -23,6 +23,5 @@ public macro Example() = #externalMacro(module: "RundownMacros", type: "ExampleM
 /// keywords stripped. All `async` functions called by the attached function
 /// are assumed to have non-`async` variants.
 @attached(peer)
-public macro DeAsync(replacingTypes: [AnyObject.Type] = [],
-                     withTypes: [AnyObject.Type] = [])
+public macro DeAsync(_ replacements: [String:String] = [:])
   = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
