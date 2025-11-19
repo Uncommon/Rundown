@@ -28,7 +28,7 @@ public class ExampleRunner: @unchecked Sendable {
     return try block()
   }
 
-  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
+  @DeAsyncRD
   func with(_ element: some TestElement, block: () async throws -> Void) async rethrows {
     withLock { elementStack.append(element) }
     defer { withLock { _ = elementStack.popLast() } }
@@ -186,14 +186,14 @@ public class ExampleRunner: @unchecked Sendable {
     return focused.isEmpty ? nonSkipped : focused
   }
 
-  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
+  @DeAsyncRD
   public func run(_ within: Within<AsyncCall>) async throws {
     try await within.executor {
       try await self.run(within.group)
     }
   }
 
-  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
+  @DeAsyncRD
   public static func run(_ element: ExampleGroup<AsyncCall>) async throws {
     let runner = ExampleRunner()
 

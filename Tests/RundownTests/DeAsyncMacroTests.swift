@@ -10,6 +10,7 @@ import RundownMacros
 
 @MainActor fileprivate let testMacros: [String: Macro.Type] = [
   "DeAsync": DeAsyncMacro.self,
+  "DeAsyncRD": DeAsyncMacro.self,
 ]
 #endif
 
@@ -114,7 +115,32 @@ final class DeAsyncMacroTests: XCTestCase {
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
   }
-  
+
+  func testWhereCallTypeRD() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsyncRD
+      func thing() async where Call == AsyncCall {
+          await something()
+      }
+      """,
+      expandedSource: """
+      func thing() async where Call == AsyncCall {
+          await something()
+      }
+      
+      func thing() where Call == SyncCall {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
   func testGenericParameterType() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(

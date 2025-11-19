@@ -29,3 +29,10 @@ public macro Example() = #externalMacro(module: "RundownMacros", type: "ExampleM
 @attached(peer, names: overloaded)
 public macro DeAsync(replacing oldTypes: [Any.Type] = [], with newTypes: [Any.Type] = [])
   = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
+
+/// Internal version of @DeAsync with the standard replacement of
+/// AsyncCall -> SyncCall
+@attached(peer, names: overloaded)
+internal macro DeAsyncRD(replacing oldTypes: [Any.Type] = [], with newTypes: [Any.Type] = [])
+  = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
+

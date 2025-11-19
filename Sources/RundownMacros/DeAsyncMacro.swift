@@ -101,7 +101,8 @@ public struct DeAsyncMacro: PeerMacro {
       throw MacroError.message("@DeAsync can only be applied to functions.")
     }
     
-    let replacements = parseReplacementDictionary(node)
+    let defaultReplacements = node.attributeName.description == "DeAsyncRD" ? ["AsyncCall":"SyncCall"] : [:]
+    let replacements = parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
     let signature = funcDecl.signature
     let effects = signature.effectSpecifiers
     
