@@ -69,7 +69,7 @@ final class DeAsyncMacroTests: XCTestCase {
 #if canImport(RundownMacros)
     assertMacroExpansion(
       """
-      @DeAsync(["AsyncCall":"SyncCall"])
+      @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
       func thing() async where Call == AsyncCall {
           await something()
       }
@@ -94,7 +94,7 @@ final class DeAsyncMacroTests: XCTestCase {
 #if canImport(RundownMacros)
     assertMacroExpansion(
       """
-      @DeAsync(["AsyncCall":"SyncCall"])
+      @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
       func thing(param: X<AsyncCall>) async {
           await something()
       }

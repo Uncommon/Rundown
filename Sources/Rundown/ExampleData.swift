@@ -57,10 +57,7 @@ public struct It<Call: CallType>: TestExample {
     self.block = other.block
   }
 
-  public func execute(in runner: ExampleRunner) throws
-                      where Call == SyncCall {
-    try block()
-  }
+  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
   public func execute(in runner: ExampleRunner) async throws
                       where Call == AsyncCall {
     try await block()

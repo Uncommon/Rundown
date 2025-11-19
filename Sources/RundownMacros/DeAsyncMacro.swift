@@ -55,27 +55,36 @@ private class TypeChangeRewriter: SyntaxRewriter {
 }
 
 public struct DeAsyncMacro: PeerMacro {
-  static func parseReplacementDictionary(_ node: AttributeSyntax) -> [String:String] {
-    guard let parameter = node.arguments?.children(viewMode: .all)
-                              .first?.as(LabeledExprSyntax.self),
-          let dictionary = parameter.expression.as(DictionaryExprSyntax.self),
-          case let .elements(elements) = dictionary.content
-    else { return [:] }
-    var result: [String:String] = [:]
-    
-    for element in elements {
-      guard let keySyntax = element.key.as(StringLiteralExprSyntax.self),
-            let key = keySyntax.representedLiteralValue,
-            let valueSyntax = element.value.as(StringLiteralExprSyntax.self),
-            let value = valueSyntax.representedLiteralValue,
-            !key.isEmpty, !value.isEmpty
-              else {
-        // error: must be literals
-        return [:]
-      }
-      result[key] = value
+  /// Parses an argument representing an array of types like `[TypeA.self, TypeB.self]`
+  /// and returns an array of strings containing the type names: `["TypeA", "TypeB"]`.
+  static func parseTypeNames(_ argument: LabeledExprSyntax) -> [String] {
+    guard let arrayExpr = argument.expression.as(ArrayExprSyntax.self) else {
+      return []
     }
-    return result
+    
+    var typeNames: [String] = []
+    for element in arrayExpr.elements {
+      guard let memberAccess = element.expression.as(MemberAccessExprSyntax.self),
+            let baseIdent = memberAccess.base?.as(DeclReferenceExprSyntax.self),
+            !baseIdent.baseName.text.isEmpty else {
+        return []
+      }
+      typeNames.append(baseIdent.baseName.text)
+    }
+    return typeNames
+  }
+  
+  /// Converts the two type list arguments into a dictionary
+  static func parseReplacementDictionary(_ node: AttributeSyntax) -> [String:String] {
+    guard let arguments = node.arguments,
+          arguments.children(viewMode: .all).count == 2
+    else { return [:] }
+    let names = arguments.children(viewMode: .all)
+      .compactMap { $0.as(LabeledExprSyntax.self) }
+      .map { parseTypeNames($0) }
+    let pairs = zip(names[0], names[1])
+    
+    return .init(pairs, uniquingKeysWith: { (a, b) in a })
   }
   
   public static func expansion(
