@@ -28,12 +28,7 @@ public class ExampleRunner: @unchecked Sendable {
     return try block()
   }
 
-  func with(_ element: some TestElement, block: () throws -> Void) rethrows {
-    withLock { elementStack.append(element) }
-    defer { withLock { _ = elementStack.popLast() } }
-    try block()
-  }
-
+  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
   func with(_ element: some TestElement, block: () async throws -> Void) async rethrows {
     withLock { elementStack.append(element) }
     defer { withLock { _ = elementStack.popLast() } }
@@ -191,31 +186,14 @@ public class ExampleRunner: @unchecked Sendable {
     return focused.isEmpty ? nonSkipped : focused
   }
 
-  public func run(_ within: Within<SyncCall>) throws {
-    try within.executor {
-      try self.run(within.group)
-    }
-  }
-
+  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
   public func run(_ within: Within<AsyncCall>) async throws {
     try await within.executor {
       try await self.run(within.group)
     }
   }
 
-  public static func run(_ element: ExampleGroup<SyncCall>) throws {
-    let runner = ExampleRunner()
-
-    if let current {
-      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
-    }
-    try ExampleRunner.$current.withValue(runner) {
-      try runner.with(element) {
-        try element.execute(in: runner)
-      }
-    }
-  }
-
+  @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self])
   public static func run(_ element: ExampleGroup<AsyncCall>) async throws {
     let runner = ExampleRunner()
 

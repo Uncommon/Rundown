@@ -21,6 +21,11 @@ private class AwaitStripper: SyntaxRewriter {
     // This effectively removes the 'await' keyword.
     return rewrittenInnerExpression
   }
+  
+  override func visit(_ node: FunctionTypeSyntax) -> TypeSyntax {
+    let specifiers = node.effectSpecifiers?.with(\.asyncSpecifier, nil)
+    return .init(node.with(\.effectSpecifiers, specifiers))
+  }
 }
 
 private class TypeChangeRewriter: SyntaxRewriter {
@@ -115,9 +120,13 @@ public struct DeAsyncMacro: PeerMacro {
       newEffects = nil
     }
     
+    let awaitStripper = AwaitStripper()
     let typeChangeRewriter = TypeChangeRewriter(replacements: replacements)
-    let convertedSignature = replacements.isEmpty ? signature : typeChangeRewriter.rewrite(signature).as(FunctionSignatureSyntax.self)!
-    let newSignature = convertedSignature.with(\.effectSpecifiers, newEffects)
+    var convertedSignature = replacements.isEmpty ? signature : typeChangeRewriter.rewrite(signature).as(FunctionSignatureSyntax.self)!
+    
+    convertedSignature = awaitStripper.rewrite(convertedSignature).as(FunctionSignatureSyntax.self)!
+      .with(\.effectSpecifiers, newEffects)
+    
     let whereClause = replacements.isEmpty ? nil : funcDecl.genericWhereClause.map {
       typeChangeRewriter.rewrite($0).as(GenericWhereClauseSyntax.self)!
     }
@@ -128,8 +137,7 @@ public struct DeAsyncMacro: PeerMacro {
       )
     }
     
-    let rewriter = AwaitStripper()
-    let newBody = rewriter.rewrite(body).as(CodeBlockSyntax.self)!
+    let newBody = awaitStripper.rewrite(body).as(CodeBlockSyntax.self)!
     
     let macroBaseName =
     node.attributeName.trimmedDescription
@@ -146,7 +154,7 @@ public struct DeAsyncMacro: PeerMacro {
     
     let newFunc = funcDecl
       .with(\.attributes, newAttributes)
-      .with(\.signature, newSignature)
+      .with(\.signature, convertedSignature)
       .with(\.genericWhereClause, whereClause)
       .with(\.body, newBody)
     

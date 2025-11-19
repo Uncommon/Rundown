@@ -65,6 +65,31 @@ final class DeAsyncMacroTests: XCTestCase {
 #endif
   }
 
+  func testAsyncBlock() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync
+      func thing(block: () async -> Void) async throws {
+          try await block()
+      }
+      """,
+      expandedSource: """
+      func thing(block: () async -> Void) async throws {
+          try await block()
+      }
+      
+      func thing(block: () -> Void) throws {
+          try block()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
   func testWhereCallType() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(
