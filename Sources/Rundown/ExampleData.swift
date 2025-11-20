@@ -73,12 +73,7 @@ public func it(_ description: String,
   .init(description, traits, execute: execute)
 }
 
-public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
-                 function: String = #function) throws {
-  let description = dropTestPrefix(function)
-  try describe(description, builder: builder).run()
-}
-
+@DeAsyncRD(stripSendable: true)
 public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
                  function: String = #function) async throws {
   let description = dropTestPrefix(function)
@@ -90,11 +85,7 @@ private func dropTestPrefix(_ string: String) -> String {
     .droppingPrefix("test")
 }
 
-public func spec(_ description: String,
-                 @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
-  try describe(description, builder: builder).run()
-}
-
+@DeAsyncRD(stripSendable: true)
 public func spec(_ description: String,
                  @ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async throws {
   try await describe(description, builder: builder).run()

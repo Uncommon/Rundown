@@ -33,13 +33,22 @@ public macro Example() = #externalMacro(module: "RundownMacros", type: "ExampleM
 ///
 /// This macro was created to reduce internal code duplication for this package,
 /// but it is made public in case it may be useful.
+///
+/// - parameter oldTypes: Types to be replaced
+/// - parameter newTypes: Substitutions for types in `oldTypes`
+/// - parameter stripSendable: If true, `@Sendable` will be stripped from
+/// closure parameters.
 @attached(peer, names: overloaded)
-public macro DeAsync(replacing oldTypes: [Any.Type] = [], with newTypes: [Any.Type] = [])
+public macro DeAsync(replacing oldTypes: [Any.Type] = [],
+                     with newTypes: [Any.Type] = [],
+                     stripSendable: Bool = false)
   = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
 
 /// Internal version of @DeAsync with the standard replacement of
 /// AsyncCall -> SyncCall
 @attached(peer, names: overloaded)
-internal macro DeAsyncRD(replacing oldTypes: [Any.Type] = [], with newTypes: [Any.Type] = [])
+internal macro DeAsyncRD(replacing oldTypes: [Any.Type] = [],
+                         with newTypes: [Any.Type] = [],
+                         stripSendable: Bool = false)
   = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
 

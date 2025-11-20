@@ -192,4 +192,29 @@ final class DeAsyncMacroTests: XCTestCase {
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
   }
+  
+  func testStripSendable() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsyncRD(stripSendable: true)
+      func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async {
+          await something()
+      }
+      """,
+      expandedSource: """
+      func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async {
+          await something()
+      }
+      
+      func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
 }

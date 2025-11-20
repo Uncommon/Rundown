@@ -92,10 +92,47 @@ public struct DeAsyncMacro: PeerMacro {
     return .init(pairs, uniquingKeysWith: { (a, b) in a })
   }
   
-  static func filterDisfavoredOverload(_ attributes: AttributeListSyntax) -> AttributeListSyntax {
-    attributes.filter { return $0.trimmedDescription != "@_disfavoredOverload" }
+  /// Returns the value of the 'stripSendable' argument if present, or false otherwise.
+  static func stripSendableParameterValue(_ node: AttributeSyntax) -> Bool {
+    guard let arguments = node.arguments else {
+      return false
+    }
+    for child in arguments.children(viewMode: .all) {
+      if let labeledExpr = child.as(LabeledExprSyntax.self),
+         labeledExpr.label?.text == "stripSendable" {
+        if let boolLiteral = labeledExpr.expression.as(BooleanLiteralExprSyntax.self) {
+          return boolLiteral.literal.text == "true"
+        } else {
+          return false
+        }
+      }
+    }
+    return false
   }
   
+  /// Removes all '@Sendable' effect specifiers from closure parameter types in the function signature.
+  static func stripSendable(_ funcDecl: FunctionSignatureSyntax) -> FunctionSignatureSyntax {
+    let newParameters = funcDecl.parameterClause.parameters.map { param -> FunctionParameterSyntax in
+      if let type = param.type.as(AttributedTypeSyntax.self) {
+        let attributes = remove("@Sendable", from: type.attributes)
+        
+        return param.with(\.type, .init(type.with(\.attributes, attributes)))
+      }
+      return param
+    }
+    let newParamClause = funcDecl.parameterClause.with(\.parameters, .init(newParameters))
+    
+    return funcDecl.with(\.parameterClause, newParamClause)
+  }
+  
+  static func filterDisfavoredOverload(_ attributes: AttributeListSyntax) -> AttributeListSyntax {
+    remove("@_disfavoredOverload", from: attributes)
+  }
+
+  static func remove(_ name: String, from attributes: AttributeListSyntax) -> AttributeListSyntax {
+    attributes.filter { return $0.trimmedDescription != name }
+  }
+
   public static func expansion(
     of node: AttributeSyntax,
     providingPeersOf declaration: some DeclSyntaxProtocol,
@@ -106,7 +143,12 @@ public struct DeAsyncMacro: PeerMacro {
       throw MacroError.message("@DeAsync can only be applied to functions.")
     }
     
+    let shouldStripSendable = stripSendableParameterValue(node)
+    
     funcDecl.attributes = filterDisfavoredOverload(funcDecl.attributes)
+    if shouldStripSendable {
+      funcDecl.signature = stripSendable(funcDecl.signature)
+    }
     
     let defaultReplacements = node.attributeName.description == "DeAsyncRD" ? ["AsyncCall":"SyncCall"] : [:]
     let replacements = parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
