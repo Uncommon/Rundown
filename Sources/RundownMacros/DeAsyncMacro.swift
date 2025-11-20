@@ -92,25 +92,26 @@ public struct DeAsyncMacro: PeerMacro {
     return .init(pairs, uniquingKeysWith: { (a, b) in a })
   }
   
+  static func filterDisfavoredOverload(_ attributes: AttributeListSyntax) -> AttributeListSyntax {
+    attributes.filter { return $0.trimmedDescription != "@_disfavoredOverload" }
+  }
+  
   public static func expansion(
     of node: AttributeSyntax,
     providingPeersOf declaration: some DeclSyntaxProtocol,
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
-    guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
+    guard var funcDecl = declaration.as(FunctionDeclSyntax.self)
+    else {
       throw MacroError.message("@DeAsync can only be applied to functions.")
     }
+    
+    funcDecl.attributes = filterDisfavoredOverload(funcDecl.attributes)
     
     let defaultReplacements = node.attributeName.description == "DeAsyncRD" ? ["AsyncCall":"SyncCall"] : [:]
     let replacements = parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
     let signature = funcDecl.signature
     let effects = signature.effectSpecifiers
-    
-    guard effects?.asyncSpecifier != nil else {
-      throw MacroError.message(
-        "@DeAsync can only be applied to 'async' functions."
-      )
-    }
     
     var newEffects = effects
     newEffects?.asyncSpecifier = nil  // Strip 'async'

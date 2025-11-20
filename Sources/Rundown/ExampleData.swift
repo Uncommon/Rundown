@@ -64,14 +64,9 @@ public struct It<Call: CallType>: TestExample {
   }
 }
 
-// These two could be a single generic function, but that creates
-// an ambiguous call site when used in the result builder.
-public func it(_ description: String,
-               _ traits: (any Trait)...,
-               execute: @escaping SyncCall.Callback) -> It<SyncCall> {
-  .init(description, traits, execute: execute)
-}
-
+// The SyncCall and AsyncCall versions could be a single generic function, but
+// that creates an ambiguous call site when used in the result builder.
+@DeAsyncRD
 public func it(_ description: String,
                _ traits: (any Trait)...,
                execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {

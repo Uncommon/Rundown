@@ -68,15 +68,15 @@ public struct ExampleGroup<Call: CallType>: TestExample {
                      afterAll: afterAllHooks,
                      elements: elements)
   }
-}
-
-extension ExampleGroup where Call == SyncCall {
-  public func run() throws {
-    try ExampleRunner.run(self)
+  
+  @DeAsyncRD
+  public func run() async throws where Call == AsyncCall {
+    try await ExampleRunner.run(self)
   }
 
-  public func execute(in runner: ExampleRunner) throws {
-    try runner.run(self)
+  @DeAsyncRD
+  public func execute(in runner: ExampleRunner) async throws where Call == AsyncCall {
+    try await runner.run(self)
   }
 }
 
@@ -100,24 +100,11 @@ extension ExampleGroup where Call == AsyncCall {
       }
     }
   }
-
-  public func run() async throws {
-    try await ExampleRunner.run(self)
-  }
-
-  public func execute(in runner: ExampleRunner) async throws {
-    try await runner.run(self)
-  }
-}
-
-public func describe(_ description: String,
-                     _ traits: (any Trait)...,
-                     @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
-  .init(description, traits, builder: builder)
 }
 
 // Disfavored overload enables mixing sync and async elements in the same test
 // without ambiguity.
+@DeAsyncRD
 @_disfavoredOverload
 public func describe(_ description: String,
                      _ traits: (any Trait)...,
@@ -125,12 +112,7 @@ public func describe(_ description: String,
   .init(description, traits, builder: builder)
 }
 
-public func context(_ description: String,
-                    _ traits: (any Trait)...,
-                    @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
-  .init(description, traits, builder: builder)
-}
-
+@DeAsyncRD
 @_disfavoredOverload
 public func context(_ description: String,
                     _ traits: (any Trait)...,
