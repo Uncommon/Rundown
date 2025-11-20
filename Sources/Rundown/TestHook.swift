@@ -6,11 +6,7 @@ public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable 
   public let traits: [any Trait]
   let block: Call.Callback
 
-  public func execute(in runner: ExampleRunner) throws
-                      where Call == SyncCall {
-    try block()
-  }
-
+  @DeAsyncRD
   public func execute(in runner: ExampleRunner) async throws
                       where Call == AsyncCall {
     try await block()
@@ -52,44 +48,28 @@ extension TestHook where Call == AsyncCall {
   }
 }
 
-public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
-                      execute: @escaping SyncCall.Callback) -> TestHook<BeforeAllPhase, SyncCall> {
-  .init(name, traits, execute: execute)
-}
-
+@DeAsyncRD
 @_disfavoredOverload
 public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
                       execute: @escaping AsyncCall.Callback) -> TestHook<BeforeAllPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 
-public func beforeEach(_ name: String = "", _ traits: (any Trait)...,
-                      execute: @escaping SyncCall.Callback) -> TestHook<BeforeEachPhase, SyncCall> {
-  .init(name, traits, execute: execute)
-}
-
+@DeAsyncRD
 @_disfavoredOverload
 public func beforeEach(_ name: String = "", _ traits: (any Trait)...,
                       execute: @escaping AsyncCall.Callback) -> TestHook<BeforeEachPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 
-public func afterEach(_ name: String = "", _ traits: (any Trait)...,
-                       execute: @escaping SyncCall.Callback) -> TestHook<AfterEachPhase, SyncCall> {
-  .init(name, traits, execute: execute)
-}
-
+@DeAsyncRD
 @_disfavoredOverload
 public func afterEach(_ name: String = "", _ traits: (any Trait)...,
                        execute: @escaping AsyncCall.Callback) -> TestHook<AfterEachPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 
-public func afterAll(_ name: String = "", _ traits: (any Trait)...,
-                      execute: @escaping SyncCall.Callback) -> TestHook<AfterAllPhase, SyncCall> {
-  .init(name, traits, execute: execute)
-}
-
+@DeAsyncRD
 @_disfavoredOverload
 public func afterAll(_ name: String = "", _ traits: (any Trait)...,
                       execute: @escaping AsyncCall.Callback) -> TestHook<AfterAllPhase, AsyncCall> {

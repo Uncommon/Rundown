@@ -6,12 +6,7 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
   public let traits: [any Trait]
   let block: Call.WithinCallback
   
-  func execute(around callback: @Sendable () throws -> Void) throws where Call == SyncCall {
-    try block {
-      try callback()
-    }
-  }
-  
+  @DeAsyncRD
   func execute(around callback: @Sendable () async throws -> Void) async throws where Call == AsyncCall {
     try await block {
       try await callback()
