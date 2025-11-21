@@ -34,37 +34,48 @@ public class ExampleRunner: @unchecked Sendable {
     defer { withLock { _ = elementStack.popLast() } }
     try await block()
   }
+  
+  @DeAsyncRD
+  func runHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
+    for hook in filterExcluded(hooks) {
+      try await with(hook) {
+        try await hook.execute(in: self)
+      }
+    }
+  }
+  
+  @DeAsyncRD @Sendable @_disfavoredOverload
+  func runSubElement<E: TestExample>(_ element: E,
+                                     group: ExampleGroup<AsyncCall>,
+                                     runInner: @Sendable (E) async throws -> Void) async throws {
+    if group.aroundEachHooks.isEmpty {
+      try await runInner(element)
+    }
+    else {
+      try await runAround(hooks: group.aroundEachHooks, element: element, runInner: runInner)
+    }
+  }
+  
+  @DeAsyncRD @Sendable @_disfavoredOverload
+  func runAround<E: TestExample>(hooks: [AroundEach<AsyncCall>],
+                                 element: E,
+                                 runInner: @Sendable (E) async throws -> Void) async throws {
+    if let hook = hooks.first {
+      try await hook.execute {
+        try await runAround(hooks: Array(hooks.dropFirst()),
+                            element: element,
+                            runInner: runInner)
+      }
+    }
+    else {
+      try await runInner(element)
+    }
+  }
 
   /// Executes the elements of a group. This is managed by the runner instead of
   /// the group itself because the runner can have logic that it needs to apply
   /// at each step.
   public func run(_ group: ExampleGroup<SyncCall>) throws {
-    @Sendable func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
-      for hook in hooks.filter({ !$0.isExcluded }) {
-        try with(hook) {
-          try hook.execute(in: self)
-        }
-      }
-    }
-    @Sendable func runSubElement(_ element: some TestExample) throws {
-      if group.aroundEachHooks.isEmpty {
-        try runSubElementInner(element)
-      }
-      else {
-        try runAround(hooks: group.aroundEachHooks, element: element)
-      }
-    }
-    @Sendable func runAround(hooks: [AroundEach<SyncCall>], element: some TestExample) throws {
-      if let hook = hooks.first {
-        try hook.execute {
-          try runAround(hooks: Array(hooks.dropFirst()),
-                        element: element)
-        }
-      }
-      else {
-        try runSubElementInner(element)
-      }
-    }
     @Sendable func runSubElementInner(_ element: some TestExample) throws {
       try runHooks(group.beforeEachHooks)
       try with(element) {
@@ -97,7 +108,7 @@ public class ExampleRunner: @unchecked Sendable {
         let element = elements[$0]
         
         do {
-          try runSubElement(element)
+          try runSubElement(element, group: group, runInner: runSubElementInner)
         }
         catch let elementError {
           errorMutex.withLock {
@@ -113,7 +124,7 @@ public class ExampleRunner: @unchecked Sendable {
     }
     else {
       for element in elements {
-        try runSubElement(element)
+        try runSubElement(element, group: group, runInner: runSubElementInner)
       }
     }
     try runHooks(group.afterAllHooks)
@@ -121,15 +132,7 @@ public class ExampleRunner: @unchecked Sendable {
 
   // same as above but with `await` sprinkled in
   public func run(_ group: ExampleGroup<AsyncCall>) async throws {
-    func runHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
-      for hook in filterExcluded(hooks) {
-        try await with(hook) {
-          try await hook.execute(in: self)
-        }
-      }
-    }
     func runSubElement(_ element: some TestExample) async throws {
-      // aroundEach
       try await runHooks(group.beforeEachHooks)
       try await with(element) {
         switch element {
