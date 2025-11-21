@@ -192,7 +192,35 @@ final class DeAsyncMacroTests: XCTestCase {
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
   }
-  
+
+  /// Using @DeAsyncRD on a line with multiple annotations should be recognized
+  func testRDMultipleAnnotations() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsyncRD @Sendable
+      func thing(param: X<AsyncCall>) async {
+          await something()
+      }
+      """,
+      expandedSource: """
+      @Sendable
+      func thing(param: X<AsyncCall>) async {
+          await something()
+      }
+      
+      @Sendable
+      func thing(param: X<SyncCall>) {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
   func testStripSendable() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(

@@ -150,7 +150,7 @@ public struct DeAsyncMacro: PeerMacro {
       funcDecl.signature = stripSendable(funcDecl.signature)
     }
     
-    let defaultReplacements = node.attributeName.description == "DeAsyncRD" ? ["AsyncCall":"SyncCall"] : [:]
+    let defaultReplacements = node.attributeName.trimmedDescription == "DeAsyncRD" ? ["AsyncCall":"SyncCall"] : [:]
     let replacements = parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
     let signature = funcDecl.signature
     let effects = signature.effectSpecifiers
