@@ -204,28 +204,39 @@ public struct ExampleBuilder<Call: CallType> {
 
 // Allow sync elements in an async spec
 public extension ExampleBuilder where Call == AsyncCall {
+  // Before hooks come first
   static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
     .init().adding(TestHook<Phase, AsyncCall>(fromSync: first))
   }
+  // Hook repeat
   static func buildPartialBlock<Phase: AccumulatorPhase>(
     accumulated: Accumulator<Phase>,
     next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
     accumulated.adding(TestHook<Phase, AsyncCall>(fromSync: next))
   }
+  // Examples come first
   static func buildPartialBlock(first: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
     .init().adding(first)
   }
+  // Examples follow examples
   static func buildPartialBlock(
     accumulated: Accumulator<ExamplePhase>,
     next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
       accumulated.adding(next)
   }
+  // Examples follow Before hooks
   static func buildPartialBlock<Phase: BeforePhase>(
     accumulated: Accumulator<Phase>,
     next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
-  
+  // AfterEach/AfterAll follows examples
+  static func buildPartialBlock<Phase: AfterPhase>(
+      accumulated: Accumulator<ExamplePhase>,
+      next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
+    accumulated.transitioned(with: next)
+  }
+
   // AroundEach can't be converted from sync to async because it
   // would require passing the new async callback to the old sync
   // callback, and there's no good way to make that work.
