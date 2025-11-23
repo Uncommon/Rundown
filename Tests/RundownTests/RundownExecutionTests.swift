@@ -4,6 +4,8 @@ import XCTest
 
 @MainActor
 final class RundownExecutionTests: Rundown.TestCase {
+  
+  @TaskLocal static var taskLocal: Bool = false
 
   func testOneItFails() throws {
     try spec {
@@ -183,6 +185,25 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssert(executed.wrappedValue)
   }
   
+  func testAroundEachAsync() async throws {
+    let executed = Box(false)
+    
+    try await describe("ArounchEach") {
+      aroundEach { (callback) in
+        try await RundownExecutionTests.$taskLocal.withValue(true) {
+          try await callback()
+        }
+      }
+      
+      it("works") {
+        try await Task.sleep(nanoseconds: 500)
+        executed.set()
+      }
+    }.run()
+    
+    XCTAssert(executed.wrappedValue)
+  }
+  
   func testAroundEachWithHooks() throws {
     let result = Box([String]())
     
@@ -194,6 +215,40 @@ final class RundownExecutionTests: Rundown.TestCase {
         result.wrappedValue.append("around start")
         try "".withCString { _ in
           try callback()
+        }
+        result.wrappedValue.append("around end")
+      }
+      beforeEach {
+        result.wrappedValue.append("beforeEach")
+      }
+      
+      it("works") {
+        result.wrappedValue.append("it")
+      }
+      
+      afterEach {
+        result.wrappedValue.append("afterEach")
+      }
+    }.run()
+    
+    XCTAssertEqual(result.wrappedValue,
+      ["beforeAny",
+       "around start",
+       "beforeEach", "it", "afterEach",
+       "around end"])
+  }
+  
+  func testAroundEachWithHooksAsync() async throws {
+    let result = Box([String]())
+    
+    try await describe("ArounchEach") {
+      beforeAll {
+        result.wrappedValue.append("beforeAny")
+      }
+      aroundEach { (callback) in
+        result.wrappedValue.append("around start")
+        try await RundownExecutionTests.$taskLocal.withValue(true) {
+          try await callback()
         }
         result.wrappedValue.append("around end")
       }

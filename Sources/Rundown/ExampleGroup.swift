@@ -1,3 +1,4 @@
+import os
 public struct ExampleGroup<Call: CallType>: TestExample {
   typealias BeforeAll = TestHook<BeforeAllPhase, Call>
   typealias BeforeEach = TestHook<BeforeEachPhase, Call>
@@ -85,7 +86,11 @@ extension ExampleGroup where Call == AsyncCall {
     self.description = other.description
     self.traits = other.traits
     self.beforeAllHooks = other.beforeAllHooks.map { .init(fromSync: $0) }
-    self.aroundEachHooks = [] // TODO
+    if !other.aroundEachHooks.isEmpty {
+      Logger(subsystem: "Rundown", category: "ExampleGroup")
+        .error("aroundEach cannot be converted from sync to async")
+    }
+    self.aroundEachHooks = []
     self.beforeEachHooks = other.beforeEachHooks.map { .init(fromSync: $0) }
     self.afterEachHooks = other.afterEachHooks.map { .init(fromSync: $0) }
     self.afterAllHooks = other.afterAllHooks.map { .init(fromSync: $0) }

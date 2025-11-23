@@ -129,10 +129,13 @@ public class ExampleRunner: @unchecked Sendable {
     }
     try runHooks(group.afterAllHooks)
   }
+  
 
-  // same as above but with `await` sprinkled in
+  // Similar to the non-async version, except that runSubElementInner handles
+  // both sync and async elements, and concurrency is implemented with tasks
+  // instead of GCD.
   public func run(_ group: ExampleGroup<AsyncCall>) async throws {
-    func runSubElement(_ element: some TestExample) async throws {
+    @Sendable func runSubElementInner(_ element: some TestExample) async throws {
       try await runHooks(group.beforeEachHooks)
       try await with(element) {
         switch element {
@@ -152,18 +155,16 @@ public class ExampleRunner: @unchecked Sendable {
       }
       try await runHooks(group.afterEachHooks)
     }
-    
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
 
     try await runHooks(group.beforeAllHooks)
-    
     if group.traits.contains(where: { $0 is ConcurrentTrait }) {
       try await withThrowingTaskGroup(of: Void.self) { taskGroup in
         for element in elements {
           taskGroup.addTask {
-            try await runSubElement(element)
+            try await self.runSubElement(element, group: group, runInner: runSubElementInner)
           }
         }
         try await taskGroup.waitForAll()
@@ -171,7 +172,7 @@ public class ExampleRunner: @unchecked Sendable {
     }
     else {
       for element in elements {
-        try await runSubElement(element)
+        try await runSubElement(element, group: group, runInner: runSubElementInner)
       }
     }
     
