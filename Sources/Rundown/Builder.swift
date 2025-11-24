@@ -202,7 +202,7 @@ public struct ExampleBuilder<Call: CallType> {
   }
 }
 
-// Allow sync elements in an async spec
+// In an async spec, convert sync elements to async
 public extension ExampleBuilder where Call == AsyncCall {
   // Before hooks come first
   static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
@@ -213,6 +213,18 @@ public extension ExampleBuilder where Call == AsyncCall {
     accumulated: Accumulator<Phase>,
     next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
     accumulated.adding(TestHook<Phase, AsyncCall>(fromSync: next))
+  }
+  // BeforeEach can follow BeforeAll
+  static func buildPartialBlock(
+      accumulated: Accumulator<BeforeAllPhase>,
+      next: TestHook<BeforeEachPhase, SyncCall>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: TestHook<BeforeEachPhase, AsyncCall>(fromSync: next))
+  }
+  // BeforeEach can follow AroundEach
+  static func buildPartialBlock(
+      accumulated: Accumulator<AroundEachPhase>,
+      next: TestHook<BeforeEachPhase, SyncCall>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: TestHook<BeforeEachPhase, AsyncCall>(fromSync: next))
   }
   // Examples come first
   static func buildPartialBlock(first: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
@@ -234,7 +246,7 @@ public extension ExampleBuilder where Call == AsyncCall {
   static func buildPartialBlock<Phase: AfterPhase>(
       accumulated: Accumulator<ExamplePhase>,
       next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
-    accumulated.transitioned(with: next)
+    accumulated.transitioned(with: TestHook<Phase, AsyncCall>(fromSync: next))
   }
 
   // AroundEach can't be converted from sync to async because it

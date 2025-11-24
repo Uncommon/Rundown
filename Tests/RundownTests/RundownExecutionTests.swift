@@ -209,7 +209,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     try describe("ArounchEach") {
       beforeAll {
-        result.wrappedValue.append("beforeAny")
+        result.wrappedValue.append("beforeAll")
       }
       aroundEach { (callback) in
         result.wrappedValue.append("around start")
@@ -232,7 +232,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     }.run()
     
     XCTAssertEqual(result.wrappedValue,
-      ["beforeAny",
+      ["beforeAll",
        "around start",
        "beforeEach", "it", "afterEach",
        "around end"])
@@ -243,7 +243,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     try await describe("ArounchEach") {
       beforeAll {
-        result.wrappedValue.append("beforeAny")
+        result.wrappedValue.append("beforeAll")
       }
       aroundEach { (callback) in
         result.wrappedValue.append("around start")
@@ -266,7 +266,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     }.run()
     
     XCTAssertEqual(result.wrappedValue,
-      ["beforeAny",
+      ["beforeAll",
        "around start",
        "beforeEach", "it", "afterEach",
        "around end"])
