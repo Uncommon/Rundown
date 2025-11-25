@@ -186,18 +186,40 @@ public struct ExampleBuilder<Call: CallType> {
       next: TestHook<BeforeAllPhase, C>) -> Accumulator<BeforeEachPhase> {
     fatalError("unavailable")
   }
+  @available(*, unavailable, message: "BeforeAll cannot appear after examples")
+  public static func buildPartialBlock<C: CallType>(
+      accumulated: Accumulator<ExamplePhase>,
+      next: TestHook<BeforeAllPhase, C>) -> Accumulator<ExamplePhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "BeforeEach cannot appear after examples")
+  public static func buildPartialBlock<C: CallType>(
+      accumulated: Accumulator<ExamplePhase>,
+      next: TestHook<BeforeEachPhase, C>) -> Accumulator<ExamplePhase> {
+    fatalError("unavailable")
+  }
   @available(*, unavailable, message: "AfterEach must precede AfterAll")
   public static func buildPartialBlock<C: CallType>(
       accumulated: Accumulator<AfterAllPhase>,
       next: TestHook<AfterEachPhase, C>) -> Accumulator<AfterAllPhase> {
     fatalError("unavailable")
   }
-  @available(*, unavailable, message: "Loop must end in example or after element")
+  @available(*, unavailable, message: "AroundEach cannot appear after examples")
+  public static func buildPartialBlock(
+    accumulated: Accumulator<ExamplePhase>,
+    next: AroundEach<Call>) -> Accumulator<ExamplePhase> {
+      fatalError("unavailable")
+    }
+  @available(*, unavailable, message: "Loop must end in example or 'after' element")
   public static func buildArray<P: BeforePhase>(_ components: [Accumulator<P>]) -> Accumulator<P> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Group must have examples")
   public static func buildFinalResult<Phase: BeforePhase>(_ component: Accumulator<Phase>) -> ExampleGroup<Call> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Group must have examples")
+  public static func buildFinalResult(_ component: Accumulator<AroundEachPhase>) -> ExampleGroup<Call> {
     fatalError("unavailable")
   }
 }
