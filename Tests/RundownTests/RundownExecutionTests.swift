@@ -184,24 +184,59 @@ final class RundownExecutionTests: Rundown.TestCase {
     
     XCTAssert(executed.wrappedValue)
   }
-  
+
+  /// A second aroundEach should be executed inside the callback of the first
+  func testDoubleAroundEach() throws {
+    let result = Box([String]())
+
+    try describe("ArounchEach") {
+      aroundEach { (callback) in
+        result.wrappedValue.append("around 1 start")
+        try "".withCString { _ in
+          try callback()
+        }
+        result.wrappedValue.append("around 1 end")
+      }
+
+      aroundEach { (callback) in
+        result.wrappedValue.append("around 2 start")
+        try "".withCString { _ in
+          try callback()
+        }
+        result.wrappedValue.append("around 2 end")
+      }
+
+      it("works") {
+        result.wrappedValue.append("it")
+      }
+    }.run()
+
+    XCTAssertEqual(result.wrappedValue,
+                   ["around 1 start", "around 2 start",
+                    "it",
+                    "around 2 end", "around 1 end"])
+  }
+
   func testAroundEachAsync() async throws {
-    let executed = Box(false)
-    
+    let result = Box([String]())
+
     try await describe("ArounchEach") {
       aroundEach { (callback) in
+        result.wrappedValue.append("around start")
         try await RundownExecutionTests.$taskLocal.withValue(true) {
           try await callback()
         }
+        result.wrappedValue.append("around end")
       }
       
       it("works") {
         try await Task.sleep(nanoseconds: 500)
-        executed.set()
+        result.wrappedValue.append("it")
       }
     }.run()
     
-    XCTAssert(executed.wrappedValue)
+    XCTAssertEqual(result.wrappedValue,
+                   ["around start", "it", "around end"])
   }
   
   func testAroundEachWithHooks() throws {
