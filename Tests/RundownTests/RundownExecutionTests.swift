@@ -264,15 +264,84 @@ final class RundownExecutionTests: Rundown.TestCase {
       afterEach {
         result.wrappedValue.append("afterEach")
       }
+      afterAll {
+        result.wrappedValue.append("afterAll")
+      }
     }.run()
     
     XCTAssertEqual(result.wrappedValue,
       ["beforeAll",
        "around start",
        "beforeEach", "it", "afterEach",
-       "around end"])
+       "around end",
+       "afterAll",
+      ])
   }
-  
+
+  func testAroundEachWithAllHooks() throws {
+    let result = Box([String]())
+
+    try describe("ArounchEach") {
+      beforeAll {
+        result.wrappedValue.append("beforeAll")
+      }
+      aroundEach { (callback) in
+        result.wrappedValue.append("around start")
+        try "".withCString { _ in
+          try callback()
+        }
+        result.wrappedValue.append("around end")
+      }
+
+      it("works") {
+        result.wrappedValue.append("it")
+      }
+
+      afterAll {
+        result.wrappedValue.append("afterAll")
+      }
+    }.run()
+
+    XCTAssertEqual(result.wrappedValue,
+                   ["beforeAll",
+                    "around start",
+                    "it",
+                    "around end",
+                    "afterAll",
+                   ])
+  }
+
+  func testAroundEachWithEachHooks() throws {
+    let result = Box([String]())
+
+    try describe("ArounchEach") {
+      aroundEach { (callback) in
+        result.wrappedValue.append("around start")
+        try "".withCString { _ in
+          try callback()
+        }
+        result.wrappedValue.append("around end")
+      }
+      beforeEach {
+        result.wrappedValue.append("beforeEach")
+      }
+
+      it("works") {
+        result.wrappedValue.append("it")
+      }
+
+      afterEach {
+        result.wrappedValue.append("afterEach")
+      }
+    }.run()
+
+    XCTAssertEqual(result.wrappedValue,
+                   ["around start",
+                    "beforeEach", "it", "afterEach",
+                    "around end",
+                   ])
+  }
+
   func testAroundEachWithHooksAsync() async throws {
     let result = Box([String]())
     
