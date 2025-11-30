@@ -78,6 +78,16 @@ extension ExampleRunner {
   @MainActor
   static var activity: XCTActivity? { activityBox?.activity }
   
+  // Like runHooks() but uses withElementActivity
+  @MainActor
+  private func runHooksXC<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
+    for hook in filterExcluded(hooks) {
+      try withElementActivity(hook) {
+        try hook.execute(in: self)
+      }
+    }
+  }
+
   /// Runs the elements of the given group, with each executing inside
   /// `XCTContext.runActivity()`.
   ///
@@ -96,48 +106,49 @@ extension ExampleRunner {
   /// Throwing `XCTSkip` in `AfterEach` or `AfterAll` hooks will not be caught.
   @MainActor
   public func runActivity(_ group: ExampleGroup<SyncCall>, under test: XCTestCase) throws {
-    func runHooks<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
-      for hook in filterExcluded(hooks) {
-        try withElementActivity(hook) {
-          try hook.execute(in: self)
-        }
-      }
-    }
-    func runElement(_ element: some TestExample) throws {
-      try withElementActivity(element) {
-        switch element {
-          case let subgroup as ExampleGroup<SyncCall>:
-            try runActivity(subgroup, under: test)
-          case let it as It<SyncCall>:
-            do {
-              try it.execute(in: self)
-            }
-            catch let skip as XCTSkip {
-              logSkip(skip, element: element)
-            }
-            catch let error {
-              // It's not clear if this should be .thrownError or .uncaughtException
-              let issue = XCTIssue(type: .uncaughtException,
-                                   compactDescription: "uncaught exception",
-                                   detailedDescription: error.localizedDescription,
-                                   sourceCodeContext: .init(),
-                                   associatedError: error)
-              test.record(issue)
-            }
-          case let within as Within<SyncCall>:
-            XCTFail("Within is not currently supported in runActivity")
-#if false
-            // Do the "within" logic manually to maintain @MainActor and
-            // the use of runActivity
-            try within.executor {
-              try MainActor.assumeIsolated {
-                try runActivity(within.group, under: test)
+    let testBox = Box(test)
+    
+    @Sendable
+    func runSubElementInner(_ element: some TestExample) throws {
+
+      try MainActor.assumeIsolated {
+        try runHooksXC(group.beforeEachHooks)
+        try withElementActivity(element) {
+          switch element {
+            case let subgroup as ExampleGroup<SyncCall>:
+              try runActivity(subgroup, under: testBox.wrappedValue)
+            case let it as It<SyncCall>:
+              do {
+                try it.execute(in: self)
               }
-            }
+              catch let skip as XCTSkip {
+                logSkip(skip, element: element)
+              }
+              catch let error {
+                // It's not clear if this should be .thrownError or .uncaughtException
+                let issue = XCTIssue(type: .uncaughtException,
+                                     compactDescription: "uncaught exception",
+                                     detailedDescription: error.localizedDescription,
+                                     sourceCodeContext: .init(),
+                                     associatedError: error)
+                testBox.wrappedValue.record(issue)
+              }
+            case let within as Within<SyncCall>:
+              XCTFail("Within is not currently supported in runActivity")
+#if false
+              // Do the "within" logic manually to maintain @MainActor and
+              // the use of runActivity
+              try within.executor {
+                try MainActor.assumeIsolated {
+                  try runActivity(within.group, under: test)
+                }
+              }
 #endif
-          default:
-            preconditionFailure("unexpected element type")
+            default:
+              preconditionFailure("unexpected element type")
+          }
         }
+        try runHooksXC(group.afterEachHooks)
       }
     }
 
@@ -146,35 +157,20 @@ extension ExampleRunner {
     else { return }
 
     do {
-      try runHooks(group.beforeAllHooks)
+      try runHooksXC(group.beforeAllHooks)
     }
     catch let skip as XCTSkip {
       logSkip(skip, element: group)
       return
     }
-    if group.beforeEachHooks.isEmpty && group.afterEachHooks.isEmpty {
-      for element in group.elements {
-        try runElement(element)
-      }
-    }
-    else {
-      for element in elements {
-        // Use XCTContext.runActivity, but not the ExampleRunner version,
-        // to group items in the output without affecting the description.
-        try Self.withCurrentActivity(named: element.description) {
-          do {
-            try runHooks(group.beforeEachHooks)
-          }
-          catch let skip as XCTSkip {
-            logSkip(skip, element: element)
-            return // from withCurrentActivity()
-          }
-          try runElement(element)
-          try runHooks(group.afterEachHooks)
+    for element in elements {
+      try runSubElement(element, group: group) { element in
+        try MainActor.assumeIsolated {
+          try runSubElementInner(element)
         }
       }
     }
-    try runHooks(group.afterAllHooks)
+    try runHooksXC(group.afterAllHooks)
   }
   
   @MainActor
@@ -224,3 +220,4 @@ extension ExampleRunner {
     init(_ activity: XCTActivity) { self.activity = activity }
   }
 }
+
