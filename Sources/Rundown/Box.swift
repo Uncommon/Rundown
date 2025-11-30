@@ -1,7 +1,7 @@
 /// "Sendable" container to enable capturing values in sendable closures.
-/// For use in tests that are known not to actually introduce concurrency
+/// For use in cases that are known not to actually introduce concurrency
 /// since this does not enforce safety at all.
-internal class Box<T>: @unchecked Sendable
+internal final class Box<T>: @unchecked Sendable
 {
   var wrappedValue: T
 

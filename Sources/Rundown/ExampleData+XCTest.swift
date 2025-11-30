@@ -72,11 +72,11 @@ extension ExampleGroup<SyncCall> {
 
 extension ExampleRunner {
   @TaskLocal
-  private static var activityBox: ActivityBox?
+  private static var activityBox: Box<XCTActivity>?
   
   /// The `XCTActivity` for the currently executing test element.
   @MainActor
-  static var activity: XCTActivity? { activityBox?.activity }
+  static var activity: XCTActivity? { activityBox?.wrappedValue }
   
   // Like runHooks() but uses withElementActivity
   @MainActor
@@ -209,15 +209,6 @@ extension ExampleRunner {
         try block()
       }
     }
-  }
-  
-  /// Sendable container to hold an `XCTActivity` in task-local storage.
-  /// Since `XCTContext.runActivity()` is a `@MainActor` function, the
-  /// task-local variable will only ever be set on the main actor, so data
-  /// race issues are ignored.
-  class ActivityBox: @unchecked Sendable {
-    let activity: XCTActivity
-    init(_ activity: XCTActivity) { self.activity = activity }
   }
 }
 
