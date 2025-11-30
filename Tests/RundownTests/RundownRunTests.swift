@@ -2,7 +2,7 @@ import XCTest
 import Synchronization
 @testable import Rundown
 
-/// Tests that verify execution on both the regular and XCTest version
+/// Tests that verify execution on the regular, XCTest, and async versions
 /// of the run method.
 @MainActor
 class RundownRunTests: XCTestCase {
@@ -28,10 +28,15 @@ class RundownRunTests: XCTestCase {
     try group.runActivity(under: self)
   }
   
-  func useAllRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void) async throws -> Void) async throws {
-    try await test(plainRunner)
-    try await test(xcTestRunner)
-    try await test(asyncRunner)
+  func useAllRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void, String) async throws -> Void) async throws {
+    try await test(plainRunner, "plain")
+    try await test(xcTestRunner, "XCTest")
+    try await test(asyncRunner, "async")
+  }
+  
+  func useSyncRunners(test: @MainActor ((ExampleGroup<SyncCall>) throws -> Void, String) throws -> Void) throws {
+    try test(plainRunner, "plain")
+    try test(xcTestRunner, "XCTest")
   }
 
   func testAsyncIt() async throws {
@@ -124,7 +129,7 @@ class RundownRunTests: XCTestCase {
   }
 
   func testExcludeOneOfTwo() async throws {
-    try await useAllRunners { runner in
+    try await useAllRunners { (runner, type) in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
       let ran1 = Box(false)
@@ -155,18 +160,18 @@ class RundownRunTests: XCTestCase {
       
       try await runner(describe)
 
-      XCTAssertTrue(ranBeforeAll.wrappedValue)
-      XCTAssertTrue(ranBeforeEach.wrappedValue)
-      XCTAssertFalse(ran1.wrappedValue)
-      XCTAssertTrue(ran2.wrappedValue)
-      XCTAssertTrue(ranAfterEach.wrappedValue)
-      XCTAssertTrue(ranAfterAll.wrappedValue)
+      XCTAssertTrue(ranBeforeAll.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranBeforeEach.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ran1.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ran2.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranAfterEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranAfterAll.wrappedValue, "\(type) failure")
     }
   }
   
   // No hooks should run if all elements are excluded
   func testExcludeHooks() async throws {
-    try await useAllRunners { runner in
+    try await useAllRunners { (runner, type) in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
       let ranIt = Box(false)
@@ -182,16 +187,16 @@ class RundownRunTests: XCTestCase {
       }
 
       try await runner(group)
-      XCTAssertFalse(ranBeforeAll.wrappedValue)
-      XCTAssertFalse(ranBeforeEach.wrappedValue)
-      XCTAssertFalse(ranIt.wrappedValue)
-      XCTAssertFalse(ranAfterEach.wrappedValue)
-      XCTAssertFalse(ranAfterAll.wrappedValue)
+      XCTAssertFalse(ranBeforeAll.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ranBeforeEach.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ranIt.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ranAfterEach.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ranAfterAll.wrappedValue, "\(type) failure")
     }
   }
 
   func testFocusOneOfTwo() async throws {
-    try await useAllRunners { runner in
+    try await useAllRunners { (runner, type) in
       let ranBeforeAll = Box(false)
       let ranBeforeEach = Box(false)
       let ran1 = Box(false)
@@ -210,17 +215,17 @@ class RundownRunTests: XCTestCase {
 
       try await runner(group)
 
-      XCTAssertTrue(ranBeforeAll.wrappedValue)
-      XCTAssertTrue(ranBeforeEach.wrappedValue)
-      XCTAssertTrue(ran1.wrappedValue)
-      XCTAssertFalse(ran2.wrappedValue)
-      XCTAssertTrue(ranAfterEach.wrappedValue)
-      XCTAssertTrue(ranAfterAll.wrappedValue)
+      XCTAssertTrue(ranBeforeAll.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranBeforeEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ran1.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ran2.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranAfterEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranAfterAll.wrappedValue, "\(type) failure")
     }
   }
   
   func testDeepFocus() async throws {
-    try await useAllRunners { runner in
+    try await useAllRunners { (runner, type) in
       let ranBeforeAll1 = Box(false)
       let ranAfterAll1 = Box(false)
       let ranBeforeAll2 = Box(false)
@@ -249,20 +254,20 @@ class RundownRunTests: XCTestCase {
 
       try await runner(group)
 
-      XCTAssert(ranBeforeAll1.wrappedValue)
-      XCTAssertEqual(beforeEachCount1.wrappedValue, 1)
-      XCTAssert(ranBeforeAll2.wrappedValue)
-      XCTAssertEqual(beforeEachCount2.wrappedValue, 1)
-      XCTAssert(ran2.wrappedValue)
-      XCTAssertEqual(afterEachCount2.wrappedValue, 1)
-      XCTAssert(ranAfterAll2.wrappedValue)
-      XCTAssertEqual(afterEachCount1.wrappedValue, 1)
-      XCTAssert(ranAfterAll1.wrappedValue)
+      XCTAssert(ranBeforeAll1.wrappedValue, "\(type) failure")
+      XCTAssertEqual(beforeEachCount1.wrappedValue, 1, "\(type) failure")
+      XCTAssert(ranBeforeAll2.wrappedValue, "\(type) failure")
+      XCTAssertEqual(beforeEachCount2.wrappedValue, 1, "\(type) failure")
+      XCTAssert(ran2.wrappedValue, "\(type) failure")
+      XCTAssertEqual(afterEachCount2.wrappedValue, 1, "\(type) failure")
+      XCTAssert(ranAfterAll2.wrappedValue, "\(type) failure")
+      XCTAssertEqual(afterEachCount1.wrappedValue, 1, "\(type) failure")
+      XCTAssert(ranAfterAll1.wrappedValue, "\(type) failure")
     }
   }
   
   func testConcurrent() async throws {
-    try await useAllRunners { runner in
+    try await useAllRunners { (runner, type) in
       let stepCount = 10
       let runCount = Atomic<Int>(0)
       
@@ -276,7 +281,73 @@ class RundownRunTests: XCTestCase {
       
       try await runner(group)
       
-      XCTAssertEqual(runCount.load(ordering: .relaxed), stepCount)
+      XCTAssertEqual(runCount.load(ordering: .relaxed), stepCount, "\(type) failure")
+    }
+  }
+  
+  func testAroundEach() async throws {
+    // aroundEach can't be converted from sync to async, so the async runner
+    // doesn't work
+    try useSyncRunners { (runner, type) in
+      let result = Box([String]())
+      
+      let group = describe("around each") {
+        aroundEach { (callback) in
+          result.wrappedValue.append("outer before")
+          try "".withCString { _ in
+            result.wrappedValue.append("inner before")
+            try callback()
+            result.wrappedValue.append("inner after")
+          }
+          result.wrappedValue.append("outer after")
+        }
+        it("works") {
+          result.wrappedValue.append("it")
+        }
+      }
+      
+      try runner(group)
+      
+      XCTAssertEqual(
+        result.wrappedValue,
+        ["outer before", "inner before", "it", "inner after", "outer after"],
+        "\(type) failure"
+      )
+    }
+  }
+  
+  /// A second aroundEach should be executed inside the callback of the first
+  func testDoubleAroundEach() throws {
+    try useSyncRunners { (runner, type) in
+      let result = Box([String]())
+
+      try describe("ArounchEach") {
+        aroundEach { (callback) in
+          result.wrappedValue.append("around 1 start")
+          try "".withCString { _ in
+            try callback()
+          }
+          result.wrappedValue.append("around 1 end")
+        }
+
+        aroundEach { (callback) in
+          result.wrappedValue.append("around 2 start")
+          try "".withCString { _ in
+            try callback()
+          }
+          result.wrappedValue.append("around 2 end")
+        }
+
+        it("works") {
+          result.wrappedValue.append("it")
+        }
+      }.run()
+
+      XCTAssertEqual(result.wrappedValue,
+                     ["around 1 start", "around 2 start",
+                      "it",
+                      "around 2 end", "around 1 end"],
+                     "\(type) failure")
     }
   }
 }
