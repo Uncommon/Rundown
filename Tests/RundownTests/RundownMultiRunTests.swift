@@ -5,7 +5,7 @@ import Synchronization
 /// Tests that verify execution on the regular, XCTest, and async versions
 /// of the run method.
 @MainActor
-class RundownRunTests: XCTestCase {
+class RundownMultiRunTests: XCTestCase {
   func plainRunner(group: ExampleGroup<SyncCall>) throws {
     try group.run()
   }
