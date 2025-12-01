@@ -231,8 +231,7 @@ class RundownMultiRunTests: XCTestCase {
   func testDoubleAroundEach() throws {
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
-
-      try describe("ArounchEach") {
+      let group = describe("ArounchEach") {
         aroundEach { (callback) in
           result.wrappedValue.append("around 1 start")
           try "".withCString { _ in
@@ -252,12 +251,129 @@ class RundownMultiRunTests: XCTestCase {
         it("works") {
           result.wrappedValue.append("it")
         }
-      }.run()
+      }
+      
+      try runner(group)
 
       XCTAssertEqual(result.wrappedValue,
                      ["around 1 start", "around 2 start",
                       "it",
                       "around 2 end", "around 1 end"],
+                     "\(type) failure")
+    }
+  }
+  
+  func testAroundEachWithHooks() throws {
+    try useSyncRunners { (runner, type) in
+      let result = Box([String]())
+      let group = describe("ArounchEach") {
+        beforeAll {
+          result.wrappedValue.append("beforeAll")
+        }
+        aroundEach { (callback) in
+          result.wrappedValue.append("around start")
+          try "".withCString { _ in
+            try callback()
+          }
+          result.wrappedValue.append("around end")
+        }
+        beforeEach {
+          result.wrappedValue.append("beforeEach")
+        }
+        
+        it("works") {
+          result.wrappedValue.append("it")
+        }
+        
+        afterEach {
+          result.wrappedValue.append("afterEach")
+        }
+        afterAll {
+          result.wrappedValue.append("afterAll")
+        }
+      }
+      
+      try runner(group)
+      
+      XCTAssertEqual(result.wrappedValue,
+                     ["beforeAll",
+                      "around start",
+                      "beforeEach", "it", "afterEach",
+                      "around end",
+                      "afterAll",
+                     ],
+                     "\(type) failure")
+    }
+  }
+
+  func testAroundEachOnlyAllHooks() throws {
+    try useSyncRunners { (runner, type) in
+      let result = Box([String]())
+      let group = describe("ArounchEach") {
+        beforeAll {
+          result.wrappedValue.append("beforeAll")
+        }
+        aroundEach { (callback) in
+          result.wrappedValue.append("around start")
+          try "".withCString { _ in
+            try callback()
+          }
+          result.wrappedValue.append("around end")
+        }
+
+        it("works") {
+          result.wrappedValue.append("it")
+        }
+
+        afterAll {
+          result.wrappedValue.append("afterAll")
+        }
+      }
+      
+      try runner(group)
+
+      XCTAssertEqual(result.wrappedValue,
+                     ["beforeAll",
+                      "around start",
+                      "it",
+                      "around end",
+                      "afterAll",
+                     ],
+                     "\(type) failure")
+    }
+  }
+
+  func testAroundEachOnlyEachHooks() throws {
+    try useSyncRunners { (runner, type) in
+      let result = Box([String]())
+      let group = describe("ArounchEach") {
+        aroundEach { (callback) in
+          result.wrappedValue.append("around start")
+          try "".withCString { _ in
+            try callback()
+          }
+          result.wrappedValue.append("around end")
+        }
+        beforeEach {
+          result.wrappedValue.append("beforeEach")
+        }
+
+        it("works") {
+          result.wrappedValue.append("it")
+        }
+
+        afterEach {
+          result.wrappedValue.append("afterEach")
+        }
+      }
+      
+      try runner(group)
+
+      XCTAssertEqual(result.wrappedValue,
+                     ["around start",
+                      "beforeEach", "it", "afterEach",
+                      "around end",
+                     ],
                      "\(type) failure")
     }
   }
