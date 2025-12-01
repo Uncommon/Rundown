@@ -238,24 +238,6 @@ final class RundownExecutionTests: Rundown.TestCase {
     XCTAssertEqual(afterCount.wrappedValue, expected)
   }
 
-  func testWithin() throws {
-    let executed = Box(false)
-
-    try describe("Within") {
-      within("inside a callback") { callback in
-        try "".withCString { _ in
-          try callback()
-        }
-      } example: {
-        it("works") {
-          executed.set()
-        }
-      }
-    }.run()
-    
-    XCTAssert(executed.wrappedValue)
-  }
-
   func testAroundEachAsync() async throws {
     let result = Box([String]())
 

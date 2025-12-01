@@ -32,23 +32,6 @@ func xContext(_ description: String,
   .init(description, traits + [.excluded], builder: builder)
 }
 
-/// Shortcut for adding a `.excluded` trait to `Within`.
-func xWithin(_ description: String,
-             _ traits: [any Trait] = [],
-             executor: @escaping SyncCall.WithinCallback,
-             @ExampleBuilder<SyncCall> example: () -> ExampleGroup<SyncCall>) -> Within<SyncCall> {
-  .init(description, traits + [.excluded],
-        executor: executor, example: example)
-}
-/// Shortcut for adding a `.excluded` trait to `Within`.
-func xWithin(_ description: String,
-             _ traits: [any Trait] = [],
-             executor: @escaping AsyncCall.WithinCallback,
-             @ExampleBuilder<AsyncCall> example: () -> ExampleGroup<AsyncCall>) -> Within<AsyncCall> {
-  .init(description, traits + [.excluded],
-        executor: executor, example: example)
-}
-
 /// Shortcut for adding a `.excluded` trait to `It`.
 func xIt(_ description: String,
          _ traits: [any Trait] = [],

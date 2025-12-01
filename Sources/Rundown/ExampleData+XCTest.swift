@@ -133,17 +133,6 @@ extension ExampleRunner {
                                      associatedError: error)
                 testBox.wrappedValue.record(issue)
               }
-            case let within as Within<SyncCall>:
-              XCTFail("Within is not currently supported in runActivity")
-#if false
-              // Do the "within" logic manually to maintain @MainActor and
-              // the use of runActivity
-              try within.executor {
-                try MainActor.assumeIsolated {
-                  try runActivity(within.group, under: test)
-                }
-              }
-#endif
             default:
               preconditionFailure("unexpected element type")
           }
