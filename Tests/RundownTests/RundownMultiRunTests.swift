@@ -226,7 +226,31 @@ class RundownMultiRunTests: XCTestCase {
       )
     }
   }
-  
+
+  func testExcludedAroundEach() async throws {
+    try useSyncRunners { (runner, type) in
+      let result = Box([String]())
+      
+      let group = describe("around each") {
+        aroundEach(.excluded) { (callback) in
+          result.wrappedValue.append("around")
+          try callback()
+        }
+        it("works") {
+          result.wrappedValue.append("it")
+        }
+      }
+      
+      try runner(group)
+      
+      XCTAssertEqual(
+        result.wrappedValue,
+        ["it"],
+        "\(type) failure"
+      )
+    }
+  }
+
   /// A second aroundEach should be executed inside the callback of the first
   func testDoubleAroundEach() throws {
     try useSyncRunners { (runner, type) in

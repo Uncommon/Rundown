@@ -28,3 +28,17 @@ public func aroundEach(_ name: String = "",
   -> AroundEach<AsyncCall> {
   .init(name: name, traits: traits, block: executor)
 }
+
+@DeAsyncRD
+/// For each example, the given executor will be called. That
+/// executor will be given a callback that runs the example as well
+/// as any `beforeEach`/`afterEach` elements.
+///
+/// This allows for callback-based setup and teardown, such as
+/// Swift's various "with" functions like `TaskLocal.withValue()`.
+@_disfavoredOverload
+public func aroundEach(_ traits: (any Trait)...,
+                       executor: @escaping AsyncCall.WithinCallback)
+  -> AroundEach<AsyncCall> {
+  .init(name: "", traits: traits, block: executor)
+}

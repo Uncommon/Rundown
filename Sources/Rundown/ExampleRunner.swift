@@ -48,11 +48,13 @@ public class ExampleRunner: @unchecked Sendable {
   func runSubElement<E: TestExample>(_ element: E,
                                      group: ExampleGroup<AsyncCall>,
                                      runInner: @Sendable (E) async throws -> Void) async throws {
-    if group.aroundEachHooks.isEmpty {
+    let aroundEachHooks = filterExcluded(group.aroundEachHooks)
+    
+    if aroundEachHooks.isEmpty {
       try await runInner(element)
     }
     else {
-      try await runAround(hooks: group.aroundEachHooks, element: element, runInner: runInner)
+      try await runAround(hooks: aroundEachHooks, element: element, runInner: runInner)
     }
   }
   
