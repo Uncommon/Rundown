@@ -3,7 +3,7 @@ import XCTest
 
 
 @MainActor
-final class RundownExecutionTests: Rundown.TestCase {
+final class ExecutionTests: Rundown.TestCase {
   
   @TaskLocal static var taskLocal: Bool = false
 
@@ -244,7 +244,7 @@ final class RundownExecutionTests: Rundown.TestCase {
     try await describe("ArounchEach") {
       aroundEach { (callback) in
         result.wrappedValue.append("around start")
-        try await RundownExecutionTests.$taskLocal.withValue(true) {
+        try await ExecutionTests.$taskLocal.withValue(true) {
           try await callback()
         }
         result.wrappedValue.append("around end")
@@ -269,7 +269,7 @@ final class RundownExecutionTests: Rundown.TestCase {
       }
       aroundEach { (callback) in
         result.wrappedValue.append("around start")
-        try await RundownExecutionTests.$taskLocal.withValue(true) {
+        try await ExecutionTests.$taskLocal.withValue(true) {
           try await callback()
         }
         result.wrappedValue.append("around end")

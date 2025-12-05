@@ -13,7 +13,7 @@ fileprivate let testMacros: [String: Macro.Type] = [
 ]
 #endif
 
-final class RundownMacroTests: XCTestCase {
+final class ExampleMacroTests: XCTestCase {
   func testPeerMacro() throws {
 #if canImport(RundownMacros)
     assertMacroExpansion(

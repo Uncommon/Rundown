@@ -2,7 +2,7 @@ import XCTest
 @testable import Rundown
 
 @MainActor
-final class RundownTests: Rundown.TestCase {
+final class ExecutionXCTests: Rundown.TestCase {
   
   func testDescriptions() throws {
     try spec("ExampleRun") {
