@@ -1,7 +1,6 @@
 import Foundation
 import OSLog
 import Synchronization
-import XCTest
 
 /// Tracks the execution of an example group in order to construct the full name
 /// of the current element.

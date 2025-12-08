@@ -1,3 +1,4 @@
+#if canImport(XCTest)
 import XCTest
 import OSLog
 
@@ -49,13 +50,6 @@ open class TestCase: XCTestCase {
   public func spec(_ description: String,
                    @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
     try describe(description, builder: builder).runActivity(under: self)
-  }
-}
-
-extension Character {
-  var isIdentifier: Bool {
-    // Technically incomplete, but enough for most cases
-    isLetter || isNumber || self == "_"
   }
 }
 
@@ -200,4 +194,4 @@ extension ExampleRunner {
     }
   }
 }
-
+#endif

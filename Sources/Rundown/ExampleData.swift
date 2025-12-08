@@ -1,6 +1,5 @@
 import Foundation
 import OSLog
-import XCTest
 
 public protocol CallType: Sendable {
   associatedtype Callback: Sendable

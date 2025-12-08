@@ -25,3 +25,10 @@ extension String
     return String(self[prefix.endIndex...])
   }
 }
+
+extension Character {
+  var isIdentifier: Bool {
+    // Technically incomplete, but enough for most cases
+    isLetter || isNumber || self == "_"
+  }
+}
