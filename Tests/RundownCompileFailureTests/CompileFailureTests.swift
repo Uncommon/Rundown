@@ -103,18 +103,23 @@ final class InvalidSequencesFixtureTests: XCTestCase {
     let source = try! String(contentsOfFile: testSourceURL.path, encoding: .utf8)
     let expectedErrors = extractExpectedErrors(from: source)
     
+    if expectedErrors.isEmpty {
+      XCTFail("no expected errors found")
+      return
+    }
+    
     let missingErrors = expectedErrors.filter { expected in
       !foundErrors.contains(where: { $0.line == expected.line })
     }
     let unexpectedErrors = foundErrors.filter { found in
       !expectedErrors.contains(where: { $0.line == found.line })
     }
-    let sameLineErrors = expectedErrors.filter { expected in
-      foundErrors.contains(where: { $0.line == expected.line })
+    let sameLineErrors = foundErrors.filter { found in
+      expectedErrors.contains(where: { $0.line == found.line })
     }
     let mismatchedErrors = sameLineErrors.filter { sameError in
-      let foundMessage = foundErrors.first(where: { $0.line == sameError.line })!.message
-      return !sameError.message.hasSuffix(foundMessage)
+      let expectedMessage = expectedErrors.first(where: { $0.line == sameError.line })!.message
+      return !sameError.message.hasSuffix(expectedMessage)
     }
     
     XCTAssertTrue(missingErrors.isEmpty, "missing errors:\n\(missingErrors.lines)")
@@ -127,6 +132,10 @@ final class InvalidSequencesFixtureTests: XCTestCase {
   ///
   /// - Parameter source: The full contents of a Swift source file.
   /// - Returns: An array of (lineNumber, messageInsideBraces).
+  ///
+  /// Comments are roughly in the form apparently used by the Swift
+  /// compiler's -verify flag, which isn't available in the distribution verion
+  /// of the compiler.
   func extractExpectedErrors(from source: String) -> [CompileError] {
     let regex = Regex {
       "//"

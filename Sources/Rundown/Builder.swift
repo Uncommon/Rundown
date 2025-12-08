@@ -210,8 +210,8 @@ public struct ExampleBuilder<Call: CallType> {
   public static func buildPartialBlock(
     accumulated: Accumulator<ExamplePhase>,
     next: AroundEach<Call>) -> Accumulator<ExamplePhase> {
-      fatalError("unavailable")
-    }
+    fatalError("unavailable")
+  }
   @available(*, unavailable, message: "Loop must end in example or 'after' element")
   public static func buildArray<P: BeforePhase>(_ components: [Accumulator<P>]) -> Accumulator<P> {
     fatalError("unavailable")
