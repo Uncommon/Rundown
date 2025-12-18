@@ -4,7 +4,7 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
     AroundEachPhase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
   public let traits: [any Trait]
-  let block: Call.WithinCallback
+  let block: Call.AroundCallback
   
   @DeAsyncRD
   func execute(around callback: @Sendable () async throws -> Void) async throws where Call == AsyncCall {
@@ -24,7 +24,7 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
 @_disfavoredOverload
 public func aroundEach(_ name: String = "",
                        _ traits: (any Trait)...,
-                       executor: @escaping AsyncCall.WithinCallback)
+                       executor: @escaping AsyncCall.AroundCallback)
   -> AroundEach<AsyncCall> {
   .init(name: name, traits: traits, block: executor)
 }
@@ -38,7 +38,7 @@ public func aroundEach(_ name: String = "",
 /// Swift's various "with" functions like `TaskLocal.withValue()`.
 @_disfavoredOverload
 public func aroundEach(_ traits: (any Trait)...,
-                       executor: @escaping AsyncCall.WithinCallback)
+                       executor: @escaping AsyncCall.AroundCallback)
   -> AroundEach<AsyncCall> {
   .init(name: "", traits: traits, block: executor)
 }

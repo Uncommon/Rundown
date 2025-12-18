@@ -3,16 +3,16 @@ import OSLog
 
 public protocol CallType: Sendable {
   associatedtype Callback: Sendable
-  associatedtype WithinCallback: Sendable
+  associatedtype AroundCallback: Sendable
 }
 
 public enum SyncCall: CallType {
   public typealias Callback = @Sendable () throws -> Void
-  public typealias WithinCallback = @Sendable (Callback) throws -> Void
+  public typealias AroundCallback = @Sendable (Callback) throws -> Void
 }
 public enum AsyncCall: CallType {
   public typealias Callback = @Sendable () async throws -> Void
-  public typealias WithinCallback = @Sendable (Callback) async throws -> Void
+  public typealias AroundCallback = @Sendable (Callback) async throws -> Void
 }
 
 /// An async test element was found while running a non-async test
