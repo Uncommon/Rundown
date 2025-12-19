@@ -59,6 +59,14 @@ private class TypeChangeRewriter: SyntaxRewriter {
   }
 }
 
+// Duplicated here to avoid circular dependency
+public enum StripSendable: String {
+  case none, parameters, function, all
+  
+  var shouldStripParameters: Bool { self == .parameters || self == .all }
+  var shouldStripFunction: Bool { self == .function || self == .all }
+}
+
 public struct DeAsyncMacro: PeerMacro {
   /// Parses an argument representing an array of types like `[TypeA.self, TypeB.self]`
   /// and returns an array of strings containing the type names: `["TypeA", "TypeB"]`.
@@ -93,21 +101,22 @@ public struct DeAsyncMacro: PeerMacro {
   }
   
   /// Returns the value of the 'stripSendable' argument if present, or false otherwise.
-  static func stripSendableParameterValue(_ node: AttributeSyntax) -> Bool {
+  static func stripSendableParameterValue(_ node: AttributeSyntax) -> StripSendable {
     guard let arguments = node.arguments else {
-      return false
+      return .none
     }
     for child in arguments.children(viewMode: .all) {
       if let labeledExpr = child.as(LabeledExprSyntax.self),
          labeledExpr.label?.text == "stripSendable" {
-        if let boolLiteral = labeledExpr.expression.as(BooleanLiteralExprSyntax.self) {
-          return boolLiteral.literal.text == "true"
+        if let memberAccess = labeledExpr.expression.as(MemberAccessExprSyntax.self),
+           let stripSendable = StripSendable(rawValue: memberAccess.declName.description) {
+          return stripSendable
         } else {
-          return false
+          return .none
         }
       }
     }
-    return false
+    return .none
   }
   
   /// Removes all '@Sendable' effect specifiers from closure parameter types in the function signature.
@@ -143,14 +152,17 @@ public struct DeAsyncMacro: PeerMacro {
       throw MacroError.message("@DeAsync can only be applied to functions.")
     }
     
-    let shouldStripSendable = stripSendableParameterValue(node)
+    let strip = stripSendableParameterValue(node)
     
     funcDecl.attributes = filterDisfavoredOverload(funcDecl.attributes)
-    if shouldStripSendable {
+    if strip.shouldStripFunction {
+      funcDecl.attributes = remove("@Sendable", from: funcDecl.attributes)
+    }
+    if strip.shouldStripParameters {
       funcDecl.signature = stripSendable(funcDecl.signature)
     }
     
-    let defaultReplacements = node.attributeName.trimmedDescription == "DeAsyncRD" ? ["AsyncCall":"SyncCall"] : [:]
+    let defaultReplacements = node.attributeName.trimmedDescription == "DeAsyncRD" ? ["AsyncCall":"SyncCall", "AsyncMainCall":"SyncMainCall"] : [:]
     let replacements = parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
     let signature = funcDecl.signature
     let effects = signature.effectSpecifiers

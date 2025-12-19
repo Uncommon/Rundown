@@ -225,7 +225,7 @@ final class DeAsyncMacroTests: XCTestCase {
 #if canImport(RundownMacros)
     assertMacroExpansion(
       """
-      @DeAsyncRD(stripSendable: true)
+      @DeAsyncRD(stripSendable: .parameters)
       func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async {
           await something()
       }
@@ -236,6 +236,33 @@ final class DeAsyncMacroTests: XCTestCase {
       }
       
       func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) {
+          something()
+      }
+      """,
+      macros: testMacros
+    )
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testStripSendableFunction() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsyncRD(stripSendable: .function) @Sendable @MainActor
+      func thing() async {
+          await something()
+      }
+      """,
+      expandedSource: """
+      @Sendable @MainActor
+      func thing() async {
+          await something()
+      }
+      
+      @MainActor
+      func thing() {
           something()
       }
       """,
