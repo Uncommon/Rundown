@@ -12,6 +12,13 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
       try await callback()
     }
   }
+  
+  @DeAsyncRD @MainActor
+  func execute(around callback: @Sendable @MainActor () async throws -> Void) async throws where Call == AsyncMainCall {
+    try await block {
+      try await callback()
+    }
+  }
 }
 
 @DeAsyncRD

@@ -11,6 +11,12 @@ public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable 
                       where Call == AsyncCall {
     try await block()
   }
+
+  @DeAsyncRD @MainActor
+  public func execute(in runner: ExampleRunner) async throws
+                      where Call == AsyncMainCall {
+    try await block()
+  }
 }
 
 extension TestHook where Call == SyncCall {
@@ -48,10 +54,52 @@ extension TestHook where Call == AsyncCall {
   }
 }
 
+extension TestHook where Call == SyncMainCall {
+  public init(_ name: String = "",
+              _ traits: (any Trait)...,
+              execute: @escaping Call.Callback) {
+    self.init(name, traits, execute: execute)
+  }
+
+  // Since Swift doesn't yet support "splatting" variadic arguments,
+  // each of these constructors must have both versions for the sake
+  // of convenience functions that add a trait to a supplied list.
+  public init(_ name: String = "",
+              _ traits: [any Trait],
+              execute: @escaping Call.Callback) {
+    self.name = name
+    self.traits = traits
+    self.block = execute
+  }
+}
+
+extension TestHook where Call == AsyncMainCall {
+  public init(_ name: String = "",
+              _ traits: [any Trait],
+              execute: @escaping Call.Callback) {
+    self.name = name
+    self.traits = traits
+    self.block = execute
+  }
+  
+  public init(fromSync other: TestHook<Phase, SyncCall>) {
+    self.name = other.name
+    self.traits = other.traits
+    self.block = other.block
+  }
+}
+
 @DeAsyncRD
 @_disfavoredOverload
 public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
                       execute: @escaping AsyncCall.Callback) -> TestHook<BeforeAllPhase, AsyncCall> {
+  .init(name, traits, execute: execute)
+}
+
+@DeAsyncRD
+@_disfavoredOverload
+public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping AsyncMainCall.Callback) -> TestHook<BeforeAllPhase, AsyncMainCall> {
   .init(name, traits, execute: execute)
 }
 

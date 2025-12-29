@@ -90,6 +90,60 @@ public struct ExampleMacro: PeerMacro {
   }
 }
 
+extension MacroExpansionContext {
+  var inAsyncFunction: Bool {
+    for lexicalContext in self.lexicalContext {
+      if let function = lexicalContext.as(FunctionDeclSyntax.self) {
+        return function.isAsync
+      }
+    }
+    return false
+  }
+  var inMainActorFunction: Bool {
+    for lexicalContext in self.lexicalContext {
+      if let function = lexicalContext.as(FunctionDeclSyntax.self) {
+        return function.isMainActor
+      }
+    }
+    return false
+  }
+  var inMainActorType: Bool {
+    for lexicalContext in self.lexicalContext {
+      if let structDecl = lexicalContext.as(StructDeclSyntax.self) {
+        return structDecl.isMainActor
+      }
+      if let classDecl = lexicalContext.as(StructDeclSyntax.self) {
+        return classDecl.isMainActor
+      }
+    }
+    return false
+  }
+}
+
+extension FunctionDeclSyntax {
+  var isAsync: Bool {
+    signature.effectSpecifiers?.asyncSpecifier != nil
+  }
+  var isMainActor: Bool {
+    attributes.contains { $0.trimmedDescription == "@MainActor" }
+  }
+}
+
+extension StructDeclSyntax {
+  var isMainActor: Bool {
+    attributes.contains { $0.trimmedDescription == "@MainActor" }
+  }
+}
+
+extension ClassDeclSyntax {
+  var isMainActor: Bool {
+    attributes.contains { $0.trimmedDescription == "@MainActor" }
+  }
+  var isXCTestCase: Bool {
+    inheritanceClause?.inheritedTypes.contains { $0.trimmedDescription == "XCTestCase" } ?? false
+  }
+}
+
 @main
 struct RundownPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [

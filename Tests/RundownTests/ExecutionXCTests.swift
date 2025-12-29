@@ -4,10 +4,13 @@ import XCTest
 @MainActor
 final class ExecutionXCTests: Rundown.TestCase {
   
+  @MainActor func mainThing() {}
+  
   func testDescriptions() throws {
     try spec("ExampleRun") {
       context("first context") {
         it("has correct description") {
+          mainThing()
           XCTAssertEqual(ExampleRunner.current!.description,
                          "ExampleRun, first context, has correct description")
         }
@@ -28,6 +31,7 @@ final class ExecutionXCTests: Rundown.TestCase {
 
     try spec("Running 'each' hooks") {
       beforeEach {
+        mainThing()
         beforeCount.bump()
       }
 

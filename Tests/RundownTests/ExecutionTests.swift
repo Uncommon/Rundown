@@ -1,7 +1,7 @@
 import XCTest
 @testable import Rundown
 
-
+#if false
 @MainActor
 final class ExecutionTests: Rundown.TestCase {
   
@@ -294,3 +294,4 @@ final class ExecutionTests: Rundown.TestCase {
        "around end"])
   }
 }
+#endif

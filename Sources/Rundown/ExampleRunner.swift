@@ -57,7 +57,21 @@ public class ExampleRunner: @unchecked Sendable {
     }
   }
   
-  @DeAsyncRD @Sendable @_disfavoredOverload
+  @DeAsyncRD(stripSendable: .function)
+  @Sendable @MainActor @_disfavoredOverload
+  func runSubElement<E: TestExample>(_ element: E,
+                                     group: ExampleGroup<AsyncMainCall>,
+                                     runInner: @Sendable (E) async throws -> Void) async throws {
+    let aroundEachHooks = filterExcluded(group.aroundEachHooks)
+    
+    if aroundEachHooks.isEmpty {
+      try await runInner(element)
+    }
+    else {
+      try await runAround(hooks: aroundEachHooks, element: element, runInner: runInner)
+    }
+  }
+  @DeAsyncRD(stripSendable: .function) @Sendable @_disfavoredOverload
   func runAround<E: TestExample>(hooks: [AroundEach<AsyncCall>],
                                  element: E,
                                  runInner: @Sendable (E) async throws -> Void) async throws {
@@ -73,6 +87,23 @@ public class ExampleRunner: @unchecked Sendable {
     }
   }
 
+  @DeAsyncRD(stripSendable: .function)
+  @Sendable @MainActor @_disfavoredOverload
+  func runAround<E: TestExample>(hooks: [AroundEach<AsyncMainCall>],
+                                 element: E,
+                                 runInner: @Sendable (E) async throws -> Void) async throws {
+    if let hook = hooks.first {
+      try await hook.execute {
+        try await runAround(hooks: Array(hooks.dropFirst()),
+                            element: element,
+                            runInner: runInner)
+      }
+    }
+    else {
+      try await runInner(element)
+    }
+  }
+  
   /// Executes the elements of a group. This is managed by the runner instead of
   /// the group itself because the runner can have logic that it needs to apply
   /// at each step.

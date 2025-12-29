@@ -14,6 +14,14 @@ public enum AsyncCall: CallType {
   public typealias Callback = @Sendable () async throws -> Void
   public typealias AroundCallback = @Sendable (Callback) async throws -> Void
 }
+public enum SyncMainCall: CallType {
+  public typealias Callback = @Sendable @MainActor () throws -> Void
+  public typealias AroundCallback = @Sendable @MainActor (Callback) throws -> Void
+}
+public enum AsyncMainCall: CallType {
+  public typealias Callback = @Sendable @MainActor () async throws -> Void
+  public typealias AroundCallback = @Sendable @MainActor (Callback) async throws -> Void
+}
 
 /// An async test element was found while running a non-async test
 public struct UnexpectedAsyncError: Error {}
@@ -61,6 +69,12 @@ public struct It<Call: CallType>: TestExample {
                       where Call == AsyncCall {
     try await block()
   }
+
+  @DeAsyncRD @MainActor
+  public func execute(in runner: ExampleRunner) async throws
+                      where Call == AsyncMainCall {
+    try await block()
+  }
 }
 
 // The SyncCall and AsyncCall versions could be a single generic function, but
@@ -72,7 +86,7 @@ public func it(_ description: String,
   .init(description, traits, execute: execute)
 }
 
-@DeAsyncRD(stripSendable: true)
+@DeAsyncRD(stripSendable: .parameters)
 public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
                  function: String = #function) async throws {
   let description = dropTestPrefix(function)
@@ -84,7 +98,7 @@ private func dropTestPrefix(_ string: String) -> String {
     .droppingPrefix("test")
 }
 
-@DeAsyncRD(stripSendable: true)
+@DeAsyncRD(stripSendable: .parameters)
 public func spec(_ description: String,
                  @ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>) async throws {
   try await describe(description, builder: builder).run()
