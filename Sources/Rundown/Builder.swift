@@ -227,50 +227,57 @@ public struct ExampleBuilder<Call: CallType> {
 }
 
 // In an async spec, convert sync elements to async
-public extension ExampleBuilder where Call == AsyncCall {
+public extension ExampleBuilder where Call: AsyncConvertibleCallType {
   // Before hooks come first
-  static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
-    .init().adding(TestHook<Phase, AsyncCall>(fromSync: first))
+  static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
+    .init().adding(TestHook<Phase, Call>(fromSync: first))
   }
+
   // Hook repeat
   static func buildPartialBlock<Phase: AccumulatorPhase>(
     accumulated: Accumulator<Phase>,
-    next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
-    accumulated.adding(TestHook<Phase, AsyncCall>(fromSync: next))
+    next: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
+    accumulated.adding(TestHook<Phase, Call>(fromSync: next))
   }
+
   // BeforeEach can follow BeforeAll
   static func buildPartialBlock(
       accumulated: Accumulator<BeforeAllPhase>,
-      next: TestHook<BeforeEachPhase, SyncCall>) -> Accumulator<BeforeEachPhase> {
-    accumulated.transitioned(with: TestHook<BeforeEachPhase, AsyncCall>(fromSync: next))
+      next: TestHook<BeforeEachPhase, Call.SyncVersion>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: TestHook<BeforeEachPhase, Call>(fromSync: next))
   }
+
   // BeforeEach can follow AroundEach
   static func buildPartialBlock(
       accumulated: Accumulator<AroundEachPhase>,
-      next: TestHook<BeforeEachPhase, SyncCall>) -> Accumulator<BeforeEachPhase> {
-    accumulated.transitioned(with: TestHook<BeforeEachPhase, AsyncCall>(fromSync: next))
+      next: TestHook<BeforeEachPhase, Call.SyncVersion>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: TestHook<BeforeEachPhase, Call>(fromSync: next))
   }
+
   // Examples come first
-  static func buildPartialBlock(first: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+  static func buildPartialBlock(first: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
     .init().adding(first)
   }
+
   // Examples follow examples
   static func buildPartialBlock(
     accumulated: Accumulator<ExamplePhase>,
-    next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+    next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
       accumulated.adding(next)
   }
+
   // Examples follow Before hooks
   static func buildPartialBlock<Phase: BeforePhase>(
     accumulated: Accumulator<Phase>,
-    next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+    next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
+
   // AfterEach/AfterAll follows examples
   static func buildPartialBlock<Phase: AfterPhase>(
       accumulated: Accumulator<ExamplePhase>,
-      next: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
-    accumulated.transitioned(with: TestHook<Phase, AsyncCall>(fromSync: next))
+      next: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
+    accumulated.transitioned(with: TestHook<Phase, Call>(fromSync: next))
   }
 
   // AroundEach can't be converted from sync to async because it
@@ -280,13 +287,14 @@ public extension ExampleBuilder where Call == AsyncCall {
   // to handle every example in the group, so if any are async then
   // every AroundEach must also be async.
   @available(*, unavailable, message: "Every aroundEach must be async in an async test")
-  static func buildPartialBlock(first: AroundEach<SyncCall>) -> Accumulator<AroundEachPhase> {
+  static func buildPartialBlock(first: AroundEach<Call.SyncVersion>) -> Accumulator<AroundEachPhase> {
     fatalError("unavailable")
   }
+
   @available(*, unavailable, message: "Every aroundEach must be async in an async test")
   static func buildPartialBlock<Phase: AccumulatorPhase>(
     accumulated: Accumulator<Phase>,
-    next: AroundEach<SyncCall>) -> Accumulator<AroundEachPhase> {
+    next: AroundEach<Call.SyncVersion>) -> Accumulator<AroundEachPhase> {
     fatalError("unavailable")
   }
 }

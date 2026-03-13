@@ -36,12 +36,12 @@ public macro Example() = #externalMacro(module: "RundownMacros", type: "ExampleM
 ///
 /// - parameter oldTypes: Types to be replaced
 /// - parameter newTypes: Substitutions for types in `oldTypes`
-/// - parameter stripSendable: If true, `@Sendable` will be stripped from
-/// closure parameters.
+/// - parameter stripSendable: `@Sendable` can be stripped from
+/// closure parameters and/or the function itself.
 @attached(peer, names: overloaded)
 public macro DeAsync(replacing oldTypes: [Any.Type] = [],
                      with newTypes: [Any.Type] = [],
-                     stripSendable: Bool = false)
+                     stripSendable: StripSendable = .none)
   = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
 
 /// Internal version of @DeAsync with the standard replacement of
@@ -49,6 +49,9 @@ public macro DeAsync(replacing oldTypes: [Any.Type] = [],
 @attached(peer, names: overloaded)
 internal macro DeAsyncRD(replacing oldTypes: [Any.Type] = [],
                          with newTypes: [Any.Type] = [],
-                         stripSendable: Bool = false)
+                         stripSendable: StripSendable = .none)
   = #externalMacro(module: "RundownMacros", type: "DeAsyncMacro")
 
+public enum StripSendable {
+  case none, parameters, function, all
+}

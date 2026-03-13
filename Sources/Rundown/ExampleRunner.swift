@@ -33,7 +33,14 @@ public class ExampleRunner: @unchecked Sendable {
     defer { withLock { _ = elementStack.popLast() } }
     try await block()
   }
-  
+
+  @DeAsyncRD @MainActor
+  func withMain(_ element: some TestElement, block: @MainActor () async throws -> Void) async rethrows {
+    withLock { elementStack.append(element) }
+    defer { withLock { _ = elementStack.popLast() } }
+    try await block()
+  }
+
   @DeAsyncRD
   func runHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
     for hook in filterExcluded(hooks) {
@@ -43,6 +50,15 @@ public class ExampleRunner: @unchecked Sendable {
     }
   }
   
+  @DeAsyncRD @MainActor
+  func runHooks<P>(_ hooks: [TestHook<P, AsyncMainCall>]) async throws {
+    for hook in filterExcluded(hooks) {
+      try await withMain(hook) {
+        try await hook.execute(in: self)
+      }
+    }
+  }
+
   @DeAsyncRD @Sendable @_disfavoredOverload
   func runSubElement<E: TestExample>(_ element: E,
                                      group: ExampleGroup<AsyncCall>,
@@ -57,7 +73,22 @@ public class ExampleRunner: @unchecked Sendable {
     }
   }
   
-  @DeAsyncRD @Sendable @_disfavoredOverload
+  @DeAsyncRD(stripSendable: .function)
+  @Sendable @MainActor @_disfavoredOverload
+  func runSubElement<E: TestExample>(_ element: E,
+                                     group: ExampleGroup<AsyncMainCall>,
+                                     runInner: @MainActor (E) async throws -> Void) async throws {
+    let aroundEachHooks = filterExcluded(group.aroundEachHooks)
+    
+    if aroundEachHooks.isEmpty {
+      try await runInner(element)
+    }
+    else {
+      try await runAround(hooks: aroundEachHooks, element: element, runInner: runInner)
+    }
+  }
+  
+  @DeAsyncRD(stripSendable: .function) @Sendable @_disfavoredOverload
   func runAround<E: TestExample>(hooks: [AroundEach<AsyncCall>],
                                  element: E,
                                  runInner: @Sendable (E) async throws -> Void) async throws {
@@ -73,6 +104,23 @@ public class ExampleRunner: @unchecked Sendable {
     }
   }
 
+  @DeAsyncRD(stripSendable: .function)
+  @Sendable @MainActor @_disfavoredOverload
+  func runAround<E: TestExample>(hooks: [AroundEach<AsyncMainCall>],
+                                 element: E,
+                                 runInner: @MainActor (E) async throws -> Void) async throws {
+    if let hook = hooks.first {
+      try await hook.execute {
+        try await runAround(hooks: Array(hooks.dropFirst()),
+                            element: element,
+                            runInner: runInner)
+      }
+    }
+    else {
+      try await runInner(element)
+    }
+  }
+  
   /// Executes the elements of a group. This is managed by the runner instead of
   /// the group itself because the runner can have logic that it needs to apply
   /// at each step.
@@ -129,6 +177,46 @@ public class ExampleRunner: @unchecked Sendable {
     try runHooks(group.afterAllHooks)
   }
   
+  // Duplicated from the other non-async run(), with MainActor call types
+  // and disallowing concurrent tests.
+  /// Executes the elements of a group. This is managed by the runner instead of
+  /// the group itself because the runner can have logic that it needs to apply
+  /// at each step.
+  @MainActor
+  public func run(_ group: ExampleGroup<SyncMainCall>) throws {
+    @MainActor func runSubElementInner(_ element: some TestExample) throws {
+      try runHooks(group.beforeEachHooks)
+      try with(element) {
+        switch element {
+          case let subgroup as ExampleGroup<SyncMainCall>:
+            try run(subgroup)
+          case let it as It<SyncMainCall>:
+            try it.execute(in: self)
+          case _ as ExampleGroup<AsyncMainCall>, _ as It<AsyncMainCall>:
+            // TestBuilder<SyncCall> shouldn't accept any AsyncCall
+            // elements, so this shouldn't happen.
+            throw UnexpectedAsyncError()
+          default:
+            preconditionFailure("unexpected element type")
+        }
+      }
+      try runHooks(group.afterEachHooks)
+    }
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+    
+    try runHooks(group.beforeAllHooks)
+    if group.traits.contains(where: { $0 is ConcurrentTrait }) {
+      throw ConcurrentDisallowedError()
+    }
+    else {
+      for element in elements {
+        try runSubElement(element, group: group, runInner: runSubElementInner)
+      }
+    }
+    try runHooks(group.afterAllHooks)
+  }
 
   // Similar to the non-async version, except that runSubElementInner handles
   // both sync and async elements, and concurrency is implemented with tasks
@@ -176,6 +264,45 @@ public class ExampleRunner: @unchecked Sendable {
     try await runHooks(group.afterAllHooks)
   }
 
+  // Duplicated from the other async run(), with MainActor call types
+  // and disallowing concurrent tests.
+  @MainActor
+  public func run(_ group: ExampleGroup<AsyncMainCall>) async throws {
+    @MainActor func runSubElementInner(_ element: some TestExample) async throws {
+      try await runHooks(group.beforeEachHooks)
+      try await withMain(element) {
+        switch element {
+          case let subgroup as ExampleGroup<AsyncMainCall>:
+            try await run(subgroup)
+          case let subgroup as ExampleGroup<SyncMainCall>:
+            try run(subgroup)
+          case let it as It<AsyncMainCall>:
+            try await it.execute(in: self)
+          case let it as It<SyncMainCall>:
+            try it.execute(in: self)
+          default:
+            preconditionFailure("unexpected element type")
+        }
+      }
+      try await runHooks(group.afterEachHooks)
+    }
+    let elements = filterFocusSkip(group.elements)
+    guard !elements.isEmpty
+    else { return }
+
+    try await runHooks(group.beforeAllHooks)
+    if group.traits.contains(where: { $0 is ConcurrentTrait }) {
+      throw ConcurrentDisallowedError()
+    }
+    else {
+      for element in elements {
+        try await runSubElement(element, group: group, runInner: runSubElementInner)
+      }
+    }
+    
+    try await runHooks(group.afterAllHooks)
+  }
+
   func filterExcluded<E: TestElement>(_ elements: [E]) -> [E] {
     elements.filter({ !$0.isExcluded })
   }
@@ -196,6 +323,20 @@ public class ExampleRunner: @unchecked Sendable {
     }
     try await ExampleRunner.$current.withValue(runner) {
       try await runner.with(element) {
+        try await element.execute(in: runner)
+      }
+    }
+  }
+
+  @DeAsyncRD @MainActor
+  public static func run(_ element: ExampleGroup<AsyncMainCall>) async throws {
+    let runner = ExampleRunner()
+
+    if let current {
+      logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
+    }
+    try await ExampleRunner.$current.withValue(runner) {
+      try await runner.withMain(element) {
         try await element.execute(in: runner)
       }
     }

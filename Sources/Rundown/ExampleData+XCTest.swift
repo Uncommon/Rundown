@@ -4,7 +4,7 @@ import OSLog
 
 /// This subclass of `XCTestCase` is necessary in order to include the full
 /// example description when recording an issue.
-open class TestCase: XCTestCase {
+open class TestCase: XCTestCase, MainActorSuite {
   let logger = Logger(subsystem: "Rundown", category: "TestCase")
 
   /// Adds the full test element description to the issue before recording
@@ -34,11 +34,13 @@ open class TestCase: XCTestCase {
   /// `XCTContext` only supports using `runActivity()` on the main
   /// thread.
   @MainActor
-  public func spec(@ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>,
+  public func spec(@ExampleBuilder<SyncMainCall> builder: () -> ExampleGroup<SyncMainCall>,
                    function: String = #function) throws {
     let description = String(function.prefix { $0.isIdentifier })
       .droppingPrefix("test")
-    try describe(description, builder: builder).runActivity(under: self)
+    let group: ExampleGroup<SyncMainCall> = describe(description, builder: builder)
+      
+    try group.runActivity(under: self)
   }
   
   /// Runs the given test steps using `XCTContext.runActivity()`.
@@ -48,12 +50,14 @@ open class TestCase: XCTestCase {
   /// thread.
   @MainActor
   public func spec(_ description: String,
-                   @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) throws {
-    try describe(description, builder: builder).runActivity(under: self)
+                   @ExampleBuilder<SyncMainCall> builder: () -> ExampleGroup<SyncMainCall>) throws {
+    let group: ExampleGroup<SyncMainCall> = describe(description, builder: builder)
+      
+    try group.runActivity(under: self)
   }
 }
 
-extension ExampleGroup<SyncCall> {
+extension ExampleGroup<SyncMainCall> {
   /// Runs the example with each element run as an `XCTContext` activity.
   /// Call this version instead of `run()` when using `XCTest`.
   ///
@@ -74,7 +78,7 @@ extension ExampleRunner {
   
   // Like runHooks() but uses withElementActivity
   @MainActor
-  private func runHooksXC<P>(_ hooks: [TestHook<P, SyncCall>]) throws {
+  private func runHooksXC<P>(_ hooks: [TestHook<P, SyncMainCall>]) throws {
     for hook in filterExcluded(hooks) {
       try withElementActivity(hook) {
         try hook.execute(in: self)
@@ -99,7 +103,7 @@ extension ExampleRunner {
   ///
   /// Throwing `XCTSkip` in `AfterEach` or `AfterAll` hooks will not be caught.
   @MainActor
-  public func runActivity(_ group: ExampleGroup<SyncCall>, under test: XCTestCase) throws {
+  public func runActivity(_ group: ExampleGroup<SyncMainCall>, under test: XCTestCase) throws {
     let testBox = Box(test)
     
     @Sendable
@@ -109,9 +113,9 @@ extension ExampleRunner {
         try runHooksXC(group.beforeEachHooks)
         try withElementActivity(element) {
           switch element {
-            case let subgroup as ExampleGroup<SyncCall>:
+            case let subgroup as ExampleGroup<SyncMainCall>:
               try runActivity(subgroup, under: testBox.wrappedValue)
-            case let it as It<SyncCall>:
+            case let it as It<SyncMainCall>:
               do {
                 try it.execute(in: self)
               }
@@ -172,7 +176,7 @@ extension ExampleRunner {
   }
 
   @MainActor
-  public static func runActivity(_ group: ExampleGroup<SyncCall>, under test: XCTestCase) throws {
+  public static func runActivity(_ group: ExampleGroup<SyncMainCall>, under test: XCTestCase) throws {
     let runner = ExampleRunner()
 
     if let current {

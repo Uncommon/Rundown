@@ -1,7 +1,6 @@
 import XCTest
 @testable import Rundown
 
-
 @MainActor
 final class ExecutionTests: Rundown.TestCase {
   
@@ -21,17 +20,18 @@ final class ExecutionTests: Rundown.TestCase {
     }
   }
   
-  @Example @ExampleBuilder<SyncCall>
-  func oneItPeer() throws -> ExampleGroup<SyncCall> {
+  @Example @ExampleBuilder<SyncMainCall>
+  func oneItPeer() throws -> ExampleGroup<SyncMainCall> {
     it("works") {
       XCTAssert(true)
     }
   }
 
+  @MainActor
   func testAsyncIt() async throws {
     let ran = Box(false)
 
-    try await Rundown.spec {
+    try await spec {
       it("does an async thing") {
         try await Task.sleep(for: .milliseconds(100))
         ran.set()
@@ -41,6 +41,7 @@ final class ExecutionTests: Rundown.TestCase {
     XCTAssert(ran.wrappedValue)
   }
 
+  @MainActor
   func testMixedAsync() async throws {
     let ranBeforeAllAsync1 = Box(false)
     let ranBeforeAllAsync2 = Box(false)
@@ -51,7 +52,7 @@ final class ExecutionTests: Rundown.TestCase {
     let ranAsync2 = Box(false)
     let ranSync2 = Box(false)
 
-    try await Rundown.spec {
+    try await spec {
       context("async then sync") {
         beforeAll("async before all") {
           try await Task.sleep(for: .milliseconds(100))
@@ -96,11 +97,12 @@ final class ExecutionTests: Rundown.TestCase {
     XCTAssert(ranSync2.wrappedValue, "it sync 2 did not run")
   }
 
+  @MainActor
   func testAsyncContext() async throws {
     let ran1 = Box(false)
     let ran2 = Box(false)
     
-    try await Rundown.spec {
+    try await spec {
       context("two things") {
         it("does thing 1") {
           try await Task.sleep(for: .milliseconds(100))
@@ -117,8 +119,8 @@ final class ExecutionTests: Rundown.TestCase {
     XCTAssert(ran2.wrappedValue)
   }
 
-  @Example @ExampleBuilder<AsyncCall>
-  func oneItAsyncMacro() async throws -> ExampleGroup<AsyncCall> {
+  @Example @ExampleBuilder<AsyncMainCall>
+  func oneItAsyncMacro() async throws -> ExampleGroup<AsyncMainCall> {
     it("works") {
       try await Task.sleep(nanoseconds: 500)
       XCTAssert(true)
