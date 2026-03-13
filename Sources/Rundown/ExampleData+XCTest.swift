@@ -4,7 +4,7 @@ import OSLog
 
 /// This subclass of `XCTestCase` is necessary in order to include the full
 /// example description when recording an issue.
-open class TestCase: XCTestCase {
+open class TestCase: XCTestCase, MainActorSuite {
   let logger = Logger(subsystem: "Rundown", category: "TestCase")
 
   /// Adds the full test element description to the issue before recording

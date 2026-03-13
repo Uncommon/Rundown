@@ -290,3 +290,75 @@ public extension ExampleBuilder where Call == AsyncCall {
     fatalError("unavailable")
   }
 }
+
+public extension ExampleBuilder where Call == AsyncMainCall {
+  // Before hooks come first
+  static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, SyncMainCall>) -> Accumulator<Phase> {
+    .init().adding(TestHook<Phase, AsyncMainCall>(fromSync: first))
+  }
+
+  // Hook repeat
+  static func buildPartialBlock<Phase: AccumulatorPhase>(
+    accumulated: Accumulator<Phase>,
+    next: TestHook<Phase, SyncMainCall>) -> Accumulator<Phase> {
+      accumulated.adding(TestHook<Phase, AsyncMainCall>(fromSync: next))
+  }
+
+  // BeforeEach can follow BeforeAll
+  static func buildPartialBlock(
+      accumulated: Accumulator<BeforeAllPhase>,
+      next: TestHook<BeforeEachPhase, SyncMainCall>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: TestHook<BeforeEachPhase, AsyncMainCall>(fromSync: next))
+  }
+
+  // BeforeEach can follow AroundEach
+  static func buildPartialBlock(
+      accumulated: Accumulator<AroundEachPhase>,
+      next: TestHook<BeforeEachPhase, SyncMainCall>) -> Accumulator<BeforeEachPhase> {
+    accumulated.transitioned(with: TestHook<BeforeEachPhase, AsyncMainCall>(fromSync: next))
+  }
+
+  // Examples come first
+  static func buildPartialBlock(first: any TestExample<SyncMainCall>) -> Accumulator<ExamplePhase> {
+    .init().adding(first)
+  }
+
+  // Examples follow examples
+  static func buildPartialBlock(
+    accumulated: Accumulator<ExamplePhase>,
+    next: any TestExample<SyncMainCall>) -> Accumulator<ExamplePhase> {
+      accumulated.adding(next)
+  }
+
+  // Examples follow Before hooks
+  static func buildPartialBlock<Phase: BeforePhase>(
+    accumulated: Accumulator<Phase>,
+    next: any TestExample<SyncMainCall>) -> Accumulator<ExamplePhase> {
+    accumulated.transitioned(with: next)
+  }
+
+  // AfterEach/AfterAll follows examples
+  static func buildPartialBlock<Phase: AfterPhase>(
+      accumulated: Accumulator<ExamplePhase>,
+      next: TestHook<Phase, SyncMainCall>) -> Accumulator<Phase> {
+    accumulated.transitioned(with: TestHook<Phase, AsyncMainCall>(fromSync: next))
+  }
+
+  // AroundEach can't be converted from sync to async because it
+  // would require passing the new async callback to the old sync
+  // callback, and there's no good way to make that work.
+  // This also makes sense because every AroundEach must be able
+  // to handle every example in the group, so if any are async then
+  // every AroundEach must also be async.
+  @available(*, unavailable, message: "Every aroundEach must be async in an async test")
+  static func buildPartialBlock(first: AroundEach<SyncMainCall>) -> Accumulator<AroundEachPhase> {
+    fatalError("unavailable")
+  }
+
+  @available(*, unavailable, message: "Every aroundEach must be async in an async test")
+  static func buildPartialBlock<Phase: AccumulatorPhase>(
+    accumulated: Accumulator<Phase>,
+    next: AroundEach<SyncMainCall>) -> Accumulator<AroundEachPhase> {
+    fatalError("unavailable")
+  }
+}

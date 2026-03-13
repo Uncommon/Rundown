@@ -26,6 +26,10 @@ public enum AsyncMainCall: CallType {
 /// An async test element was found while running a non-async test
 public struct UnexpectedAsyncError: Error {}
 
+public struct ConcurrentDisallowedError: Error {
+  public var description: String { "concurrent tests are not allowed in this context" }
+}
+
 public protocol TestElement: Sendable {
   var description: String { get }
   var traits: [any Trait] { get }

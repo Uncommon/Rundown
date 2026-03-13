@@ -4,6 +4,7 @@ import Rundown
 @ExampleBuilder<SyncCall>
 func emptyGroup() -> ExampleGroup<SyncCall> {
   describe("empty") { // expected-error {{Examples must not be empty}}
+    beforeEach { }
   }
 }
 

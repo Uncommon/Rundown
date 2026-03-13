@@ -87,6 +87,14 @@ extension TestHook where Call == AsyncMainCall {
     self.traits = other.traits
     self.block = other.block
   }
+
+  public init(fromSync other: TestHook<Phase, SyncMainCall>) {
+    self.name = other.name
+    self.traits = other.traits
+    self.block = {
+      try other.block()
+    }
+  }
 }
 
 @DeAsyncRD
