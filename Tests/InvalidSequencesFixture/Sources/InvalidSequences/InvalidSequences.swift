@@ -1,9 +1,9 @@
 import Rundown
 
-// 1) Empty group triggers "Examples must not be empty"
+// 1) Empty group triggers "Group must have examples"
 @ExampleBuilder<SyncCall>
 func emptyGroup() -> ExampleGroup<SyncCall> {
-  describe("empty") { // expected-error {{Examples must not be empty}}
+  describe("empty") { // expected-error {{Group must have examples}}
     beforeEach { }
   }
 }
