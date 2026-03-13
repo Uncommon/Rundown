@@ -69,21 +69,6 @@ When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` -
 
 The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `XCTActivity`.
 
-## `@Example` macro
-
-There is also the `@Example` macro as an alternative:
-
-``` swift
-@Example @ExampleBuilder<SyncCall>
-func myExample() throws -> ExampleGroup<SyncCall> {
-  it("works") {
-    // ···
-  }
-}
-```
-
-This eliminates a level of indentation, but requires specifying the result builder and return type.
-
 ## Goals and plans
 
 * Compatibility with XCTest and Swift Testing, with an API that looks the same in either case

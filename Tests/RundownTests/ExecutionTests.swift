@@ -20,13 +20,6 @@ final class ExecutionTests: Rundown.TestCase {
     }
   }
   
-  @Example @ExampleBuilder<SyncMainCall>
-  func oneItPeer() throws -> ExampleGroup<SyncMainCall> {
-    it("works") {
-      XCTAssert(true)
-    }
-  }
-
   @MainActor
   func testAsyncIt() async throws {
     let ran = Box(false)
@@ -117,14 +110,6 @@ final class ExecutionTests: Rundown.TestCase {
     
     XCTAssert(ran1.wrappedValue)
     XCTAssert(ran2.wrappedValue)
-  }
-
-  @Example @ExampleBuilder<AsyncMainCall>
-  func oneItAsyncMacro() async throws -> ExampleGroup<AsyncMainCall> {
-    it("works") {
-      try await Task.sleep(nanoseconds: 500)
-      XCTAssert(true)
-    }
   }
 
   func testExecuteDescribe() throws {
