@@ -6,21 +6,39 @@ public protocol CallType: Sendable {
   associatedtype AroundCallback: Sendable
 }
 
+public protocol AsyncConvertibleCallType: CallType {
+  associatedtype SyncVersion: CallType
+
+  static func wrapSyncCallback(_ callback: SyncVersion.Callback) -> Callback
+}
+
 public enum SyncCall: CallType {
   public typealias Callback = @Sendable () throws -> Void
   public typealias AroundCallback = @Sendable (Callback) throws -> Void
 }
-public enum AsyncCall: CallType {
+public enum AsyncCall: AsyncConvertibleCallType {
+  public typealias SyncVersion = SyncCall
   public typealias Callback = @Sendable () async throws -> Void
   public typealias AroundCallback = @Sendable (Callback) async throws -> Void
+
+  public static func wrapSyncCallback(_ callback: @escaping SyncCall.Callback) -> Callback {
+    callback
+  }
 }
 public enum SyncMainCall: CallType {
   public typealias Callback = @Sendable @MainActor () throws -> Void
   public typealias AroundCallback = @Sendable @MainActor (Callback) throws -> Void
 }
-public enum AsyncMainCall: CallType {
+public enum AsyncMainCall: AsyncConvertibleCallType {
+  public typealias SyncVersion = SyncMainCall
   public typealias Callback = @Sendable @MainActor () async throws -> Void
   public typealias AroundCallback = @Sendable @MainActor (Callback) async throws -> Void
+
+  public static func wrapSyncCallback(_ callback: @escaping SyncMainCall.Callback) -> Callback {
+    {
+      try callback()
+    }
+  }
 }
 
 /// An async test element was found while running a non-async test

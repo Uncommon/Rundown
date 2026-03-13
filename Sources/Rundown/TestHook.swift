@@ -38,19 +38,19 @@ extension TestHook where Call == SyncCall {
   }
 }
 
-extension TestHook where Call == AsyncCall {
-  public init(_ name: String = "",
-              _ traits: [any Trait],
-              execute: @escaping Call.Callback) {
+extension TestHook where Call: AsyncConvertibleCallType {
+  init(_ name: String = "",
+       _ traits: [any Trait],
+       execute: Call.Callback) {
     self.name = name
     self.traits = traits
     self.block = execute
   }
-  
-  public init(fromSync other: TestHook<Phase, SyncCall>) {
+
+  init(fromSync other: TestHook<Phase, Call.SyncVersion>) {
     self.name = other.name
     self.traits = other.traits
-    self.block = other.block
+    self.block = Call.wrapSyncCallback(other.block)
   }
 }
 
@@ -73,29 +73,6 @@ extension TestHook where Call == SyncMainCall {
   }
 }
 
-extension TestHook where Call == AsyncMainCall {
-  public init(_ name: String = "",
-              _ traits: [any Trait],
-              execute: @escaping Call.Callback) {
-    self.name = name
-    self.traits = traits
-    self.block = execute
-  }
-  
-  public init(fromSync other: TestHook<Phase, SyncCall>) {
-    self.name = other.name
-    self.traits = other.traits
-    self.block = other.block
-  }
-
-  public init(fromSync other: TestHook<Phase, SyncMainCall>) {
-    self.name = other.name
-    self.traits = other.traits
-    self.block = {
-      try other.block()
-    }
-  }
-}
 
 @DeAsyncRD
 @_disfavoredOverload
