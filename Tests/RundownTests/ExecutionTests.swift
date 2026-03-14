@@ -20,7 +20,6 @@ final class ExecutionTests: Rundown.TestCase {
     }
   }
   
-  @MainActor
   func testAsyncIt() async throws {
     let ran = Box(false)
 
@@ -34,7 +33,6 @@ final class ExecutionTests: Rundown.TestCase {
     XCTAssert(ran.wrappedValue)
   }
 
-  @MainActor
   func testMixedAsync() async throws {
     let ranBeforeAllAsync1 = Box(false)
     let ranBeforeAllAsync2 = Box(false)
@@ -90,7 +88,6 @@ final class ExecutionTests: Rundown.TestCase {
     XCTAssert(ranSync2.wrappedValue, "it sync 2 did not run")
   }
 
-  @MainActor
   func testAsyncContext() async throws {
     let ran1 = Box(false)
     let ran2 = Box(false)

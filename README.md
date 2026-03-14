@@ -65,9 +65,13 @@ The `spec()` function creates an outer `describe` element, using either the name
 
 There is also an `async` version of `spec()`, so if your test function is `async` then just call `await spec { ··· }`, and then you can use `await` inside your test elements.
 
-When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` - or more precisely, a method of the subclass `Rundown.TestCase`. This subclass should always be used so that issues can be logged with the full test element description, and this version of `spec()` uses an `XCTActivity` for each test element (for non-`async` tests). 
+When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` - or more precisely, a method of the subclass `Rundown.TestCase`. This subclass should always be used so that issues can be logged with the full test element description, and this version of `spec()` uses an `XCTActivity` for each test element (for non-`async` tests). An `XCTestCase` subclass should also be marked with `@MainActor` because test steps are tracked with `XCTContext.runActivity()`, which is `@MainActor`. Async tests don't use `XCTContext.runActivity()` because it is not async compatible.
 
 The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `XCTActivity`.
+
+## MainActor tests
+
+Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorTestCase`. For XCTest, the `Rundown.TestCase` class already does this.
 
 ## Goals and plans
 
