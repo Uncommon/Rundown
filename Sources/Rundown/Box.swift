@@ -1,22 +1,25 @@
 /// "Sendable" container to enable capturing values in sendable closures.
 /// For use in cases that are known not to actually introduce concurrency
 /// since this does not enforce safety at all.
-internal final class Box<T>: @unchecked Sendable
+///
+/// This public because it is used both internally and in tests where we do not
+/// want to use `@testable import` in order to test that the right types are public.
+public final class Box<T>: @unchecked Sendable
 {
-  var wrappedValue: T
+  public var wrappedValue: T
 
-  init(_ value: T) {
+  public init(_ value: T) {
     self.wrappedValue = value
   }
 }
 
-extension Box where T == Bool
+public extension Box where T == Bool
 {
   /// Sets the value to `true`
   func set() { wrappedValue = true }
 }
 
-extension Box where T == Int
+public extension Box where T == Int
 {
   /// Increments the integer value
   func bump() { wrappedValue += 1 }

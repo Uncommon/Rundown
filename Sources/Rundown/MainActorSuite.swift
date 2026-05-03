@@ -4,9 +4,10 @@ import Foundation
 ///
 /// Inherit this protocol in your `XCTestCase` subclass or Swift Testing suite
 /// to define tests that are MainActor isolated
+@MainActor
 public protocol MainActorSuite {}
 
-extension MainActorSuite {
+public extension MainActorSuite {
   // MARK: Examples
   
   @DeAsyncRD
