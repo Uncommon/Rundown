@@ -18,30 +18,28 @@ public extension TestElement {
 }
 
 
-/// Shortcut for adding a `.excluded` trait to `Describe`.
-func xDescribe(_ description: String,
-               _ traits: [any Trait] = [],
-               @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
+/// Shortcut for adding a `.excluded` trait to `describe`.
+@DeAsyncRD
+@_disfavoredOverload
+public func xDescribe(_ description: String,
+                      _ traits: (any Trait)...,
+                      @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) -> ExampleGroup<AsyncCall> {
   .init(description, traits + [.excluded], builder: builder)
 }
 
-/// Shortcut for adding a `.excluded` trait to `Context`.
-func xContext(_ description: String,
-              _ traits: [any Trait] = [],
-              @ExampleBuilder<SyncCall> builder: () -> ExampleGroup<SyncCall>) -> ExampleGroup<SyncCall> {
+/// Shortcut for adding a `.excluded` trait to `context`.
+@DeAsyncRD
+@_disfavoredOverload
+public func xContext(_ description: String,
+                     _ traits: (any Trait)...,
+                     @ExampleBuilder<AsyncCall> builder: () -> ExampleGroup<AsyncCall>) -> ExampleGroup<AsyncCall> {
   .init(description, traits + [.excluded], builder: builder)
 }
 
-/// Shortcut for adding a `.excluded` trait to `It`.
-func xIt(_ description: String,
-         _ traits: [any Trait] = [],
-         execute: @escaping SyncCall.Callback) -> It<SyncCall> {
-  .init(description, traits + [.excluded], execute: execute)
-}
-
-/// Shortcut for adding a `.excluded` trait to `It`.
-func xIt(_ description: String,
-         _ traits: [any Trait] = [],
-         execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
+/// Shortcut for adding a `.excluded` trait to `it`.
+@DeAsyncRD
+public func xIt(_ description: String,
+                _ traits: (any Trait)...,
+                execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
   .init(description, traits + [.excluded], execute: execute)
 }

@@ -28,12 +28,7 @@ final class MainActorErrorTests: Rundown.TestCase {
       }
       it("passes") { log.note("passes") }
       afterEach { log.note("afterEach") }
-      // Async on purpose: a sync afterAll can't follow a sync afterEach in an
-      // async group, because the builder doesn't promote it.
-      afterAll {
-        await Task.yield()
-        log.note("afterAll")
-      }
+      afterAll { log.note("afterAll") }
     }
 
     do {

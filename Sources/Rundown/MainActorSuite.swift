@@ -4,6 +4,12 @@ import Foundation
 ///
 /// Inherit this protocol in your `XCTestCase` subclass or Swift Testing suite
 /// to define tests that are MainActor isolated
+///
+/// The main actor versions of `describe`, `it` and the other DSL functions are
+/// members of this protocol. A function that builds a group for a main actor
+/// spec therefore has to be a member of a conforming type as well, such as in
+/// an extension of a protocol that inherits from this one, and not a free
+/// function.
 @MainActor
 public protocol MainActorSuite {}
 
@@ -34,6 +40,56 @@ public extension MainActorSuite {
     .init(description, traits, builder: builder)
   }
   
+  // MARK: Focused and excluded examples
+  
+  @DeAsyncRD
+  @_disfavoredOverload
+  func fIt(_ description: String,
+           _ traits: (any Trait)...,
+           execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
+    .init(description, traits + [.focused], execute: execute)
+  }
+
+  @DeAsyncRD
+  @_disfavoredOverload
+  func fDescribe(_ description: String,
+                 _ traits: (any Trait)...,
+                 @ExampleBuilder<AsyncMainCall> builder: () -> ExampleGroup<AsyncMainCall>) -> ExampleGroup<AsyncMainCall> {
+    .init(description, traits + [.focused], builder: builder)
+  }
+
+  @DeAsyncRD
+  @_disfavoredOverload
+  func fContext(_ description: String,
+                _ traits: (any Trait)...,
+                @ExampleBuilder<AsyncMainCall> builder: () -> ExampleGroup<AsyncMainCall>) -> ExampleGroup<AsyncMainCall> {
+    .init(description, traits + [.focused], builder: builder)
+  }
+
+  @DeAsyncRD
+  @_disfavoredOverload
+  func xIt(_ description: String,
+           _ traits: (any Trait)...,
+           execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
+    .init(description, traits + [.excluded], execute: execute)
+  }
+
+  @DeAsyncRD
+  @_disfavoredOverload
+  func xDescribe(_ description: String,
+                 _ traits: (any Trait)...,
+                 @ExampleBuilder<AsyncMainCall> builder: () -> ExampleGroup<AsyncMainCall>) -> ExampleGroup<AsyncMainCall> {
+    .init(description, traits + [.excluded], builder: builder)
+  }
+
+  @DeAsyncRD
+  @_disfavoredOverload
+  func xContext(_ description: String,
+                _ traits: (any Trait)...,
+                @ExampleBuilder<AsyncMainCall> builder: () -> ExampleGroup<AsyncMainCall>) -> ExampleGroup<AsyncMainCall> {
+    .init(description, traits + [.excluded], builder: builder)
+  }
+
   // MARK: Hooks
   
   @DeAsyncRD

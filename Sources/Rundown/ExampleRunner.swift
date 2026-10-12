@@ -3,20 +3,38 @@ import OSLog
 
 /// Tracks the execution of an example group in order to construct the full name
 /// of the current element.
-public class ExampleRunner: @unchecked Sendable {
+///
+/// While a spec is running, `ExampleRunner.current` is the runner for it. That
+/// is how code inside an example can find out which example it is in, such as to
+/// name a log entry or an attachment.
+public class ExampleRunner: @unchecked Sendable, CustomStringConvertible {
   // Manual lock for unchecked sendability
   private let lock = NSRecursiveLock()
   internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRunner")
 
   var elementStack: [any TestElement] = []
-  var description: String {
+
+  /// The descriptions of the elements that are running, from the outermost
+  /// group down to the innermost: the spec, any enclosing `describe` and
+  /// `context` groups, and the example or hook itself.
+  ///
+  /// - Note: In a group with the `.concurrent` trait, the path of an example
+  /// can include the other examples running alongside it.
+  public var path: [String] {
     withLock {
-      elementStack.map { $0.description }.joined(separator: ", ")
+      elementStack.map { $0.description }
     }
   }
 
+  /// The elements in `path` joined into a single string, such as
+  /// "Spec, in a context, does a thing".
+  public var description: String {
+    path.joined(separator: ", ")
+  }
+
+  /// The runner for the spec that is running, or `nil` outside of a spec.
   @TaskLocal
-  static var current: ExampleRunner? = nil
+  public static var current: ExampleRunner? = nil
 
   internal init() {}
 

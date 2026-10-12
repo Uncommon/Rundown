@@ -39,10 +39,10 @@ func beforeEachAfterExamples() -> ExampleGroup<SyncCall> {
 // 5) AfterEach after AfterAll triggers "AfterEach must precede AfterAll"
 @ExampleBuilder<SyncCall>
 func afterEachAfterAfterAll() -> ExampleGroup<SyncCall> {
-  describe("afterEach after afterAll") {
-    // Doesn't trigger the expected message.. oh well
-    afterEach { } // expected-error {{cannot convert value of type 'TestHook<AfterEachPhase, SyncCall>' to expected argument type 'AroundEach<SyncCall>'}}
+  describe("afterEach after afterAll") { // expected-error {{AfterEach must precede AfterAll}}
+    it("ex") { }
     afterAll { }
+    afterEach { }
   }
 }
 
@@ -79,5 +79,81 @@ func groupEndsInBeforePhase() -> ExampleGroup<SyncCall> {
 func groupEndsInAroundEachPhase() -> ExampleGroup<SyncCall> {
   describe("group ends in aroundEach phase") { // expected-error {{Group must have examples}}
     aroundEach { _ in }
+  }
+}
+
+// 10) An if/else whose branches end before examples
+@ExampleBuilder<SyncCall>
+func conditionalEndingBeforeExamples() -> ExampleGroup<SyncCall> {
+  describe("conditional ending before examples") {
+    if Bool.random() { // expected-error {{Conditional must end in example or 'after' element}}
+      beforeEach { }
+    }
+    else { // expected-error {{Conditional must end in example or 'after' element}}
+      beforeEach { }
+    }
+    it("ex") { }
+  }
+}
+
+// 11) An if without else whose branch ends before examples
+@ExampleBuilder<SyncCall>
+func optionalEndingBeforeExamples() -> ExampleGroup<SyncCall> {
+  describe("optional ending before examples") {
+    if Bool.random() { // expected-error {{Conditional must end in example or 'after' element}}
+      beforeEach { }
+    }
+    it("ex") { }
+  }
+}
+
+// 12) A switch whose cases end before examples
+@ExampleBuilder<SyncCall>
+func switchEndingBeforeExamples() -> ExampleGroup<SyncCall> {
+  describe("switch ending before examples") {
+    switch Int.random(in: 0..<2) {
+      case 0: beforeEach { } // expected-error {{Conditional must end in example or 'after' element}}
+      default: beforeEach { } // expected-error {{Conditional must end in example or 'after' element}}
+    }
+    it("ex") { }
+  }
+}
+
+// 13) An if without else whose branch ends in an after hook
+@ExampleBuilder<SyncCall>
+func optionalEndingInAfterHook() -> ExampleGroup<SyncCall> {
+  describe("optional ending in after hook") {
+    if Bool.random() { // expected-error {{Conditional without 'else' must end in an example}}
+      it("ex") { }
+      afterEach { }
+    }
+  }
+}
+
+// 14) An after hook with nothing before it
+@ExampleBuilder<SyncCall>
+func afterHookFirst() -> ExampleGroup<SyncCall> {
+  describe("after hook first") { // expected-error {{AfterEach and AfterAll must come after examples}}
+    afterAll { }
+  }
+}
+
+// 15) A before hook followed directly by an after hook
+@ExampleBuilder<SyncCall>
+func afterHookAfterBeforeHook() -> ExampleGroup<SyncCall> {
+  describe("after hook after before hook") { // expected-error {{AfterEach and AfterAll must come after examples}}
+    beforeEach { }
+    afterEach { }
+    it("ex") { }
+  }
+}
+
+// 16) An example after an after hook
+@ExampleBuilder<SyncCall>
+func exampleAfterAfterHook() -> ExampleGroup<SyncCall> {
+  describe("example after after hook") { // expected-error {{Examples cannot appear after AfterEach or AfterAll}}
+    it("ex") { }
+    afterEach { }
+    it("more") { }
   }
 }

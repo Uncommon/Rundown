@@ -38,6 +38,32 @@ Mis-ordered elements produce a compile-time error.
 
 The `beforeEach`, `afterEach` and `aroundEach` hooks apply to the elements of the group they are declared in, and a nested `describe` or `context` counts as one element. They run once around the whole nested group, not around each example inside it. This is what lets a context group examples together under hooks of its own. To run something for every example in a context, declare it inside that context. Setup that several contexts need can come from a function that returns the hook.
 
+## Loops and conditionals
+
+`for` loops, `if`/`else`, `switch`, `if let` and `if #available` can generate examples and contexts, anywhere in a group:
+
+```swift
+describe("a feature") {
+  beforeEach { /* ... */ }
+  for input in inputs {
+    it("handles \(input)") { /* ... */ }
+  }
+  if #available(macOS 14, *) {
+    it("uses the new API") { /* ... */ }
+  }
+}
+```
+
+Each branch has to end with an example or context. An `if` without an `else` can't end with an `afterEach` or `afterAll`; put those after it. Hooks inside a loop or conditional belong to the whole enclosing group, wherever the loop or conditional appears.
+
+## Focusing and excluding
+
+The `.focused` trait limits a run to the focused elements (plus the hooks of their groups), and the `.excluded` trait leaves elements out. Both are for use while developing. There are shortcuts that add the trait: `fIt`, `fDescribe` and `fContext` to focus, and `xIt`, `xDescribe` and `xContext` to exclude.
+
+## Finding the current example
+
+While a spec runs, `ExampleRunner.current` is its runner, and its `path` is the descriptions of the elements being run, from the outermost group to the example or hook itself. Its `description` is the same thing as one string, such as `Spec, in a context, does a thing`. Code inside an example can use it to name a log entry or an attachment.
+
 ## Test framework support
 
 The goal is for this library to be equally useful in either XCTest or Swift Testing.
@@ -86,7 +112,33 @@ An error never skips teardown or the remaining elements. Everything that can sti
 
 ## MainActor tests
 
-Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorTestCase`. For XCTest, the `Rundown.TestCase` class already does this.
+Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorSuite`. For XCTest, the `Rundown.TestCase` class already does this.
+
+The main actor versions of `describe`, `it` and the rest are members of `MainActorSuite`. That means a helper that builds a group for a main actor spec has to be a member of such a type too. A free function would get the ordinary versions instead, and the compiler's complaint about that is a confusing one (`cannot convert value of type 'ExampleGroup<SyncCall>' to expected argument type 'AroundEach<SyncMainCall>'`). For helpers shared between test classes, extend a protocol that inherits from `MainActorSuite`:
+
+```swift
+protocol SearchGroups: MainActorSuite {}
+
+extension SearchGroups {
+  @ExampleBuilder<SyncMainCall>
+  func searchGroup() -> ExampleGroup<SyncMainCall> {
+    beforeAll { setUpSearch() }
+    context("by summary") {
+      it("finds items") { /* ... */ }
+    }
+  }
+}
+
+final class SearchTests: Rundown.TestCase, SearchGroups {
+  func testSearch() throws {
+    try spec {
+      searchGroup()
+    }
+  }
+}
+```
+
+A small type that conforms to `MainActorSuite` works as a namespace for groups that don't belong to any test class.
 
 ## Goals and plans
 
