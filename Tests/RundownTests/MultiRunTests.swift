@@ -2,6 +2,16 @@ import XCTest
 import Synchronization
 @testable import Rundown
 
+/// An error with an identity, for checking which error a run reports.
+struct TestError: Error, Equatable {
+  var id: Int
+}
+
+extension Box where T == [String] {
+  /// Appends an entry to the log
+  func note(_ entry: String) { wrappedValue.append(entry) }
+}
+
 /// Tests that verify execution on the regular, XCTest, and async versions
 /// of the run method.
 @MainActor
@@ -402,6 +412,260 @@ class MultiRunTests: XCTestCase {
                       "around end",
                      ],
                      "\(type) failure")
+    }
+  }
+
+  // MARK: Errors
+
+  /// Runners that report an error from an example by throwing it from the run.
+  /// The XCTest runner records an issue instead, so it has its own test.
+  func useThrowingRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void, String) async throws -> Void) async throws {
+    try await test(plainRunner, "plain")
+    try await test(asyncRunner, "async")
+  }
+
+  /// A group that fails in some way, and the log that every runner should
+  /// produce for it: a failure never skips teardown or the remaining elements.
+  struct ErrorScenario {
+    let name: String
+    let group: ExampleGroup<SyncCall>
+    let log: Box<[String]>
+    let expectedLog: [String]
+    /// How many issues the XCTest runner should record, which is one per
+    /// failing step. The other runners throw only the first error, which is
+    /// always `TestError(id: 1)`.
+    let issueCount: Int
+  }
+
+  static func errorScenarios() -> [ErrorScenario] {
+    var scenarios: [ErrorScenario] = []
+    func add(_ name: String,
+             expecting expectedLog: [String],
+             issues: Int,
+             group: (Box<[String]>) -> ExampleGroup<SyncCall>) {
+      let log = Box([String]())
+      scenarios.append(.init(name: name, group: group(log), log: log,
+                             expectedLog: expectedLog, issueCount: issues))
+    }
+
+    add("it throws",
+        expecting: ["beforeAll", "beforeEach", "fails", "afterEach",
+                    "beforeEach", "passes", "afterEach", "afterAll"],
+        issues: 1) { log in
+      describe("it throws") {
+        beforeAll { log.note("beforeAll") }
+        beforeEach { log.note("beforeEach") }
+        it("fails") { log.note("fails"); throw TestError(id: 1) }
+        it("passes") { log.note("passes") }
+        afterEach { log.note("afterEach") }
+        afterAll { log.note("afterAll") }
+      }
+    }
+
+    add("first error wins",
+        expecting: ["fails 1", "fails 2", "afterAll"],
+        issues: 2) { log in
+      describe("two failures") {
+        it("fails 1") { log.note("fails 1"); throw TestError(id: 1) }
+        it("fails 2") { log.note("fails 2"); throw TestError(id: 2) }
+        afterAll { log.note("afterAll") }
+      }
+    }
+
+    add("beforeEach throws",
+        expecting: ["beforeAll", "beforeEach", "afterEach",
+                    "beforeEach", "afterEach", "afterAll"],
+        issues: 2) { log in
+      describe("beforeEach throws") {
+        beforeAll { log.note("beforeAll") }
+        beforeEach { log.note("beforeEach"); throw TestError(id: 1) }
+        it("first") { log.note("first") }
+        it("second") { log.note("second") }
+        afterEach { log.note("afterEach") }
+        afterAll { log.note("afterAll") }
+      }
+    }
+
+    add("beforeAll throws",
+        expecting: ["beforeAll 1", "beforeAll 2", "afterAll"],
+        issues: 1) { log in
+      describe("beforeAll throws") {
+        beforeAll("one") { log.note("beforeAll 1") }
+        beforeAll("two") { log.note("beforeAll 2"); throw TestError(id: 1) }
+        beforeAll("three") { log.note("beforeAll 3") }
+        beforeEach { log.note("beforeEach") }
+        it("never runs") { log.note("never runs") }
+        afterEach { log.note("afterEach") }
+        afterAll { log.note("afterAll") }
+      }
+    }
+
+    add("afterEach throws",
+        expecting: ["first", "afterEach 1", "afterEach 2",
+                    "second", "afterEach 1", "afterEach 2", "afterAll"],
+        issues: 2) { log in
+      describe("afterEach throws") {
+        it("first") { log.note("first") }
+        it("second") { log.note("second") }
+        afterEach("one") { log.note("afterEach 1"); throw TestError(id: 1) }
+        afterEach("two") { log.note("afterEach 2") }
+        afterAll { log.note("afterAll") }
+      }
+    }
+
+    add("afterAll throws",
+        expecting: ["passes", "afterAll 1", "afterAll 2"],
+        issues: 1) { log in
+      describe("afterAll throws") {
+        it("passes") { log.note("passes") }
+        afterAll("one") { log.note("afterAll 1"); throw TestError(id: 1) }
+        afterAll("two") { log.note("afterAll 2") }
+      }
+    }
+
+    add("nested group fails",
+        expecting: ["outer beforeAll", "outer beforeEach",
+                    "inner beforeAll", "fails", "inner afterAll",
+                    "outer afterEach", "outer beforeEach", "outer it",
+                    "outer afterEach", "outer afterAll"],
+        issues: 1) { log in
+      describe("outer") {
+        beforeAll { log.note("outer beforeAll") }
+        beforeEach { log.note("outer beforeEach") }
+        context("inner") {
+          beforeAll { log.note("inner beforeAll") }
+          it("fails") { log.note("fails"); throw TestError(id: 1) }
+          afterAll { log.note("inner afterAll") }
+        }
+        it("outer it") { log.note("outer it") }
+        afterEach { log.note("outer afterEach") }
+        afterAll { log.note("outer afterAll") }
+      }
+    }
+
+    return scenarios
+  }
+
+  func testErrorsRunTeardownAndContinue() async throws {
+    try await useThrowingRunners { (runner, type) in
+      for scenario in MultiRunTests.errorScenarios() {
+        let label = "\(type) runner, \(scenario.name)"
+
+        do {
+          try await runner(scenario.group)
+          XCTFail("\(label): no error thrown")
+        }
+        catch let error as TestError {
+          XCTAssertEqual(error, TestError(id: 1), "\(label): wrong error")
+        }
+        XCTAssertEqual(scenario.log.wrappedValue, scenario.expectedLog, label)
+      }
+    }
+  }
+
+  /// Runs a group with the XCTest runner, which records errors as issues
+  /// instead of throwing them, and checks that it recorded `issueCount`.
+  func xcTestRunnerRecordingErrors(_ group: ExampleGroup<SyncCall>,
+                                   issueCount: Int,
+                                   _ label: String) {
+    let recorded = Box(0)
+    let options = XCTExpectedFailure.Options()
+    options.issueMatcher = { issue in
+      // Only issues the runner records. An error that escapes the run would
+      // arrive as .thrownError, and must not be mistaken for one of these.
+      guard issue.type == .uncaughtException,
+            issue.associatedError is TestError
+      else { return false }
+      recorded.bump()
+      return true
+    }
+
+    XCTExpectFailure("errors are recorded as issues", options: options) {
+      do {
+        try xcTestRunner(group: group)
+      }
+      catch {
+        XCTFail("\(label): error escaped the runner: \(error)")
+      }
+    }
+    XCTAssertEqual(recorded.wrappedValue, issueCount, label)
+  }
+
+  /// The XCTest runner records errors as issues instead of throwing them, so
+  /// that each shows up with the path of the element that failed.
+  func testXCTestRunnerRecordsErrorsAndContinues() throws {
+    for scenario in MultiRunTests.errorScenarios() {
+      xcTestRunnerRecordingErrors(scenario.group,
+                                  issueCount: scenario.issueCount,
+                                  scenario.name)
+      XCTAssertEqual(scenario.log.wrappedValue, scenario.expectedLog, scenario.name)
+    }
+  }
+
+  // aroundEach can't be converted from sync to async, so these aren't part of
+  // the shared scenarios.
+
+  func testAroundEachErrorRunsAfterAll() throws {
+    let log = Box([String]())
+    let group = describe("aroundEach throws") {
+      beforeAll { log.note("beforeAll") }
+      aroundEach { _ in
+        log.note("around")
+        throw TestError(id: 1)
+      }
+      it("never runs") { log.note("never runs") }
+      afterAll { log.note("afterAll") }
+    }
+
+    XCTAssertThrowsError(try plainRunner(group: group)) {
+      XCTAssertEqual($0 as? TestError, TestError(id: 1))
+    }
+    XCTAssertEqual(log.wrappedValue, ["beforeAll", "around", "afterAll"])
+  }
+
+  func testXCTestRunnerRecordsAroundEachError() throws {
+    let log = Box([String]())
+    let group = describe("aroundEach throws") {
+      beforeAll { log.note("beforeAll") }
+      aroundEach { _ in
+        log.note("around")
+        throw TestError(id: 1)
+      }
+      it("never runs") { log.note("never runs") }
+      afterAll { log.note("afterAll") }
+    }
+
+    xcTestRunnerRecordingErrors(group, issueCount: 1, "aroundEach throws")
+    XCTAssertEqual(log.wrappedValue, ["beforeAll", "around", "afterAll"])
+  }
+
+  func testConcurrentFailureRunsEverything() async throws {
+    try await useThrowingRunners { (runner, type) in
+      let stepCount = 8
+      let runCount = Atomic<Int>(0)
+      let ranAfterAll = Box(false)
+
+      let group = describe("concurrent failure", .concurrent) {
+        for step in 1...stepCount {
+          it("runs step \(step)") {
+            runCount.add(1, ordering: .relaxed)
+            if step == 3 {
+              throw TestError(id: 1)
+            }
+          }
+        }
+        afterAll { ranAfterAll.set() }
+      }
+
+      do {
+        try await runner(group)
+        XCTFail("\(type): no error thrown")
+      }
+      catch let error as TestError {
+        XCTAssertEqual(error, TestError(id: 1), "\(type): wrong error")
+      }
+      XCTAssertEqual(runCount.load(ordering: .relaxed), stepCount, "\(type) failure")
+      XCTAssert(ranAfterAll.wrappedValue, "\(type): afterAll did not run")
     }
   }
 }

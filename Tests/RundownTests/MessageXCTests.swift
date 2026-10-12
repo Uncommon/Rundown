@@ -86,46 +86,56 @@ final class MessageXCTests: Rundown.TestCase {
     }
   }
 
-  // KNOWN BUG: an XCTSkip thrown from beforeEach is not caught by
-  // runActivity() as documented, so it escapes spec() and the whole test is
-  // reported as skipped. This asserts the documented behavior and expects it
-  // to fail. Once the bug is fixed the strict expectation will start failing:
-  // remove the XCTExpectFailure then.
   func testSkipInBeforeEach() throws {
+    let beforeEachCount = Box(0)
     let ranAfterAll = Box(false)
 
-    let expected = XCTExpectedFailure.Options()
-    expected.isStrict = true
-    expected.issueMatcher = {
-      $0.compactDescription.contains("XCTSkip escaped")
-        || $0.compactDescription.contains("AfterAll did not run")
-    }
-    XCTExpectFailure("XCTSkip in beforeEach escapes the XCTest runner",
-                     options: expected)
-
-    do {
-      try spec("Skip") {
-        context("skipping in BeforeEach") {
-          beforeEach {
-            XCTAssertEqual(ExampleRunner.current!.description,
-                           "Skip, skipping in BeforeEach, before each")
-            try XCTSkipIf(true, "skip BeforeEach")
-          }
-          it("skips elements") {
-            XCTFail("should not run It")
-          }
-          afterEach {
-            XCTFail("should not run AfterEach")
-          }
-          afterAll {
-            ranAfterAll.set()
-          }
+    try spec("Skip") {
+      context("skipping in BeforeEach") {
+        beforeEach {
+          XCTAssertEqual(ExampleRunner.current!.description,
+                         "Skip, skipping in BeforeEach, before each")
+          beforeEachCount.bump()
+          try XCTSkipIf(true, "skip BeforeEach")
+        }
+        it("skips first element") {
+          XCTFail("should not run It")
+        }
+        it("skips second element") {
+          XCTFail("should not run It")
+        }
+        afterEach {
+          XCTFail("should not run AfterEach")
+        }
+        afterAll {
+          ranAfterAll.set()
         }
       }
     }
-    catch let skip as XCTSkip {
-      XCTFail("XCTSkip escaped spec(): \(skip)")
-    }
+    XCTAssertEqual(beforeEachCount.wrappedValue, 2,
+                   "a skip should only skip its own element")
     XCTAssert(ranAfterAll.wrappedValue, "AfterAll did not run")
+  }
+
+  /// An error is recorded where it happens, so the issue carries the full path
+  /// including the name of the hook.
+  func testErrorInBeforeEachIncludesPath() throws {
+    let options = XCTExpectedFailure.Options()
+    options.issueMatcher = {
+      $0.type == .uncaughtException
+        && $0.compactDescription.hasPrefix("Errors, in context, before each ")
+    }
+    XCTExpectFailure("the error is recorded as an issue", options: options)
+
+    try spec("Errors") {
+      context("in context") {
+        beforeEach {
+          throw TestError(id: 1)
+        }
+        it("never runs") {
+          XCTFail("should not run It")
+        }
+      }
+    }
   }
 }

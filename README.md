@@ -69,6 +69,17 @@ When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` -
 
 The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `XCTActivity`.
 
+## Errors and skips
+
+An error never skips teardown or the remaining elements. Everything that can still run does, and then the first error is rethrown. (The XCTest runner instead records each error as an issue, with the full name of the element that threw it, so it can report more than one.)
+
+* If `beforeAll` throws, the elements of the group are skipped, but its `afterAll` hooks still run.
+* If `beforeEach` throws, that element is skipped, but its `afterEach` hooks still run.
+* If an example or an `afterEach` hook throws, the group carries on with its next element.
+* Every `afterEach` and `afterAll` hook runs, even if one before it threw.
+
+`XCTSkip` is different: it means that something does not apply, so there is nothing to undo. A skip in `beforeAll` skips the whole group, including `afterAll`. A skip in `beforeEach` skips that element, including its `afterEach` hooks. A skip in an example still runs the `afterEach` hooks.
+
 ## MainActor tests
 
 Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorTestCase`. For XCTest, the `Rundown.TestCase` class already does this.

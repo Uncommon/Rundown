@@ -1,6 +1,5 @@
 import Foundation
 import OSLog
-import Synchronization
 
 /// Tracks the execution of an example group in order to construct the full name
 /// of the current element.
@@ -56,6 +55,48 @@ public class ExampleRunner: @unchecked Sendable {
       try await withMain(hook) {
         try await hook.execute(in: self)
       }
+    }
+  }
+
+  /// Runs "after" hooks. Unlike `runHooks()`, a hook that throws does not stop
+  /// the rest: teardown should always be attempted in full. The first error
+  /// is rethrown once they have all run.
+  @DeAsyncRD
+  func runCleanupHooks<P>(_ hooks: [TestHook<P, AsyncCall>]) async throws {
+    var firstError: (any Error)?
+
+    for hook in filterExcluded(hooks) {
+      do {
+        try await with(hook) {
+          try await hook.execute(in: self)
+        }
+      }
+      catch {
+        firstError = firstError ?? error
+      }
+    }
+    if let firstError {
+      throw firstError
+    }
+  }
+
+  // MainActor version of the above runCleanupHooks
+  @DeAsyncRD @MainActor
+  func runCleanupHooks<P>(_ hooks: [TestHook<P, AsyncMainCall>]) async throws {
+    var firstError: (any Error)?
+
+    for hook in filterExcluded(hooks) {
+      do {
+        try await withMain(hook) {
+          try await hook.execute(in: self)
+        }
+      }
+      catch {
+        firstError = firstError ?? error
+      }
+    }
+    if let firstError {
+      throw firstError
     }
   }
 
@@ -124,183 +165,364 @@ public class ExampleRunner: @unchecked Sendable {
   /// Executes the elements of a group. This is managed by the runner instead of
   /// the group itself because the runner can have logic that it needs to apply
   /// at each step.
+  ///
+  /// An error does not skip teardown or the remaining elements:
+  ///
+  /// - If a `beforeAll` hook throws, the elements of the group are skipped but
+  ///   its `afterAll` hooks still run.
+  /// - If a `beforeEach` hook throws, that element is skipped but its
+  ///   `afterEach` hooks still run.
+  /// - If an element or an `afterEach` hook throws, the group carries on with
+  ///   its next element.
+  /// - Every `afterEach` and `afterAll` hook runs, even if one before it threw.
+  ///
+  /// Once everything has run, the first error is rethrown.
   public func run(_ group: ExampleGroup<SyncCall>) throws {
     @Sendable func runSubElementInner(_ element: some TestExample) throws {
-      try runHooks(group.beforeEachHooks)
-      try with(element) {
-        switch element {
-          case let subgroup as ExampleGroup<SyncCall>:
-            try run(subgroup)
-          case let it as It<SyncCall>:
-            try it.execute(in: self)
-          case _ as ExampleGroup<AsyncCall>, _ as It<AsyncCall>:
-            // TestBuilder<SyncCall> shouldn't accept any AsyncCall
-            // elements, so this shouldn't happen.
-            throw UnexpectedAsyncError()
-          default:
-            preconditionFailure("unexpected element type")
+      var firstError: (any Error)?
+
+      do {
+        try runHooks(group.beforeEachHooks)
+        try with(element) {
+          switch element {
+            case let subgroup as ExampleGroup<SyncCall>:
+              try run(subgroup)
+            case let it as It<SyncCall>:
+              try it.execute(in: self)
+            case _ as ExampleGroup<AsyncCall>, _ as It<AsyncCall>:
+              // TestBuilder<SyncCall> shouldn't accept any AsyncCall
+              // elements, so this shouldn't happen.
+              throw UnexpectedAsyncError()
+            default:
+              preconditionFailure("unexpected element type")
+          }
         }
       }
-      try runHooks(group.afterEachHooks)
+      catch {
+        firstError = error
+      }
+      // Undo what beforeEach did, even if it or the element failed
+      do {
+        try runCleanupHooks(group.afterEachHooks)
+      }
+      catch {
+        firstError = firstError ?? error
+      }
+      if let firstError {
+        throw firstError
+      }
     }
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
-    
-    try runHooks(group.beforeAllHooks)
-    if group.traits.contains(where: { $0 is ConcurrentTrait }) {
-      let errorMutex = Mutex<(any Error)?>(nil)
-      
-      DispatchQueue.concurrentPerform(iterations: elements.count) {
-        let element = elements[$0]
-        
-        do {
-          try runSubElement(element, group: group, runInner: runSubElementInner)
-        }
-        catch let elementError {
-          errorMutex.withLock {
-            if $0 == nil {
-              $0 = elementError
+
+    var firstError: (any Error)?
+
+    do {
+      try runHooks(group.beforeAllHooks)
+      if group.traits.contains(where: { $0 is ConcurrentTrait }) {
+        // Foundation locks rather than Mutex, which needs iOS 18 and friends
+        let elementError = Box<(any Error)?>(nil)
+
+        DispatchQueue.concurrentPerform(iterations: elements.count) {
+          let element = elements[$0]
+
+          do {
+            try runSubElement(element, group: group, runInner: runSubElementInner)
+          }
+          catch let error {
+            withLock {
+              if elementError.wrappedValue == nil {
+                elementError.wrappedValue = error
+              }
             }
           }
         }
+        firstError = elementError.wrappedValue
       }
-      if let error = errorMutex.withLock({ $0 }) {
-        throw error
+      else {
+        for element in elements {
+          do {
+            try runSubElement(element, group: group, runInner: runSubElementInner)
+          }
+          catch {
+            firstError = firstError ?? error
+          }
+        }
       }
     }
-    else {
-      for element in elements {
-        try runSubElement(element, group: group, runInner: runSubElementInner)
-      }
+    catch {
+      // beforeAll failed, so none of the elements ran
+      firstError = error
     }
-    try runHooks(group.afterAllHooks)
+    do {
+      try runCleanupHooks(group.afterAllHooks)
+    }
+    catch {
+      firstError = firstError ?? error
+    }
+    if let firstError {
+      throw firstError
+    }
   }
-  
+
   // Duplicated from the other non-async run(), with MainActor call types
   // and disallowing concurrent tests.
   /// Executes the elements of a group. This is managed by the runner instead of
   /// the group itself because the runner can have logic that it needs to apply
-  /// at each step.
+  /// at each step. See `run(_: ExampleGroup<SyncCall>)` for how errors are
+  /// handled.
   @MainActor
   public func run(_ group: ExampleGroup<SyncMainCall>) throws {
     @MainActor func runSubElementInner(_ element: some TestExample) throws {
-      try runHooks(group.beforeEachHooks)
-      try with(element) {
-        switch element {
-          case let subgroup as ExampleGroup<SyncMainCall>:
-            try run(subgroup)
-          case let it as It<SyncMainCall>:
-            try it.execute(in: self)
-          case _ as ExampleGroup<AsyncMainCall>, _ as It<AsyncMainCall>:
-            // TestBuilder<SyncCall> shouldn't accept any AsyncCall
-            // elements, so this shouldn't happen.
-            throw UnexpectedAsyncError()
-          default:
-            preconditionFailure("unexpected element type")
+      var firstError: (any Error)?
+
+      do {
+        try runHooks(group.beforeEachHooks)
+        try with(element) {
+          switch element {
+            case let subgroup as ExampleGroup<SyncMainCall>:
+              try run(subgroup)
+            case let it as It<SyncMainCall>:
+              try it.execute(in: self)
+            case _ as ExampleGroup<AsyncMainCall>, _ as It<AsyncMainCall>:
+              // TestBuilder<SyncCall> shouldn't accept any AsyncCall
+              // elements, so this shouldn't happen.
+              throw UnexpectedAsyncError()
+            default:
+              preconditionFailure("unexpected element type")
+          }
         }
       }
-      try runHooks(group.afterEachHooks)
+      catch {
+        firstError = error
+      }
+      // Undo what beforeEach did, even if it or the element failed
+      do {
+        try runCleanupHooks(group.afterEachHooks)
+      }
+      catch {
+        firstError = firstError ?? error
+      }
+      if let firstError {
+        throw firstError
+      }
     }
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
-    
-    try runHooks(group.beforeAllHooks)
+
+    // Rejected up front: a beforeAll that had already run would never get its
+    // matching afterAll.
     if group.traits.contains(where: { $0 is ConcurrentTrait }) {
       throw ConcurrentDisallowedError()
     }
-    else {
+
+    var firstError: (any Error)?
+
+    do {
+      try runHooks(group.beforeAllHooks)
       for element in elements {
-        try runSubElement(element, group: group, runInner: runSubElementInner)
+        do {
+          try runSubElement(element, group: group, runInner: runSubElementInner)
+        }
+        catch {
+          firstError = firstError ?? error
+        }
       }
     }
-    try runHooks(group.afterAllHooks)
+    catch {
+      // beforeAll failed, so none of the elements ran
+      firstError = error
+    }
+    do {
+      try runCleanupHooks(group.afterAllHooks)
+    }
+    catch {
+      firstError = firstError ?? error
+    }
+    if let firstError {
+      throw firstError
+    }
   }
 
   // Similar to the non-async version, except that runSubElementInner handles
   // both sync and async elements, and concurrency is implemented with tasks
   // instead of GCD.
+  /// Executes the elements of a group. This is managed by the runner instead of
+  /// the group itself because the runner can have logic that it needs to apply
+  /// at each step. See `run(_: ExampleGroup<SyncCall>)` for how errors are
+  /// handled.
   public func run(_ group: ExampleGroup<AsyncCall>) async throws {
     @Sendable func runSubElementInner(_ element: some TestExample) async throws {
-      try await runHooks(group.beforeEachHooks)
-      try await with(element) {
-        switch element {
-          case let subgroup as ExampleGroup<AsyncCall>:
-            try await run(subgroup)
-          case let subgroup as ExampleGroup<SyncCall>:
-            try run(subgroup)
-          case let it as It<AsyncCall>:
-            try await it.execute(in: self)
-          case let it as It<SyncCall>:
-            try it.execute(in: self)
-          default:
-            preconditionFailure("unexpected element type")
+      var firstError: (any Error)?
+
+      do {
+        try await runHooks(group.beforeEachHooks)
+        try await with(element) {
+          switch element {
+            case let subgroup as ExampleGroup<AsyncCall>:
+              try await run(subgroup)
+            case let subgroup as ExampleGroup<SyncCall>:
+              try run(subgroup)
+            case let it as It<AsyncCall>:
+              try await it.execute(in: self)
+            case let it as It<SyncCall>:
+              try it.execute(in: self)
+            default:
+              preconditionFailure("unexpected element type")
+          }
         }
       }
-      try await runHooks(group.afterEachHooks)
+      catch {
+        firstError = error
+      }
+      // Undo what beforeEach did, even if it or the element failed
+      do {
+        try await runCleanupHooks(group.afterEachHooks)
+      }
+      catch {
+        firstError = firstError ?? error
+      }
+      if let firstError {
+        throw firstError
+      }
     }
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
 
-    try await runHooks(group.beforeAllHooks)
-    if group.traits.contains(where: { $0 is ConcurrentTrait }) {
-      try await withThrowingTaskGroup(of: Void.self) { taskGroup in
-        for element in elements {
-          taskGroup.addTask {
-            try await self.runSubElement(element, group: group, runInner: runSubElementInner)
+    var firstError: (any Error)?
+
+    do {
+      try await runHooks(group.beforeAllHooks)
+      if group.traits.contains(where: { $0 is ConcurrentTrait }) {
+        // The children catch their own errors, rather than throwing out of the
+        // task group, so that one failure doesn't cancel its siblings.
+        let elementError = Box<(any Error)?>(nil)
+
+        await withTaskGroup(of: Void.self) { taskGroup in
+          for element in elements {
+            taskGroup.addTask {
+              do {
+                try await self.runSubElement(element, group: group, runInner: runSubElementInner)
+              }
+              catch {
+                self.withLock {
+                  if elementError.wrappedValue == nil {
+                    elementError.wrappedValue = error
+                  }
+                }
+              }
+            }
           }
         }
-        try await taskGroup.waitForAll()
+        firstError = elementError.wrappedValue
+      }
+      else {
+        for element in elements {
+          do {
+            try await runSubElement(element, group: group, runInner: runSubElementInner)
+          }
+          catch {
+            firstError = firstError ?? error
+          }
+        }
       }
     }
-    else {
-      for element in elements {
-        try await runSubElement(element, group: group, runInner: runSubElementInner)
-      }
+    catch {
+      // beforeAll failed, so none of the elements ran
+      firstError = error
     }
-    
-    try await runHooks(group.afterAllHooks)
+    do {
+      try await runCleanupHooks(group.afterAllHooks)
+    }
+    catch {
+      firstError = firstError ?? error
+    }
+    if let firstError {
+      throw firstError
+    }
   }
 
   // Duplicated from the other async run(), with MainActor call types
   // and disallowing concurrent tests.
+  /// Executes the elements of a group. This is managed by the runner instead of
+  /// the group itself because the runner can have logic that it needs to apply
+  /// at each step. See `run(_: ExampleGroup<SyncCall>)` for how errors are
+  /// handled.
   @MainActor
   public func run(_ group: ExampleGroup<AsyncMainCall>) async throws {
     @MainActor func runSubElementInner(_ element: some TestExample) async throws {
-      try await runHooks(group.beforeEachHooks)
-      try await withMain(element) {
-        switch element {
-          case let subgroup as ExampleGroup<AsyncMainCall>:
-            try await run(subgroup)
-          case let subgroup as ExampleGroup<SyncMainCall>:
-            try run(subgroup)
-          case let it as It<AsyncMainCall>:
-            try await it.execute(in: self)
-          case let it as It<SyncMainCall>:
-            try it.execute(in: self)
-          default:
-            preconditionFailure("unexpected element type")
+      var firstError: (any Error)?
+
+      do {
+        try await runHooks(group.beforeEachHooks)
+        try await withMain(element) {
+          switch element {
+            case let subgroup as ExampleGroup<AsyncMainCall>:
+              try await run(subgroup)
+            case let subgroup as ExampleGroup<SyncMainCall>:
+              try run(subgroup)
+            case let it as It<AsyncMainCall>:
+              try await it.execute(in: self)
+            case let it as It<SyncMainCall>:
+              try it.execute(in: self)
+            default:
+              preconditionFailure("unexpected element type")
+          }
         }
       }
-      try await runHooks(group.afterEachHooks)
+      catch {
+        firstError = error
+      }
+      // Undo what beforeEach did, even if it or the element failed
+      do {
+        try await runCleanupHooks(group.afterEachHooks)
+      }
+      catch {
+        firstError = firstError ?? error
+      }
+      if let firstError {
+        throw firstError
+      }
     }
     let elements = filterFocusSkip(group.elements)
     guard !elements.isEmpty
     else { return }
 
-    try await runHooks(group.beforeAllHooks)
+    // Rejected up front: a beforeAll that had already run would never get its
+    // matching afterAll.
     if group.traits.contains(where: { $0 is ConcurrentTrait }) {
       throw ConcurrentDisallowedError()
     }
-    else {
+
+    var firstError: (any Error)?
+
+    do {
+      try await runHooks(group.beforeAllHooks)
       for element in elements {
-        try await runSubElement(element, group: group, runInner: runSubElementInner)
+        do {
+          try await runSubElement(element, group: group, runInner: runSubElementInner)
+        }
+        catch {
+          firstError = firstError ?? error
+        }
       }
     }
-    
-    try await runHooks(group.afterAllHooks)
+    catch {
+      // beforeAll failed, so none of the elements ran
+      firstError = error
+    }
+    do {
+      try await runCleanupHooks(group.afterAllHooks)
+    }
+    catch {
+      firstError = firstError ?? error
+    }
+    if let firstError {
+      throw firstError
+    }
   }
 
   func filterExcluded<E: TestElement>(_ elements: [E]) -> [E] {

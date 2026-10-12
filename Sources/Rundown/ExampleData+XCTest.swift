@@ -76,12 +76,73 @@ extension ExampleRunner {
   @MainActor
   static var activity: XCTActivity? { activityBox?.wrappedValue }
   
-  // Like runHooks() but uses withElementActivity
+  /// How a series of "before" hooks ended
+  enum SetupResult {
+    case completed
+    /// A hook threw `XCTSkip`
+    case skipped
+    /// A hook threw some other error, which was recorded as an issue
+    case failed
+  }
+
+  /// Records an error as an issue on the test, in the same way for hooks as
+  /// for examples. This has to be called while the element that threw is still
+  /// the current one, so that the issue gets its full path.
   @MainActor
-  private func runHooksXC<P>(_ hooks: [TestHook<P, SyncMainCall>]) throws {
+  func recordUncaught(_ error: any Error, under test: XCTestCase) {
+    // It's not clear if this should be .thrownError or .uncaughtException
+    let issue = XCTIssue(type: .uncaughtException,
+                         compactDescription: "uncaught exception",
+                         detailedDescription: error.localizedDescription,
+                         sourceCodeContext: .init(),
+                         associatedError: error)
+    test.record(issue)
+  }
+
+  // Like runHooks() but uses withElementActivity, and stops at the first hook
+  // that skips or fails.
+  @MainActor
+  private func runSetupHooksXC<P>(_ hooks: [TestHook<P, SyncMainCall>],
+                                  under test: XCTestCase) -> SetupResult {
+    for hook in filterExcluded(hooks) {
+      var result = SetupResult.completed
+
+      withElementActivity(hook) {
+        do {
+          try hook.execute(in: self)
+        }
+        catch let skip as XCTSkip {
+          logSkip(skip, element: hook)
+          result = .skipped
+        }
+        catch {
+          recordUncaught(error, under: test)
+          result = .failed
+        }
+      }
+      if result != .completed {
+        return result
+      }
+    }
+    return .completed
+  }
+
+  // Like runCleanupHooks() but uses withElementActivity. Every hook runs, and
+  // failures are recorded as issues. An XCTSkip is not caught.
+  @MainActor
+  private func runCleanupHooksXC<P>(_ hooks: [TestHook<P, SyncMainCall>],
+                                    under test: XCTestCase) throws {
     for hook in filterExcluded(hooks) {
       try withElementActivity(hook) {
-        try hook.execute(in: self)
+        do {
+          try hook.execute(in: self)
+        }
+        catch let skip as XCTSkip {
+          throw skip
+        }
+        catch {
+          recordUncaught(error, under: test)
+        }
       }
     }
   }
@@ -89,13 +150,26 @@ extension ExampleRunner {
   /// Runs the elements of the given group, with each executing inside
   /// `XCTContext.runActivity()`.
   ///
+  /// Errors are recorded as issues, with the full path of the element that
+  /// threw, and the run carries on: an error in a hook or an example does not
+  /// skip teardown or the remaining elements.
+  ///
+  /// - If a `BeforeAll` hook fails, the elements of the group are skipped but
+  ///   its `AfterAll` hooks still run.
+  /// - If a `BeforeEach` hook fails, that element is skipped but its
+  ///   `AfterEach` hooks still run.
+  /// - Every `AfterEach` and `AfterAll` hook runs, even if one before it failed.
+  ///
+  /// An `XCTSkip` means that something does not apply, so there is nothing to
+  /// undo:
+  ///
   /// If an `XCTSkip` is caught while running `BeforeAll` hooks, the rest of
   /// the group is skipped, including any remaining `BeforeAll` and `AfterAll`
   /// hooks.
   ///
   /// If an `XCTSkip` is caught while running `BeforeEach` hooks, the rest of
   /// that element is skipped, including any remaining `BeforeEach` and
-  ///  `AfterEach` hooks.
+  ///  `AfterEach` hooks. The group continues with its next element.
   ///
   /// If an `XCTSkip` is caught while running a test example, such as `It`,
   /// the corresponding `AfterEach` hooks will still run, and execution will
@@ -110,32 +184,34 @@ extension ExampleRunner {
     func runSubElementInner(_ element: some TestExample) throws {
 
       try MainActor.assumeIsolated {
-        try runHooksXC(group.beforeEachHooks)
-        try withElementActivity(element) {
-          switch element {
-            case let subgroup as ExampleGroup<SyncMainCall>:
-              try runActivity(subgroup, under: testBox.wrappedValue)
-            case let it as It<SyncMainCall>:
-              do {
-                try it.execute(in: self)
-              }
-              catch let skip as XCTSkip {
-                logSkip(skip, element: element)
-              }
-              catch let error {
-                // It's not clear if this should be .thrownError or .uncaughtException
-                let issue = XCTIssue(type: .uncaughtException,
-                                     compactDescription: "uncaught exception",
-                                     detailedDescription: error.localizedDescription,
-                                     sourceCodeContext: .init(),
-                                     associatedError: error)
-                testBox.wrappedValue.record(issue)
-              }
-            default:
-              preconditionFailure("unexpected element type")
+        let currentTest = testBox.wrappedValue
+        let setup = runSetupHooksXC(group.beforeEachHooks, under: currentTest)
+
+        // Nothing was set up for a skipped element, so there is nothing to undo
+        guard setup != .skipped
+        else { return }
+
+        if setup == .completed {
+          try withElementActivity(element) {
+            switch element {
+              case let subgroup as ExampleGroup<SyncMainCall>:
+                try runActivity(subgroup, under: currentTest)
+              case let it as It<SyncMainCall>:
+                do {
+                  try it.execute(in: self)
+                }
+                catch let skip as XCTSkip {
+                  logSkip(skip, element: element)
+                }
+                catch let error {
+                  recordUncaught(error, under: currentTest)
+                }
+              default:
+                preconditionFailure("unexpected element type")
+            }
           }
         }
-        try runHooksXC(group.afterEachHooks)
+        try runCleanupHooksXC(group.afterEachHooks, under: currentTest)
       }
     }
 
@@ -143,21 +219,35 @@ extension ExampleRunner {
     guard !elements.isEmpty
     else { return }
 
-    do {
-      try runHooksXC(group.beforeAllHooks)
-    }
-    catch let skip as XCTSkip {
-      logSkip(skip, element: group)
-      return
+    switch runSetupHooksXC(group.beforeAllHooks, under: test) {
+      case .completed:
+        break
+      case .skipped:
+        return
+      case .failed:
+        // The elements can't run, but whatever beforeAll managed to set up
+        // still has to be undone.
+        try runCleanupHooksXC(group.afterAllHooks, under: test)
+        return
     }
     for element in elements {
-      try runSubElement(element, group: group) { element in
-        try MainActor.assumeIsolated {
-          try runSubElementInner(element)
+      do {
+        try runSubElement(element, group: group) { element in
+          try MainActor.assumeIsolated {
+            try runSubElementInner(element)
+          }
         }
       }
+      catch let skip as XCTSkip {
+        // Only an AfterEach hook gets here, and those aren't caught
+        throw skip
+      }
+      catch {
+        // An aroundEach hook failed
+        recordUncaught(error, under: test)
+      }
     }
-    try runHooksXC(group.afterAllHooks)
+    try runCleanupHooksXC(group.afterAllHooks, under: test)
   }
   
   @MainActor
