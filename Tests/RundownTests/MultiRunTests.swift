@@ -11,15 +11,11 @@ class MultiRunTests: XCTestCase {
   }
 
   func asyncRunner(group: ExampleGroup<AsyncCall>) async throws {
-    let expectation = self.expectation(description: "run as task")
-
-    Task {
-      try await group.run()
-      expectation.fulfill()
-    }
-    await fulfillment(of: [expectation])
+    // Errors have to propagate: a failure here must fail the test, not leave
+    // it waiting for an expectation that is never fulfilled.
+    try await Task { try await group.run() }.value
   }
-  
+
   func asyncRunner(group: ExampleGroup<SyncCall>) async throws {
     try await asyncRunner(group: .init(fromSync: group))
   }
@@ -27,16 +23,23 @@ class MultiRunTests: XCTestCase {
   func xcTestRunner(group: ExampleGroup<SyncMainCall>) throws {
     try group.runActivity(under: self)
   }
-  
+
+  /// The tests build `SyncCall` groups, so adapt them for the XCTest runner.
+  /// Note that `runActivity()` does not implement `.concurrent`; those
+  /// groups simply run serially.
+  func xcTestRunner(group: ExampleGroup<SyncCall>) throws {
+    try xcTestRunner(group: .init(fromSync: group))
+  }
+
   func useAllRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void, String) async throws -> Void) async throws {
     try await test(plainRunner, "plain")
-    //try await test(xcTestRunner, "XCTest")
+    try await test(xcTestRunner, "XCTest")
     try await test(asyncRunner, "async")
   }
-  
+
   func useSyncRunners(test: @MainActor ((ExampleGroup<SyncCall>) throws -> Void, String) throws -> Void) throws {
     try test(plainRunner, "plain")
-    //try test(xcTestRunner, "XCTest")
+    try test(xcTestRunner, "XCTest")
   }
 
   func testExcludeOneOfTwo() async throws {
@@ -400,5 +403,54 @@ class MultiRunTests: XCTestCase {
                      ],
                      "\(type) failure")
     }
+  }
+}
+
+// MARK: - SyncCall -> SyncMainCall
+
+// Test-only conversion so the same groups can be run by the XCTest runner,
+// which requires main actor call types. Everything runs on the main thread in
+// these tests, so assumeIsolated() is safe where a callback crosses back.
+
+private extension TestHook where Call == SyncMainCall {
+  init(fromSyncCall other: TestHook<Phase, SyncCall>) {
+    let block = other.block
+    self.init(other.name, other.traits, execute: { try block() })
+  }
+}
+
+private extension AroundEach where Call == SyncMainCall {
+  init(fromSyncCall other: AroundEach<SyncCall>) {
+    let block = other.block
+    self.init(name: other.name, traits: other.traits) { inner in
+      try block {
+        try MainActor.assumeIsolated { try inner() }
+      }
+    }
+  }
+}
+
+extension ExampleGroup where Call == SyncMainCall {
+  init(fromSync other: ExampleGroup<SyncCall>) {
+    self.init(
+      description: other.description,
+      traits: other.traits,
+      beforeAll: other.beforeAllHooks.map { .init(fromSyncCall: $0) },
+      aroundEach: other.aroundEachHooks.map { .init(fromSyncCall: $0) },
+      beforeEach: other.beforeEachHooks.map { .init(fromSyncCall: $0) },
+      afterEach: other.afterEachHooks.map { .init(fromSyncCall: $0) },
+      afterAll: other.afterAllHooks.map { .init(fromSyncCall: $0) },
+      elements: other.elements.map {
+        switch $0 {
+          case let it as It<SyncCall>:
+            let block = it.block
+            return It<SyncMainCall>(it.description, it.traits,
+                                    execute: { try block() })
+          case let group as ExampleGroup<SyncCall>:
+            return ExampleGroup<SyncMainCall>(fromSync: group)
+          default:
+            preconditionFailure("unexpected element")
+        }
+      })
   }
 }

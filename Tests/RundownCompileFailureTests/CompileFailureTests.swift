@@ -63,30 +63,35 @@ final class InvalidSequencesFixtureTests: XCTestCase {
     process.arguments = ["swift", "build"]
     process.currentDirectoryURL = fixtureURL
     
-    let stderrPipe = Pipe()
-    let stdoutPipe = Pipe()
-    process.standardError = stderrPipe
-    process.standardOutput = stdoutPipe
+    // The compiler's diagnostics have gone to stdout or stderr depending on the
+    // SwiftPM version, so read both through one pipe. Reading before waiting
+    // keeps a full pipe buffer from blocking the child forever.
+    let outputPipe = Pipe()
+    process.standardError = outputPipe
+    process.standardOutput = outputPipe
     
     try process.run()
+    let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
     
-    let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-    let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-    let stderrString = String(data: stderrData, encoding: .utf8) ?? ""
-    let stdoutString = String(data: stdoutData, encoding: .utf8) ?? ""
-    
+    // SwiftPM colorizes diagnostics even when output is piped, and the escape
+    // codes land between the "N: " and "error:" that errorRegex looks for.
+    let output = (String(data: outputData, encoding: .utf8) ?? "")
+      .replacingOccurrences(of: "\u{1B}\\[[0-9;]*m",
+                            with: "",
+                            options: .regularExpression)
+
     // swift build should fail due to invalid input
     if process.terminationStatus == 0 {
-      XCTFail("Expected swift build to fail, but it succeeded.\nstdout:\n\(stdoutString)\nstderr:\n\(stderrString)")
+      XCTFail("Expected swift build to fail, but it succeeded.\noutput:\n\(output)")
       return
     }
     
     // collect expected-error lines from original source using Swift Regex
     // We parse lines like:
     // /path/to/File.swift:6:21: error: 'buildBlock()' is unavailable: Examples must not be empty
-    let stdOutLines = stdoutString.split(whereSeparator: { $0.isNewline })
-    let errorLines = stdOutLines.filter { $0.hasPrefix("/") && $0.contains("error:") }
+    let outputLines = output.split(whereSeparator: { $0.isNewline })
+    let errorLines = outputLines.filter { $0.hasPrefix("/") && $0.contains("error:") }
     
     // Parse errors found from compiler output
     let foundErrors: [CompileError] = errorLines.compactMap { lineSubstr in
