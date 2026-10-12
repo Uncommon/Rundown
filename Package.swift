@@ -6,7 +6,7 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "Rundown",
-    platforms: [.macOS(.v15), .iOS(.v16), .tvOS(.v13), .watchOS(.v6), .macCatalyst(.v13)],
+    platforms: [.macOS(.v15), .iOS(.v16), .tvOS(.v16), .watchOS(.v9), .macCatalyst(.v16)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
