@@ -415,6 +415,104 @@ class MultiRunTests: XCTestCase {
     }
   }
 
+  // MARK: Each hooks and contexts
+
+  // beforeEach, afterEach and aroundEach apply to the elements of the group
+  // they are declared in, and a nested context is one such element. They run
+  // once around the whole context, not around each example inside it. To run
+  // something for every example in a context, declare it inside that context.
+
+  func testEachHooksApplyToElementsOfTheirGroup() async throws {
+    try await useAllRunners { (runner, type) in
+      let log = Box([String]())
+      let group = describe("each hooks") {
+        beforeEach { log.note("outer before") }
+        context("nested") {
+          beforeEach { log.note("inner before") }
+          it("one") { log.note("one") }
+          it("two") { log.note("two") }
+          afterEach { log.note("inner after") }
+        }
+        it("sibling") { log.note("sibling") }
+        afterEach { log.note("outer after") }
+      }
+
+      try await runner(group)
+
+      XCTAssertEqual(
+        log.wrappedValue,
+        // The outer hooks wrap the context once, and the sibling once
+        ["outer before",
+           "inner before", "one", "inner after",
+           "inner before", "two", "inner after",
+         "outer after",
+         "outer before", "sibling", "outer after"],
+        "\(type) failure")
+    }
+  }
+
+  func testAroundEachWrapsNestedGroupOnce() throws {
+    try useSyncRunners { (runner, type) in
+      let log = Box([String]())
+      let group = describe("around each") {
+        aroundEach { (callback) in
+          log.note("outer around>")
+          try callback()
+          log.note("<outer around")
+        }
+        context("nested") {
+          aroundEach { (callback) in
+            log.note("inner around>")
+            try callback()
+            log.note("<inner around")
+          }
+          it("one") { log.note("one") }
+          it("two") { log.note("two") }
+        }
+      }
+
+      try runner(group)
+
+      XCTAssertEqual(
+        log.wrappedValue,
+        ["outer around>",
+           "inner around>", "one", "<inner around",
+           "inner around>", "two", "<inner around",
+         "<outer around"],
+        "\(type) failure")
+    }
+  }
+
+  /// Hooks don't cascade into contexts, so setup that several contexts need
+  /// comes from a function that returns the hook.
+  func testSharedHookFunction() async throws {
+    func sharedSetup(_ log: Box<[String]>) -> TestHook<BeforeEachPhase, SyncCall> {
+      beforeEach("shared") { log.note("shared setup") }
+    }
+
+    try await useAllRunners { (runner, type) in
+      let log = Box([String]())
+      let group = describe("shared") {
+        context("first") {
+          sharedSetup(log)
+          it("one") { log.note("one") }
+          it("two") { log.note("two") }
+        }
+        context("second") {
+          sharedSetup(log)
+          it("three") { log.note("three") }
+        }
+      }
+
+      try await runner(group)
+
+      XCTAssertEqual(
+        log.wrappedValue,
+        ["shared setup", "one", "shared setup", "two", "shared setup", "three"],
+        "\(type) failure")
+    }
+  }
+
   // MARK: Errors
 
   /// Runners that report an error from an example by throwing it from the run.

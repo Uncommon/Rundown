@@ -34,6 +34,10 @@ A Swift result builder is used to assemble the steps into an object that can be 
 
 Mis-ordered elements produce a compile-time error.
 
+## Hooks and contexts
+
+The `beforeEach`, `afterEach` and `aroundEach` hooks apply to the elements of the group they are declared in, and a nested `describe` or `context` counts as one element. They run once around the whole nested group, not around each example inside it. This is what lets a context group examples together under hooks of its own. To run something for every example in a context, declare it inside that context. Setup that several contexts need can come from a function that returns the hook.
+
 ## Test framework support
 
 The goal is for this library to be equally useful in either XCTest or Swift Testing.

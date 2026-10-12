@@ -22,9 +22,9 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
 }
 
 @DeAsyncRD
-/// For each example, the given executor will be called. That
-/// executor will be given a callback that runs the example as well
-/// as any `beforeEach`/`afterEach` elements.
+/// For each example (or entire child group), the given executor will be
+/// called. That executor will be given a callback that runs the example
+/// as well as any `beforeEach`/`afterEach` elements.
 ///
 /// This allows for callback-based setup and teardown, such as
 /// Swift's various "with" functions like `TaskLocal.withValue()`.
@@ -37,9 +37,9 @@ public func aroundEach(_ name: String = "",
 }
 
 @DeAsyncRD
-/// For each example, the given executor will be called. That
-/// executor will be given a callback that runs the example as well
-/// as any `beforeEach`/`afterEach` elements.
+/// For each example (or entire child group), the given executor will be
+/// called. That executor will be given a callback that runs the example
+/// as well as any `beforeEach`/`afterEach` elements.
 ///
 /// This allows for callback-based setup and teardown, such as
 /// Swift's various "with" functions like `TaskLocal.withValue()`.
