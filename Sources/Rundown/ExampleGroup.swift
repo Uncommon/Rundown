@@ -92,6 +92,13 @@ public struct ExampleGroup<Call: CallType>: TestExample {
 }
 
 extension ExampleGroup where Call == AsyncCall {
+  /// Converts a group that was built with sync elements into an async group.
+  ///
+  /// - Important: `aroundEach` hooks are dropped, in the group and in any
+  /// nested groups. A sync `aroundEach` calls its callback synchronously, so it
+  /// can't wrap the async callback of an async group. An error is logged when
+  /// this happens, but the converted group still runs, just without those hooks.
+  /// To run a sync group that has `aroundEach` hooks, run it as a sync group.
   public init(fromSync other: ExampleGroup<SyncCall>) {
     self.description = other.description
     self.traits = other.traits
