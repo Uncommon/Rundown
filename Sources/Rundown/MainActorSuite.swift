@@ -143,7 +143,7 @@ public extension MainActorSuite {
   @_disfavoredOverload
   func spec(@ExampleBuilder<AsyncMainCall> builder: @Sendable @MainActor () -> ExampleGroup<AsyncMainCall>,
             function: String = #function) async throws {
-    let description = dropTestPrefix(function)
+    let description = specDescription(forFunction: function)
     try await describe(description, builder: builder).run()
   }
 
@@ -155,7 +155,3 @@ public extension MainActorSuite {
   }
 }
 
-private func dropTestPrefix(_ string: String) -> String { // duplicated?
-  .init(string.prefix { $0.isIdentifier })
-    .droppingPrefix("test")
-}

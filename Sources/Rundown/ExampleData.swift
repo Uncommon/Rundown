@@ -111,14 +111,10 @@ public func it(_ description: String,
 @DeAsyncRD(stripSendable: .parameters)
 public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
                  function: String = #function) async throws {
-  let description = dropTestPrefix(function)
+  let description = specDescription(forFunction: function)
   try await describe(description, builder: builder).run()
 }
 
-private func dropTestPrefix(_ string: String) -> String {
-  .init(string.prefix { $0.isIdentifier })
-    .droppingPrefix("test")
-}
 
 @DeAsyncRD(stripSendable: .parameters)
 public func spec(_ description: String,

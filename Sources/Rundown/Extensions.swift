@@ -26,6 +26,14 @@ extension String
   }
 }
 
+/// The description for a spec that is named after the test function that
+/// calls it: the function's name without its parameters or a "test" prefix,
+/// so `testSomething()` becomes "Something".
+func specDescription(forFunction function: String) -> String {
+  String(function.prefix { $0.isIdentifier })
+    .droppingPrefix("test")
+}
+
 extension Character {
   var isIdentifier: Bool {
     // Technically incomplete, but enough for most cases

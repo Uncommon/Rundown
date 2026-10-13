@@ -36,8 +36,7 @@ open class TestCase: XCTestCase, MainActorSuite {
   @MainActor
   public func spec(@ExampleBuilder<SyncMainCall> builder: () -> ExampleGroup<SyncMainCall>,
                    function: String = #function) throws {
-    let description = String(function.prefix { $0.isIdentifier })
-      .droppingPrefix("test")
+    let description = specDescription(forFunction: function)
     let group: ExampleGroup<SyncMainCall> = describe(description, builder: builder)
       
     try group.runActivity(under: self)
