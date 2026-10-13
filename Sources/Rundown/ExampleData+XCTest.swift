@@ -272,8 +272,11 @@ extension ExampleRunner {
       logger.error("running new element \"\(group.description)\" when already running \"\(current.description)\"")
     }
     try ExampleRunner.$current.withValue(runner) {
-      try runner.withElementActivity(group) {
-        try runner.runActivity(group, under: test)
+      // A new run has its own path, even if it was started from inside another
+      try ExampleRunner.$elementStack.withValue([]) {
+        try runner.withElementActivity(group) {
+          try runner.runActivity(group, under: test)
+        }
       }
     }
   }

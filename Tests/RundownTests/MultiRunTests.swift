@@ -737,6 +737,47 @@ class MultiRunTests: XCTestCase {
     XCTAssertEqual(log.wrappedValue, ["beforeAll", "around", "afterAll"])
   }
 
+  /// Each concurrent example has its own path, with nothing from the examples
+  /// running alongside it, and it can find its runner. (The sync version runs
+  /// on GCD threads, which don't inherit the runner or the path.)
+  func testConcurrentExamplesHaveTheirOwnPaths() async throws {
+    try await useAllRunners { (runner, type) in
+      let count = 16
+      let wrong = Box([String]())
+      let lock = NSLock()
+
+      @Sendable func check(_ expected: String) {
+        Thread.sleep(forTimeInterval: Double.random(in: 0...0.01))
+        let actual = ExampleRunner.current?.description ?? "no runner"
+
+        if actual != expected {
+          lock.lock()
+          wrong.note("expected \"\(expected)\" but got \"\(actual)\"")
+          lock.unlock()
+        }
+      }
+
+      let group = describe("paths") {
+        context("examples", .concurrent) {
+          for index in 0..<count {
+            it("ex \(index)") { check("paths, examples, ex \(index)") }
+          }
+        }
+        context("contexts", .concurrent) {
+          for index in 0..<count {
+            context("ctx \(index)") {
+              it("inner") { check("paths, contexts, ctx \(index), inner") }
+            }
+          }
+        }
+      }
+
+      try await runner(group)
+
+      XCTAssertEqual(wrong.wrappedValue, [], "\(type) failure")
+    }
+  }
+
   func testConcurrentFailureRunsEverything() async throws {
     try await useThrowingRunners { (runner, type) in
       let stepCount = 8

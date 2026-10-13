@@ -12,18 +12,24 @@ public class ExampleRunner: @unchecked Sendable, CustomStringConvertible {
   private let lock = NSRecursiveLock()
   internal static let logger = Logger(subsystem: "Rundown", category: "ExampleRunner")
 
-  var elementStack: [any TestElement] = []
+  /// The elements that are running, outermost first, for the current task. This
+  /// is a task-local instead of a property of the runner so that examples that
+  /// run concurrently each have their own path: a child task starts with the
+  /// stack of the group that started it, and what it pushes stays its own.
+  ///
+  /// Code that runs on other threads, such as `DispatchQueue.concurrentPerform()`,
+  /// has to bind it again explicitly.
+  @TaskLocal
+  static var elementStack: [any TestElement] = []
 
   /// The descriptions of the elements that are running, from the outermost
   /// group down to the innermost: the spec, any enclosing `describe` and
   /// `context` groups, and the example or hook itself.
   ///
-  /// - Note: In a group with the `.concurrent` trait, the path of an example
-  /// can include the other examples running alongside it.
+  /// This is the path of whatever is running in the calling task, so in a group
+  /// with the `.concurrent` trait each example sees its own.
   public var path: [String] {
-    withLock {
-      elementStack.map { $0.description }
-    }
+    Self.elementStack.map { $0.description }
   }
 
   /// The elements in `path` joined into a single string, such as
@@ -46,16 +52,16 @@ public class ExampleRunner: @unchecked Sendable, CustomStringConvertible {
 
   @DeAsyncRD
   func with(_ element: some TestElement, block: () async throws -> Void) async rethrows {
-    withLock { elementStack.append(element) }
-    defer { withLock { _ = elementStack.popLast() } }
-    try await block()
+    try await Self.$elementStack.withValue(Self.elementStack + [element]) {
+      try await block()
+    }
   }
 
   @DeAsyncRD @MainActor
   func withMain(_ element: some TestElement, block: @MainActor () async throws -> Void) async rethrows {
-    withLock { elementStack.append(element) }
-    defer { withLock { _ = elementStack.popLast() } }
-    try await block()
+    try await Self.$elementStack.withValue(Self.elementStack + [element]) {
+      try await block()
+    }
   }
 
   @DeAsyncRD
@@ -241,17 +247,24 @@ public class ExampleRunner: @unchecked Sendable, CustomStringConvertible {
       if group.traits.contains(where: { $0 is ConcurrentTrait }) {
         // Foundation locks rather than Mutex, which needs iOS 18 and friends
         let elementError = Box<(any Error)?>(nil)
+        // GCD threads don't inherit task-locals, so the runner and the path
+        // have to be bound again for each element.
+        let stack = Self.elementStack
 
         DispatchQueue.concurrentPerform(iterations: elements.count) {
           let element = elements[$0]
 
-          do {
-            try runSubElement(element, group: group, runInner: runSubElementInner)
-          }
-          catch let error {
-            withLock {
-              if elementError.wrappedValue == nil {
-                elementError.wrappedValue = error
+          Self.$current.withValue(self) {
+            Self.$elementStack.withValue(stack) {
+              do {
+                try runSubElement(element, group: group, runInner: runSubElementInner)
+              }
+              catch let error {
+                withLock {
+                  if elementError.wrappedValue == nil {
+                    elementError.wrappedValue = error
+                  }
+                }
               }
             }
           }
@@ -562,8 +575,11 @@ public class ExampleRunner: @unchecked Sendable, CustomStringConvertible {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
     try await ExampleRunner.$current.withValue(runner) {
-      try await runner.with(element) {
-        try await element.execute(in: runner)
+      // A new run has its own path, even if it was started from inside another
+      try await ExampleRunner.$elementStack.withValue([]) {
+        try await runner.with(element) {
+          try await element.execute(in: runner)
+        }
       }
     }
   }
@@ -576,8 +592,11 @@ public class ExampleRunner: @unchecked Sendable, CustomStringConvertible {
       logger.error("running new element \"\(element.description)\" when already running \"\(current.description)\"")
     }
     try await ExampleRunner.$current.withValue(runner) {
-      try await runner.withMain(element) {
-        try await element.execute(in: runner)
+      // A new run has its own path, even if it was started from inside another
+      try await ExampleRunner.$elementStack.withValue([]) {
+        try await runner.withMain(element) {
+          try await element.execute(in: runner)
+        }
       }
     }
   }
