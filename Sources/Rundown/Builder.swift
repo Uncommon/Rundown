@@ -429,3 +429,31 @@ public extension ExampleBuilder where Call: AsyncConvertibleCallType {
     fatalError("unavailable")
   }
 }
+
+// Main actor groups have to be built with the main actor versions of `describe`,
+// `it` and the rest, which are members of `MainActorSuite`. Elsewhere those names
+// mean the versions that aren't isolated to the main actor, and using one of
+// them here gets this error instead of the compiler's confusing one about
+// mismatched types.
+public extension ExampleBuilder where Call == SyncMainCall {
+  @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
+  static func buildPartialBlock(first: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
+  static func buildPartialBlock<Phase: AccumulatorPhase>(
+      accumulated: Accumulator<Phase>,
+      next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
+  static func buildPartialBlock<Phase: BeforePhase>(first: TestHook<Phase, SyncCall>) -> Accumulator<Phase> {
+    fatalError("unavailable")
+  }
+  @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
+  static func buildPartialBlock<Phase: AccumulatorPhase, Hook: HookPhase>(
+      accumulated: Accumulator<Phase>,
+      next: TestHook<Hook, SyncCall>) -> Accumulator<Hook> {
+    fatalError("unavailable")
+  }
+}

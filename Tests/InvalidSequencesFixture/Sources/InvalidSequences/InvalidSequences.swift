@@ -157,3 +157,23 @@ func exampleAfterAfterHook() -> ExampleGroup<SyncCall> {
     it("more") { }
   }
 }
+
+@MainActor
+private func mainThing() { }
+
+// 17) A main actor group built in a free function, with a hook before a context
+@MainActor
+@ExampleBuilder<SyncMainCall>
+func mainActorHookThenContext() -> ExampleGroup<SyncMainCall> { // expected-error {{Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function}}
+  beforeAll { @MainActor in mainThing() }
+  context("Search by summary") { @MainActor in
+    it("finds items") { }
+  }
+}
+
+// 18) A main actor group built in a free function, with just an example
+@MainActor
+@ExampleBuilder<SyncMainCall>
+func mainActorExample() -> ExampleGroup<SyncMainCall> { // expected-error {{Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function}}
+  it("ex") { }
+}

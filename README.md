@@ -114,7 +114,9 @@ An error never skips teardown or the remaining elements. Everything that can sti
 
 Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorSuite`. For XCTest, the `Rundown.TestCase` class already does this.
 
-The main actor versions of `describe`, `it` and the rest are members of `MainActorSuite`. That means a helper that builds a group for a main actor spec has to be a member of such a type too. A free function would get the ordinary versions instead, and the compiler's complaint about that is a confusing one (`cannot convert value of type 'ExampleGroup<SyncCall>' to expected argument type 'AroundEach<SyncMainCall>'`). For helpers shared between test classes, extend a protocol that inherits from `MainActorSuite`:
+The main actor versions of `describe`, `it` and the rest are members of `MainActorSuite`. That means if you have a helper function that builds a group for a `@MainActor` spec, it has to be a member of such a type as well. A free function would get the ordinary versions instead, which don't produce a `@MainActor` group, and the compiler will report an error.
+
+For helpers shared between test classes, extend a protocol that inherits from `MainActorSuite`:
 
 ```swift
 protocol SearchGroups: MainActorSuite {}
