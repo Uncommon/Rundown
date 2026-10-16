@@ -16,14 +16,15 @@
 // Then the XCTest runner (task 5) and the plain runners (task 6) move onto it
 // and the old traversals are deleted.
 //
-// There are still separate versions for non-isolated and main-actor nodes,
-// because isolation is part of the closure types.
+// Isolation is part of the closure types, so the traversal is written once as
+// async and the sync version is generated from it with @DeAsyncRD. Both handle
+// non-isolated and main-actor nodes. The parts that differ between the flavors
+// are in the helpers at the bottom.
 
-// MARK: Non-isolated, sync or async
+// MARK: Traversal
 
 extension ExampleNode {
-  /// Runs a group whose nodes are `SyncCall` or `AsyncCall`, which is the
-  /// same traversal for both because a sync body can be called from async code.
+  @DeAsyncRD
   func traverse() async throws {
     let selected = selectedChildren
     guard !selected.isEmpty else { return }
@@ -46,6 +47,7 @@ extension ExampleNode {
     if let firstError { throw firstError }
   }
 
+  @DeAsyncRD
   private func runElement(_ child: ExampleNode) async throws {
     var firstError: (any Error)?
     do {
@@ -61,81 +63,56 @@ extension ExampleNode {
     if let firstError { throw firstError }
   }
 
+  @DeAsyncRD
   private func runAround(_ hooks: ArraySlice<ExampleNode>,
                          inner: @Sendable () async throws -> Void) async throws {
     guard let hook = hooks.first else { return try await inner() }
-    guard case .async(let around) = hook.around else { throw UnexpectedAsyncError() }
-    try await around { try await self.runAround(hooks.dropFirst(), inner: inner) }
+    try await hook.callAround { try await self.runAround(hooks.dropFirst(), inner: inner) }
   }
+}
 
+// MARK: Per-flavor helpers
+
+extension ExampleNode {
+  /// Async: any body can be called. A main-actor body is awaited, which hops
+  /// to the main actor and back.
   fileprivate func callBody() async throws {
     switch body {
       case .sync(let body): try body()
       case .async(let body): try await body()
-      default: preconditionFailure("main-actor node in a non-isolated run")
-    }
-  }
-}
-
-// MARK: Main actor, sync
-
-extension ExampleNode {
-  /// The same traversal again for `SyncMainCall`. Isolation is part of the
-  /// closure types, so it can't share the code above.
-  @MainActor
-  func traverseOnMainActor() throws {
-    let selected = selectedChildren
-    guard !selected.isEmpty else { return }
-
-    var firstError: (any Error)?
-    do {
-      for hook in selectedHooks(.beforeAll) { try hook.callMainBody() }
-      for child in selected {
-        do {
-          try runAroundMain(selectedHooks(.aroundEach)[...]) { try self.runElementMain(child) }
-        }
-        catch { firstError = firstError ?? error }
-      }
-    }
-    catch { firstError = error }
-    for hook in selectedHooks(.afterAll) {
-      do { try hook.callMainBody() }
-      catch { firstError = firstError ?? error }
-    }
-    if let firstError { throw firstError }
-  }
-
-  @MainActor
-  private func runElementMain(_ child: ExampleNode) throws {
-    var firstError: (any Error)?
-    do {
-      for hook in selectedHooks(.beforeEach) { try hook.callMainBody() }
-      if child.isGroup { try child.traverseOnMainActor() }
-      else { try child.callMainBody() }
-    }
-    catch { firstError = error }
-    for hook in selectedHooks(.afterEach) {
-      do { try hook.callMainBody() }
-      catch { firstError = firstError ?? error }
-    }
-    if let firstError { throw firstError }
-  }
-
-  @MainActor
-  private func runAroundMain(_ hooks: ArraySlice<ExampleNode>,
-                             inner: @MainActor () throws -> Void) throws {
-    guard let hook = hooks.first else { return try inner() }
-    guard case .syncMain(let around) = hook.around else { preconditionFailure("not a SyncMainCall hook") }
-    // The callback has to be @Sendable, which the traversal's own state isn't
-    try withoutActuallyEscaping(inner) { inner in
-      nonisolated(unsafe) let inner = inner
-      try around { try self.runAroundMain(hooks.dropFirst(), inner: inner) }
+      case .syncMain(let body): try await body()
+      case .asyncMain(let body): try await body()
+      case nil: preconditionFailure("node has no body")
     }
   }
 
-  @MainActor
-  fileprivate func callMainBody() throws {
-    guard case .syncMain(let body) = body else { preconditionFailure("not a SyncMainCall node") }
-    try body()
+  /// Sync: an async body can't be called. A main-actor body is called with
+  /// `assumeIsolated`, which relies on the entry point for a main-actor group
+  /// being `@MainActor`.
+  fileprivate func callBody() throws {
+    switch body {
+      case .sync(let body): try body()
+      case .syncMain(let body): try MainActor.assumeIsolated { try body() }
+      case .async, .asyncMain: throw UnexpectedAsyncError()
+      case nil: preconditionFailure("node has no body")
+    }
+  }
+
+  fileprivate func callAround(_ inner: @Sendable () async throws -> Void) async throws {
+    switch around {
+      case .async(let around): try await around { try await inner() }
+      case .asyncMain(let around): try await around { try await inner() }
+      case .sync, .syncMain: throw UnexpectedAsyncError()
+      case nil: preconditionFailure("node has no around body")
+    }
+  }
+
+  fileprivate func callAround(_ inner: @Sendable () throws -> Void) throws {
+    switch around {
+      case .sync(let around): try around { try inner() }
+      case .syncMain(let around): try MainActor.assumeIsolated { try around { try inner() } }
+      case .async, .asyncMain: throw UnexpectedAsyncError()
+      case nil: preconditionFailure("node has no around body")
+    }
   }
 }

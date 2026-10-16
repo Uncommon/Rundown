@@ -282,12 +282,44 @@ final class NodeTraversalMainActorTests: XCTestCase, MainActorSuite {
 
       do { try group(failing: failing, expected).run() }
       catch { expectedError = error }
-      do { try group(failing: failing, actual).node.traverseOnMainActor() }
+      do { try group(failing: failing, actual).node.traverse() }
       catch { actualError = error }
 
       XCTAssertEqual(actual.wrappedValue, expected.wrappedValue, "failing: \(failing)")
       XCTAssertEqual((actualError as? TestError)?.id, (expectedError as? TestError)?.id)
       XCTAssertFalse(expected.wrappedValue.isEmpty)
     }
+  }
+}
+
+final class NodeTraversalAsyncMainTests: XCTestCase, MainActorSuite {
+  @MainActor
+  func group(_ log: Box<[String]>) -> ExampleGroup<AsyncMainCall> {
+    describe("Root") {
+      beforeAll { log.note("beforeAll") }
+      aroundEach { callback in
+        MainActor.assertIsolated()
+        log.note("around>"); try await callback(); log.note("<around")
+      }
+      beforeEach { await Task.yield(); log.note("beforeEach") }
+      it("first") { MainActor.assertIsolated(); log.note("first") }
+      context("nested") {
+        it("second") { await Task.yield(); log.note("second") }
+      }
+      afterEach { log.note("afterEach") }
+      afterAll { log.note("afterAll") }
+    }
+  }
+
+  @MainActor
+  func testAsyncMainNodesMatchRunner() async throws {
+    let expected = Box([String]())
+    let actual = Box([String]())
+
+    try await group(expected).run()
+    try await group(actual).node.traverse()
+
+    XCTAssertEqual(actual.wrappedValue, expected.wrappedValue)
+    XCTAssertFalse(expected.wrappedValue.isEmpty)
   }
 }
