@@ -81,7 +81,7 @@ struct ExampleNode: Sendable {
 
   /// The groups and examples directly inside a group, in order. Empty for
   /// examples and hooks.
-  let children: [ExampleNode]
+  private(set) var children: [ExampleNode]
 
   /// The hooks of a group, in order within each kind. A hook applies to the
   /// children of the group that declares it, and a child group counts as one
@@ -93,6 +93,30 @@ struct ExampleNode: Sendable {
     hooks[kind] ?? []
   }
 
+  /// Whether the node runs, as far as its own group is concerned. This is
+  /// resolved when the tree is built, and leaves excluded and unselected nodes
+  /// in the tree so that it still has the structure of the spec.
+  ///
+  /// - A node with the `.excluded` trait is not selected.
+  /// - If any non-excluded child of a group has a focused descendant, then
+  ///   only those children are selected, and the rest are left out.
+  /// - Otherwise every non-excluded child is selected.
+  ///
+  /// A node whose group is not selected doesn't run either, so a traversal
+  /// only goes into nodes that are selected, from the root down. The root
+  /// has no group to leave it out, and is always selected.
+  private(set) var isSelected: Bool = true
+
+  /// The children that run, in order
+  var selectedChildren: [ExampleNode] {
+    children.filter(\.isSelected)
+  }
+
+  /// The hooks of the given kind that run, in order
+  func selectedHooks(_ kind: HookKind) -> [ExampleNode] {
+    hooks(kind).filter(\.isSelected)
+  }
+
   var isGroup: Bool { kind == .group }
   var isExample: Bool { kind == .example }
 
@@ -100,9 +124,23 @@ struct ExampleNode: Sendable {
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }
   var isConcurrent: Bool { traits.contains { $0 is ConcurrentTrait } }
 
-  /// Whether this node or any descendant is focused
+  /// Whether this node or any descendant is focused. Excluded descendants
+  /// count, the same as `TestExample.isDeepFocused` for a group.
   var isDeepFocused: Bool {
     isFocused || children.contains(where: \.isDeepFocused)
+  }
+
+  /// Resolves which of the children run. See `isSelected`.
+  fileprivate func resolvingSelection() -> ExampleNode {
+    var node = self
+    let candidates = children.filter { !$0.isExcluded }
+    let anyFocused = candidates.contains(where: \.isDeepFocused)
+    node.children = children.map { child in
+      var child = child
+      child.isSelected = !child.isExcluded && (!anyFocused || child.isDeepFocused)
+      return child
+    }
+    return node
   }
 }
 
@@ -153,6 +191,10 @@ extension It: NodeConvertible where Call: NodeCallType {}
 extension ExampleGroup where Call: NodeCallType {
   /// The tree of nodes for this group and everything in it
   var node: ExampleNode {
+    nodeBeforeSelection.resolvingSelection()
+  }
+
+  private var nodeBeforeSelection: ExampleNode {
     ExampleNode(
       kind: .group,
       name: description,
@@ -202,7 +244,8 @@ extension TestHook where Call: NodeCallType {
                 body: Call.nodeBody(block),
                 around: nil,
                 children: [],
-                hooks: [:])
+                hooks: [:],
+                isSelected: !isExcluded)
   }
 }
 
@@ -216,6 +259,7 @@ extension AroundEach where Call: NodeCallType {
                 body: nil,
                 around: Call.nodeAround(block),
                 children: [],
-                hooks: [:])
+                hooks: [:],
+                isSelected: !isExcluded)
   }
 }

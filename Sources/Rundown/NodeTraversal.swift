@@ -12,27 +12,12 @@
 //   policy is the plain runners' (collect the first error and rethrow it), and
 //   it is written into the traversal. That is task 3, then task 4.
 // - The element path, `.concurrent`, and main-actor async. Task 4.
-// - Focus and exclude resolved when the plan is built, instead of the filtering
-//   here. Task 2.
 //
 // Then the XCTest runner (task 5) and the plain runners (task 6) move onto it
 // and the old traversals are deleted.
 //
 // There are still separate versions for non-isolated and main-actor nodes,
 // because isolation is part of the closure types.
-
-extension ExampleNode {
-  /// Focus and exclude, as `ExampleRunner.filterFocusSkip` does it
-  fileprivate var selectedChildren: [ExampleNode] {
-    let nonExcluded = children.filter { !$0.isExcluded }
-    let focused = nonExcluded.filter(\.isDeepFocused)
-    return focused.isEmpty ? nonExcluded : focused
-  }
-
-  fileprivate func activeHooks(_ kind: HookKind) -> [ExampleNode] {
-    hooks(kind).filter { !$0.isExcluded }
-  }
-}
 
 // MARK: Non-isolated, sync or async
 
@@ -45,16 +30,16 @@ extension ExampleNode {
 
     var firstError: (any Error)?
     do {
-      for hook in activeHooks(.beforeAll) { try await hook.callBody() }
+      for hook in selectedHooks(.beforeAll) { try await hook.callBody() }
       for child in selected {
         do {
-          try await runAround(activeHooks(.aroundEach)[...]) { try await self.runElement(child) }
+          try await runAround(selectedHooks(.aroundEach)[...]) { try await self.runElement(child) }
         }
         catch { firstError = firstError ?? error }
       }
     }
     catch { firstError = error }
-    for hook in activeHooks(.afterAll) {
+    for hook in selectedHooks(.afterAll) {
       do { try await hook.callBody() }
       catch { firstError = firstError ?? error }
     }
@@ -64,12 +49,12 @@ extension ExampleNode {
   private func runElement(_ child: ExampleNode) async throws {
     var firstError: (any Error)?
     do {
-      for hook in activeHooks(.beforeEach) { try await hook.callBody() }
+      for hook in selectedHooks(.beforeEach) { try await hook.callBody() }
       if child.isGroup { try await child.traverse() }
       else { try await child.callBody() }
     }
     catch { firstError = error }
-    for hook in activeHooks(.afterEach) {
+    for hook in selectedHooks(.afterEach) {
       do { try await hook.callBody() }
       catch { firstError = firstError ?? error }
     }
@@ -104,16 +89,16 @@ extension ExampleNode {
 
     var firstError: (any Error)?
     do {
-      for hook in activeHooks(.beforeAll) { try hook.callMainBody() }
+      for hook in selectedHooks(.beforeAll) { try hook.callMainBody() }
       for child in selected {
         do {
-          try runAroundMain(activeHooks(.aroundEach)[...]) { try self.runElementMain(child) }
+          try runAroundMain(selectedHooks(.aroundEach)[...]) { try self.runElementMain(child) }
         }
         catch { firstError = firstError ?? error }
       }
     }
     catch { firstError = error }
-    for hook in activeHooks(.afterAll) {
+    for hook in selectedHooks(.afterAll) {
       do { try hook.callMainBody() }
       catch { firstError = firstError ?? error }
     }
@@ -124,12 +109,12 @@ extension ExampleNode {
   private func runElementMain(_ child: ExampleNode) throws {
     var firstError: (any Error)?
     do {
-      for hook in activeHooks(.beforeEach) { try hook.callMainBody() }
+      for hook in selectedHooks(.beforeEach) { try hook.callMainBody() }
       if child.isGroup { try child.traverseOnMainActor() }
       else { try child.callMainBody() }
     }
     catch { firstError = error }
-    for hook in activeHooks(.afterEach) {
+    for hook in selectedHooks(.afterEach) {
       do { try hook.callMainBody() }
       catch { firstError = firstError ?? error }
     }

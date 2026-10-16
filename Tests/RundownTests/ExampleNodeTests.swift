@@ -87,6 +87,61 @@ final class ExampleNodeTests: XCTestCase {
     XCTAssertTrue(node.children[1].children[0].isFocused)
   }
 
+  func testSelectionKeepsExcludedNodesInTheTree() {
+    let node = (describe("Root") {
+      it("a") {}
+      xIt("b") {}
+      xContext("c") { it("inside") {} }
+      context("d") {
+        beforeEach("skipped", .excluded) {}
+        beforeEach("kept") {}
+        it("e") {}
+      }
+    } as ExampleGroup<SyncCall>).node
+
+    // Everything is still there
+    XCTAssertEqual(node.children.map(\.name), ["a", "b", "c", "d"])
+    XCTAssertEqual(node.children.map(\.isSelected), [true, false, false, true])
+    XCTAssertEqual(node.selectedChildren.map(\.name), ["a", "d"])
+    // The children of an excluded group are kept and still resolve on their own
+    XCTAssertEqual(node.children[2].children.map(\.name), ["inside"])
+    XCTAssertEqual(node.children[2].children.map(\.isSelected), [true])
+
+    let hooks = node.children[3].hooks(.beforeEach)
+    XCTAssertEqual(hooks.map(\.isSelected), [false, true])
+    XCTAssertEqual(node.children[3].selectedHooks(.beforeEach).map(\.name),
+                   ["before each: kept"])
+  }
+
+  func testFocusSelectsOnlyFocusedBranches() {
+    let node = (describe("Root") {
+      it("plain") {}
+      context("holds focus") {
+        it("not focused") {}
+        fIt("focused") {}
+      }
+      fContext("focused group") {
+        it("inside") {}
+      }
+      xIt("excluded") {}
+    } as ExampleGroup<SyncCall>).node
+
+    XCTAssertEqual(node.children.map(\.isSelected), [false, true, true, false])
+    // Focus applies within each group
+    let holder = node.children[1]
+    XCTAssertEqual(holder.children.map(\.isSelected), [false, true])
+    // A focused group's own children aren't narrowed by it
+    XCTAssertEqual(node.children[2].children.map(\.isSelected), [true])
+  }
+
+  func testRootIsAlwaysSelected() {
+    let node = (describe("Root", .excluded) {
+      it("a") {}
+    } as ExampleGroup<SyncCall>).node
+    XCTAssertTrue(node.isSelected)
+    XCTAssertTrue(node.isExcluded)
+  }
+
   /// The node tree agrees with what the group itself reports
   func testMatchesGroupFocus() {
     let group = describe("Root") {
@@ -128,6 +183,7 @@ final class NodeTraversalTests: XCTestCase {
   enum Scenario: CaseIterable {
     case clean, failingExample, failingBeforeEach, failingAfterEach
     case failingBeforeAll, failingAfterAll, focused
+    case allExcluded, excludedHook, focusedInsideExcluded
   }
 
   func group(_ scenario: Scenario, _ log: Box<[String]>) -> ExampleGroup<AsyncCall> {
@@ -152,6 +208,25 @@ final class NodeTraversalTests: XCTestCase {
           fIt("focused") { log.note("focused") }
         }
         afterEach { log.note("nested afterEach") }
+      }
+      if scenario == .allExcluded {
+        context("all excluded") {
+          beforeAll { log.note("hooks of an empty group") }
+          xIt("x") { log.note("x") }
+          afterAll { log.note("hooks of an empty group") }
+        }
+      }
+      if scenario == .excludedHook {
+        context("hooked") {
+          beforeEach("skipped", .excluded) { log.note("excluded hook") }
+          it("h") { log.note("h") }
+        }
+      }
+      if scenario == .focusedInsideExcluded {
+        context("holder") {
+          it("plain") { log.note("plain") }
+          xContext("out") { fIt("focused but out") { log.note("out") } }
+        }
       }
       afterEach { log.note("afterEach"); try maybeFail(scenario == .failingAfterEach, 4) }
       afterAll { log.note("afterAll"); try maybeFail(scenario == .failingAfterAll, 5) }
