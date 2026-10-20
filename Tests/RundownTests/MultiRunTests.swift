@@ -41,27 +41,15 @@ class MultiRunTests: XCTestCase {
     try xcTestRunner(group: .init(fromSync: group))
   }
 
-  /// The node traversal, which is meant to replace the runners above
-  func nodeRunner(group: ExampleGroup<SyncCall>) throws {
-    try group.node.run(with: PlainReporter())
-  }
-
-  func asyncNodeRunner(group: ExampleGroup<SyncCall>) async throws {
-    try await ExampleGroup<AsyncCall>(fromSync: group).node.run(with: PlainReporter())
-  }
-
   func useAllRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void, String) async throws -> Void) async throws {
     try await test(plainRunner, "plain")
     try await test(xcTestRunner, "XCTest")
     try await test(asyncRunner, "async")
-    try await test(nodeRunner, "node")
-    try await test(asyncNodeRunner, "async node")
   }
 
   func useSyncRunners(test: @MainActor ((ExampleGroup<SyncCall>) throws -> Void, String) throws -> Void) throws {
     try test(plainRunner, "plain")
     try test(xcTestRunner, "XCTest")
-    try test(nodeRunner, "node")
   }
 
   func testExcludeOneOfTwo() async throws {
@@ -532,8 +520,6 @@ class MultiRunTests: XCTestCase {
   func useThrowingRunners(test: @MainActor ((ExampleGroup<SyncCall>) async throws -> Void, String) async throws -> Void) async throws {
     try await test(plainRunner, "plain")
     try await test(asyncRunner, "async")
-    try await test(nodeRunner, "node")
-    try await test(asyncNodeRunner, "async node")
   }
 
   /// A group that fails in some way, and the log that every runner should

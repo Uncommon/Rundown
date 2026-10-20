@@ -5,20 +5,6 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
   }
   public let traits: [any Trait]
   let block: Call.AroundCallback
-  
-  @DeAsyncRD
-  func execute(around callback: @Sendable () async throws -> Void) async throws where Call == AsyncCall {
-    try await block {
-      try await callback()
-    }
-  }
-  
-  @DeAsyncRD @MainActor
-  func execute(around callback: @Sendable @MainActor () async throws -> Void) async throws where Call == AsyncMainCall {
-    try await block {
-      try await callback()
-    }
-  }
 }
 
 @DeAsyncRD

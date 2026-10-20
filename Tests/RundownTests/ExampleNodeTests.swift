@@ -134,6 +134,26 @@ final class ExampleNodeTests: XCTestCase {
     XCTAssertEqual(node.children[2].children.map(\.isSelected), [true])
   }
 
+  /// Unintended, probably, but kept from the old `filterFocusSkip` so that
+  /// behavior doesn't change: a focused node inside an excluded subtree makes
+  /// the groups around it count as focused, so their siblings are left out.
+  func testFocusInsideExcludedSubtreeStillCountsAsFocus() {
+    let node = (describe("Root") {
+      it("sibling") {}
+      context("holder") {
+        it("plain") {}
+        xContext("out") {
+          fIt("focused but out") {}
+        }
+      }
+    } as ExampleGroup<SyncCall>).node
+
+    XCTAssertEqual(node.children.map(\.isSelected), [false, true])
+    // Inside the holder nothing that runs is focused, so everything that
+    // isn't excluded runs
+    XCTAssertEqual(node.children[1].children.map(\.isSelected), [true, false])
+  }
+
   func testRootIsAlwaysSelected() {
     let node = (describe("Root", .excluded) {
       it("a") {}
@@ -172,154 +192,5 @@ final class ExampleNodeMainActorTests: XCTestCase, MainActorSuite {
     XCTAssertEqual(sync.execution, .sync)
     XCTAssertEqual(async.execution, .async)
     XCTAssertEqual(sync.hooks(.aroundEach)[0].isolation, .mainActor)
-  }
-}
-
-// MARK: - Traversal
-
-/// The traversal over nodes should behave like the existing runners:
-/// same calls in the same order, and the same first error.
-final class NodeTraversalTests: XCTestCase {
-  enum Scenario: CaseIterable {
-    case clean, failingExample, failingBeforeEach, failingAfterEach
-    case failingBeforeAll, failingAfterAll, focused
-    case allExcluded, excludedHook, focusedInsideExcluded
-  }
-
-  func group(_ scenario: Scenario, _ log: Box<[String]>) -> ExampleGroup<AsyncCall> {
-    @Sendable func maybeFail(_ failing: Bool, _ id: Int) throws {
-      if failing { throw TestError(id: id) }
-    }
-    return describe("Root") {
-      beforeAll { log.note("beforeAll"); try maybeFail(scenario == .failingBeforeAll, 1) }
-      aroundEach("outer") { callback in
-        log.note("outer>"); try await callback(); log.note("<outer")
-      }
-      aroundEach("inner") { callback in
-        log.note("inner>"); try await callback(); log.note("<inner")
-      }
-      beforeEach { log.note("beforeEach"); try maybeFail(scenario == .failingBeforeEach, 2) }
-      it("first") { log.note("first"); try maybeFail(scenario == .failingExample, 3) }
-      xIt("excluded") { log.note("excluded") }
-      context("nested") {
-        beforeEach { log.note("nested beforeEach") }
-        it("second") { log.note("second"); await Task.yield() }
-        if scenario == .focused {
-          fIt("focused") { log.note("focused") }
-        }
-        afterEach { log.note("nested afterEach") }
-      }
-      if scenario == .allExcluded {
-        context("all excluded") {
-          beforeAll { log.note("hooks of an empty group") }
-          xIt("x") { log.note("x") }
-          afterAll { log.note("hooks of an empty group") }
-        }
-      }
-      if scenario == .excludedHook {
-        context("hooked") {
-          beforeEach("skipped", .excluded) { log.note("excluded hook") }
-          it("h") { log.note("h") }
-        }
-      }
-      if scenario == .focusedInsideExcluded {
-        context("holder") {
-          it("plain") { log.note("plain") }
-          xContext("out") { fIt("focused but out") { log.note("out") } }
-        }
-      }
-      afterEach { log.note("afterEach"); try maybeFail(scenario == .failingAfterEach, 4) }
-      afterAll { log.note("afterAll"); try maybeFail(scenario == .failingAfterAll, 5) }
-    }
-  }
-
-  func testAsyncNodesMatchRunner() async throws {
-    for scenario in Scenario.allCases {
-      let expected = Box([String]())
-      let actual = Box([String]())
-      var expectedError: (any Error)?
-      var actualError: (any Error)?
-
-      do { try await group(scenario, expected).run() }
-      catch { expectedError = error }
-      do { try await group(scenario, actual).node.run(with: PlainReporter()) }
-      catch { actualError = error }
-
-      XCTAssertEqual(actual.wrappedValue, expected.wrappedValue, "\(scenario)")
-      XCTAssertEqual((actualError as? TestError)?.id, (expectedError as? TestError)?.id,
-                     "\(scenario)")
-      XCTAssertFalse(expected.wrappedValue.isEmpty)
-    }
-  }
-}
-
-final class NodeTraversalMainActorTests: XCTestCase, MainActorSuite {
-  @MainActor
-  func group(failing: Bool, _ log: Box<[String]>) -> ExampleGroup<SyncMainCall> {
-    describe("Root") {
-      beforeAll { log.note("beforeAll") }
-      aroundEach { callback in
-        MainActor.assertIsolated()
-        log.note("around>"); try callback(); log.note("<around")
-      }
-      beforeEach { log.note("beforeEach") }
-      it("first") { log.note("first"); if failing { throw TestError(id: 3) } }
-      context("nested") {
-        it("second") { log.note("second") }
-      }
-      afterEach { log.note("afterEach") }
-      afterAll { log.note("afterAll") }
-    }
-  }
-
-  @MainActor
-  func testMainActorNodesMatchRunner() throws {
-    for failing in [false, true] {
-      let expected = Box([String]())
-      let actual = Box([String]())
-      var expectedError: (any Error)?
-      var actualError: (any Error)?
-
-      do { try group(failing: failing, expected).run() }
-      catch { expectedError = error }
-      do { try group(failing: failing, actual).node.run(with: PlainReporter()) }
-      catch { actualError = error }
-
-      XCTAssertEqual(actual.wrappedValue, expected.wrappedValue, "failing: \(failing)")
-      XCTAssertEqual((actualError as? TestError)?.id, (expectedError as? TestError)?.id)
-      XCTAssertFalse(expected.wrappedValue.isEmpty)
-    }
-  }
-}
-
-final class NodeTraversalAsyncMainTests: XCTestCase, MainActorSuite {
-  @MainActor
-  func group(_ log: Box<[String]>) -> ExampleGroup<AsyncMainCall> {
-    describe("Root") {
-      beforeAll { log.note("beforeAll") }
-      aroundEach { callback in
-        MainActor.assertIsolated()
-        log.note("around>"); try await callback(); log.note("<around")
-      }
-      beforeEach { await Task.yield(); log.note("beforeEach") }
-      it("first") { MainActor.assertIsolated(); log.note("first") }
-      context("nested") {
-        it("second") { await Task.yield(); log.note("second") }
-      }
-      afterEach { log.note("afterEach") }
-      afterAll { log.note("afterAll") }
-    }
-  }
-
-  @MainActor
-  func testAsyncMainNodesMatchRunner() async throws {
-    let expected = Box([String]())
-    let actual = Box([String]())
-
-    try await group(expected).run()
-    try await group(actual).node.run(with: PlainReporter())
-
-    XCTAssertEqual(actual.wrappedValue, expected.wrappedValue)
-    XCTAssertFalse(expected.wrappedValue.isEmpty)
   }
 }

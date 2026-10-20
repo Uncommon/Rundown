@@ -1,11 +1,9 @@
 import Foundation
 
-// This is the single traversal that replaces the five there were: the four
-// `ExampleRunner.run()` variants and `runActivity()` for XCTest. The XCTest
-// runner already uses it, through `XCTestReporter`. The plain runners still
-// have their own, and `MultiRunTests` runs the same groups through both to
-// check that the calls, their order and the first error come out the same.
-// The plain runners move onto it in task 6 of Documentation/Roadmap.md.
+// This is the one traversal of a spec. It runs every spec: `ExampleRunner.run()`
+// and `ExampleGroup.run()` in all four call types go through it, with
+// `PlainReporter`, and `runActivity()` for XCTest goes through it with
+// `XCTestReporter`.
 //
 // Isolation is part of the closure types, so the traversal is written once as
 // async and the sync version is generated from it with @DeAsyncRD. Both handle

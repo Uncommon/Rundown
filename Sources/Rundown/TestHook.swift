@@ -5,18 +5,6 @@ public struct TestHook<Phase: HookPhase, Call: CallType>: TestElement, Sendable 
   }
   public let traits: [any Trait]
   let block: Call.Callback
-
-  @DeAsyncRD
-  public func execute(in runner: ExampleRunner) async throws
-                      where Call == AsyncCall {
-    try await block()
-  }
-
-  @DeAsyncRD @MainActor
-  public func execute(in runner: ExampleRunner) async throws
-                      where Call == AsyncMainCall {
-    try await block()
-  }
 }
 
 extension TestHook where Call == SyncCall {

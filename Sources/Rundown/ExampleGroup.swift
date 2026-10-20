@@ -79,16 +79,6 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   public func run() async throws where Call == AsyncMainCall {
     try await ExampleRunner.run(self)
   }
-
-  @DeAsyncRD
-  public func execute(in runner: ExampleRunner) async throws where Call == AsyncCall {
-    try await runner.run(self)
-  }
-
-  @DeAsyncRD @MainActor
-  public func execute(in runner: ExampleRunner) async throws where Call == AsyncMainCall {
-    try await runner.run(self)
-  }
 }
 
 extension ExampleGroup where Call == AsyncCall {

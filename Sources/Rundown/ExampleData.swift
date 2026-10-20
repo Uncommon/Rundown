@@ -85,18 +85,6 @@ public struct It<Call: CallType>: TestExample {
     self.traits = other.traits
     self.block = other.block
   }
-
-  @DeAsyncRD
-  public func execute(in runner: ExampleRunner) async throws
-                      where Call == AsyncCall {
-    try await block()
-  }
-
-  @DeAsyncRD @MainActor
-  public func execute(in runner: ExampleRunner) async throws
-                      where Call == AsyncMainCall {
-    try await block()
-  }
 }
 
 // The SyncCall and AsyncCall versions could be a single generic function, but
