@@ -117,6 +117,55 @@ final class MessageXCTests: Rundown.TestCase {
     XCTAssert(ranAfterAll.wrappedValue, "AfterAll did not run")
   }
 
+  // A skip ends only the node that threw it. Each scenario has its own test so
+  // that a skip that escapes can't end the test early and leave the other
+  // scenarios' assertions unchecked.
+
+  func testSkipInAfterEachDoesNotAbortTheRun() throws {
+    let log = Box([String]())
+
+    try spec("Skip") {
+      context("skipping in AfterEach") {
+        it("first") { log.note("first") }
+        afterEach("skips") { throw XCTSkip("skip AfterEach") }
+        afterEach("next") { log.note("afterEach") }
+      }
+      it("second") { log.note("second") }
+      afterAll { log.note("afterAll") }
+    }
+    XCTAssertEqual(log.wrappedValue, ["first", "afterEach", "second", "afterAll"])
+  }
+
+  func testSkipInAfterAllDoesNotAbortTheRun() throws {
+    let log = Box([String]())
+
+    try spec("Skip") {
+      context("skipping in AfterAll") {
+        it("first") { log.note("first") }
+        afterAll("skips") { throw XCTSkip("skip AfterAll") }
+        afterAll("next") { log.note("afterAll") }
+      }
+      it("second") { log.note("second") }
+    }
+    XCTAssertEqual(log.wrappedValue, ["first", "afterAll", "second"])
+  }
+
+  func testSkipInAroundEachDoesNotAbortTheRun() throws {
+    let log = Box([String]())
+
+    try spec("Skip") {
+      context("skipping in AroundEach") {
+        aroundEach("skips") { callback in
+          log.note("around")
+          throw XCTSkip("skip AroundEach")
+        }
+        it("not run") { XCTFail("should not run It") }
+      }
+      it("second") { log.note("second") }
+    }
+    XCTAssertEqual(log.wrappedValue, ["around", "second"])
+  }
+
   /// An error is recorded where it happens, so the issue carries the full path
   /// including the name of the hook.
   func testErrorInBeforeEachIncludesPath() throws {

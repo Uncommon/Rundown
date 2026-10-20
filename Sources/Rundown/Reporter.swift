@@ -36,9 +36,18 @@ protocol Reporter: Sendable {
   /// returned disposition says whether the traversal should rethrow the error
   /// once the run is over, or consider it dealt with.
   ///
-  /// This is also where a reporter logs a skip. The disposition of a skip
-  /// matters only where a skip counts as a failure.
+  /// This is also where a reporter logs a skip. The disposition of a skip is
+  /// ignored: a skip never propagates.
   func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition
+
+  /// Whether groups with the `.concurrent` trait run their children at once.
+  /// If not, the trait is ignored and they run one after another. The XCTest
+  /// reporter says no, because `XCTContext` only works on the main thread.
+  var allowsConcurrency: Bool { get }
+}
+
+extension Reporter {
+  var allowsConcurrency: Bool { true }
 }
 
 enum ErrorKind: Hashable, Sendable {

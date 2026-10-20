@@ -108,7 +108,7 @@ An error never skips teardown or the remaining elements. Everything that can sti
 * If an example or an `afterEach` hook throws, the group carries on with its next element.
 * Every `afterEach` and `afterAll` hook runs, even if one before it threw.
 
-`XCTSkip` is different: it means that something does not apply, so there is nothing to undo. A skip in `beforeAll` skips the whole group, including `afterAll`. A skip in `beforeEach` skips that element, including its `afterEach` hooks. A skip in an example still runs the `afterEach` hooks.
+`XCTSkip` is different: it means that something does not apply, so there is nothing to undo. A skip in `beforeAll` skips the whole group, including `afterAll`. A skip in `beforeEach` skips that element, including its `afterEach` hooks. A skip in an example still runs the `afterEach` hooks. A skip in an `afterEach`, `afterAll` or `aroundEach` hook is logged and ignored: the rest of the run carries on.
 
 ## MainActor tests
 

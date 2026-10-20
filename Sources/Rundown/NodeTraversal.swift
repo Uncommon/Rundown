@@ -1,19 +1,11 @@
 import Foundation
 
-// This is the start of the single traversal that is meant to replace the
-// five that exist now: the four `ExampleRunner.run()` variants and
-// `runActivity()` for XCTest. Nothing in the library calls it yet. Only tests
-// do (`MultiRunTests` and the `NodeTraversal*` tests), which run the same
-// groups through this and through the existing runners to check that the
-// calls, their order and the first error come out the same.
-//
-// What it lacks (see the Phase 1 tasks in Documentation/Roadmap.md): a guard
-// that the sync version is only reached on the main actor when it has
-// main-actor nodes, since it relies on `MainActor.assumeIsolated`, and the
-// "already running" warning of `ExampleRunner.run()`.
-//
-// Then the XCTest runner (task 5) and the plain runners (task 6) move onto it
-// and the old traversals are deleted.
+// This is the single traversal that replaces the five there were: the four
+// `ExampleRunner.run()` variants and `runActivity()` for XCTest. The XCTest
+// runner already uses it, through `XCTestReporter`. The plain runners still
+// have their own, and `MultiRunTests` runs the same groups through both to
+// check that the calls, their order and the first error come out the same.
+// The plain runners move onto it in task 6 of Documentation/Roadmap.md.
 //
 // Isolation is part of the closure types, so the traversal is written once as
 // async and the sync version is generated from it with @DeAsyncRD. Both handle
@@ -76,7 +68,8 @@ extension ExampleNode {
 
     // Rejected up front: a beforeAll that had already run would never get its
     // matching afterAll.
-    if isConcurrent && isolation == .mainActor {
+    let concurrent = isConcurrent && reporter.allowsConcurrency
+    if concurrent && isolation == .mainActor {
       throw ConcurrentDisallowedError()
     }
 
@@ -97,7 +90,7 @@ extension ExampleNode {
       break
     }
     if setUpSucceeded {
-      let childError = await forEachChild(selected, concurrently: isConcurrent) { child in
+      let childError = await forEachChild(selected, concurrently: concurrent) { child in
         try await self.runAround(self.selectedHooks(.aroundEach)[...], reporter) {
           try await self.runElement(child, reporter)
         }
