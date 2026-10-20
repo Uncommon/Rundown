@@ -144,6 +144,10 @@ struct ExampleNode: Sendable {
   }
 }
 
+extension ExampleNode: TestElement {
+  var description: String { name }
+}
+
 // MARK: - Building
 
 /// Lets the node builder get at what is specific to each call type. This is

@@ -1,3 +1,5 @@
+import Foundation
+
 // This is the start of the single traversal that is meant to replace the
 // five that exist now: the four `ExampleRunner.run()` variants and
 // `runActivity()` for XCTest. Nothing in the library calls it yet. Only
@@ -5,9 +7,10 @@
 // through the existing runners to check that the calls, their order and the
 // first error come out the same.
 //
-// What it lacks, and where it gets it (see the Phase 1 tasks in
-// Documentation/Roadmap.md):
-// - The element path and `.concurrent`. Task 4.
+// What it lacks (see the Phase 1 tasks in Documentation/Roadmap.md): a guard
+// that the sync version is only reached on the main actor when it has
+// main-actor nodes, since it relies on `MainActor.assumeIsolated`, and the
+// "already running" warning of `ExampleRunner.run()`.
 //
 // Then the XCTest runner (task 5) and the plain runners (task 6) move onto it
 // and the old traversals are deleted.
@@ -20,17 +23,31 @@
 // MARK: Traversal
 
 extension ExampleNode {
-  /// Runs a group as the root of a run, in its own scope. Errors that the
-  /// reporter propagates are thrown after everything has run.
+  /// Runs a group as the root of a run, in its own scope, with a runner of its
+  /// own and a fresh path. Errors that the reporter propagates are thrown after
+  /// everything has run.
   @DeAsyncRD
   func run(with reporter: any Reporter) async throws {
     var thrown: (any Error)?
-    await reporter.scope(for: self) {
-      do { try await traverse(reporter) }
-      catch { thrown = error }
+    await ExampleRunner.$current.withValue(ExampleRunner()) {
+      await ExampleRunner.$elementStack.withValue([]) {
+        await withPath {
+          await reporter.scope(for: self) {
+            do { try await traverse(reporter) }
+            catch { thrown = error }
+          }
+        }
+      }
     }
-    if let thrown {
-      throw thrown
+    if let thrown { throw thrown }
+  }
+
+  /// Runs `body` with this node on the path, so that code inside it can find
+  /// out where it is through `ExampleRunner.current`.
+  @DeAsyncRD
+  fileprivate func withPath(_ body: () async -> Void) async {
+    await ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [self]) {
+      await body()
     }
   }
 
@@ -52,6 +69,12 @@ extension ExampleNode {
     guard !selected.isEmpty
     else { return }
 
+    // Rejected up front: a beforeAll that had already run would never get its
+    // matching afterAll.
+    if isConcurrent && isolation == .mainActor {
+      throw ConcurrentDisallowedError()
+    }
+
     var firstError: (any Error)?
     var setUpSucceeded = true
 
@@ -69,14 +92,12 @@ extension ExampleNode {
       break
     }
     if setUpSucceeded {
-      for child in selected {
-        do {
-          try await runAround(selectedHooks(.aroundEach)[...], reporter) {
-            try await self.runElement(child, reporter)
-          }
+      let childError = await forEachChild(selected, concurrently: isConcurrent) { child in
+        try await self.runAround(self.selectedHooks(.aroundEach)[...], reporter) {
+          try await self.runElement(child, reporter)
         }
-        catch { firstError = firstError ?? error }
       }
+      firstError = firstError ?? childError
     }
     // Teardown runs even if setup failed
     for hook in selectedHooks(.afterAll) {
@@ -133,11 +154,13 @@ extension ExampleNode {
     }
 
     var outcome = Outcome.completed
-    
-    await reporter.scope(for: self) {
-      // Errors from inside a group have already been reported
-      do { try await traverse(reporter) }
-      catch { outcome = .failed(error) }
+
+    await withPath {
+      await reporter.scope(for: self) {
+        // Errors from inside a group have already been reported
+        do { try await traverse(reporter) }
+        catch { outcome = .failed(error) }
+      }
     }
     return outcome
   }
@@ -146,13 +169,15 @@ extension ExampleNode {
   @DeAsyncRD
   fileprivate func runLeaf(_ reporter: any Reporter) async -> Outcome {
     var outcome = Outcome.completed
-    
-    await reporter.scope(for: self) {
-      do {
-        try await callBody()
-      }
-      catch {
-        outcome = outcomeOf(error, reporter)
+
+    await withPath {
+      await reporter.scope(for: self) {
+        do {
+          try await callBody()
+        }
+        catch {
+          outcome = outcomeOf(error, reporter)
+        }
       }
     }
     return outcome
@@ -223,6 +248,18 @@ extension ExampleNode {
 
 // MARK: Per-flavor helpers
 
+/// Keeps the first error from a set of concurrent children.
+private final class FirstError: @unchecked Sendable {
+  private let lock = NSLock()
+  private var error: (any Error)?
+
+  func note(_ newError: any Error) {
+    lock.withLock { error = error ?? newError }
+  }
+
+  var value: (any Error)? { lock.withLock { error } }
+}
+
 extension ExampleNode {
   /// Async: any body can be called. A main-actor body is awaited, which hops
   /// to the main actor and back.
@@ -264,5 +301,64 @@ extension ExampleNode {
       case .async, .asyncMain: throw UnexpectedAsyncError()
       case nil: preconditionFailure("node has no around body")
     }
+  }
+}
+
+extension ExampleNode {
+  /// Runs `body` for each child, one after another or all at once, and returns
+  /// the first error. An error doesn't stop the other children.
+  ///
+  /// Async: children run in a task group, and inherit the runner and the path.
+  fileprivate func forEachChild(_ children: [ExampleNode],
+                                concurrently: Bool,
+                                _ body: @escaping @Sendable (ExampleNode) async throws -> Void) async -> (any Error)? {
+    let first = FirstError()
+
+    if concurrently {
+      await withTaskGroup(of: Void.self) { group in
+        for child in children {
+          group.addTask {
+            do { try await body(child) }
+            catch { first.note(error) }
+          }
+        }
+      }
+    }
+    else {
+      for child in children {
+        do { try await body(child) }
+        catch { first.note(error) }
+      }
+    }
+    return first.value
+  }
+
+  /// Sync: children run with `DispatchQueue.concurrentPerform()`. Its threads
+  /// don't inherit task-locals, so the runner and the path are bound again.
+  fileprivate func forEachChild(_ children: [ExampleNode],
+                                concurrently: Bool,
+                                _ body: @escaping @Sendable (ExampleNode) throws -> Void) -> (any Error)? {
+    let first = FirstError()
+
+    if concurrently {
+      let runner = ExampleRunner.current
+      let path = ExampleRunner.elementStack
+
+      DispatchQueue.concurrentPerform(iterations: children.count) { index in
+        ExampleRunner.$current.withValue(runner) {
+          ExampleRunner.$elementStack.withValue(path) {
+            do { try body(children[index]) }
+            catch { first.note(error) }
+          }
+        }
+      }
+    }
+    else {
+      for child in children {
+        do { try body(child) }
+        catch { first.note(error) }
+      }
+    }
+    return first.value
   }
 }
