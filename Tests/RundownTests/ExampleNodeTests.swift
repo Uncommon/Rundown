@@ -242,7 +242,7 @@ final class NodeTraversalTests: XCTestCase {
 
       do { try await group(scenario, expected).run() }
       catch { expectedError = error }
-      do { try await group(scenario, actual).node.traverse() }
+      do { try await group(scenario, actual).node.run(with: PlainReporter()) }
       catch { actualError = error }
 
       XCTAssertEqual(actual.wrappedValue, expected.wrappedValue, "\(scenario)")
@@ -282,7 +282,7 @@ final class NodeTraversalMainActorTests: XCTestCase, MainActorSuite {
 
       do { try group(failing: failing, expected).run() }
       catch { expectedError = error }
-      do { try group(failing: failing, actual).node.traverse() }
+      do { try group(failing: failing, actual).node.run(with: PlainReporter()) }
       catch { actualError = error }
 
       XCTAssertEqual(actual.wrappedValue, expected.wrappedValue, "failing: \(failing)")
@@ -317,7 +317,7 @@ final class NodeTraversalAsyncMainTests: XCTestCase, MainActorSuite {
     let actual = Box([String]())
 
     try await group(expected).run()
-    try await group(actual).node.traverse()
+    try await group(actual).node.run(with: PlainReporter())
 
     XCTAssertEqual(actual.wrappedValue, expected.wrappedValue)
     XCTAssertFalse(expected.wrappedValue.isEmpty)
