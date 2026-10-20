@@ -8,10 +8,6 @@
 // What it lacks, and where it gets it (see the Phase 1 tasks in
 // Documentation/Roadmap.md):
 // - The element path and `.concurrent`. Task 4.
-// - The rest of the skip rules. A skip in a setup hook or an example follows
-//   "Error and skip rules" in the roadmap, but a skip in a teardown hook or an
-//   `aroundEach` hook is treated like a failure for now, because the XCTest
-//   behavior there (it aborts the whole run) is a quirk that is undecided.
 //
 // Then the XCTest runner (task 5) and the plain runners (task 6) move onto it
 // and the old traversals are deleted.
@@ -165,9 +161,10 @@ extension ExampleNode {
   private func outcomeOf(_ error: any Error, _ reporter: any Reporter) -> Outcome {
     let kind = reporter.classify(error)
     let disposition = reporter.report(error, kind: kind, at: self)
-    let isTeardown = self.kind == .hook(.afterEach) || self.kind == .hook(.afterAll)
 
-    if kind == .skip && !isTeardown {
+    // A skip ends only the node that threw it, whether that's a setup hook, an
+    // example or a teardown hook. What follows is up to the caller.
+    if kind == .skip {
       return .skipped
     }
     return .failed(disposition == .propagate ? error : nil)
@@ -212,7 +209,12 @@ extension ExampleNode {
       // Otherwise the hook threw it, before calling the callback or after it
       // returned.
       let kind = reporter.classify(error)
-      if reporter.report(error, kind: kind, at: hook) == .propagate {
+      let disposition = reporter.report(error, kind: kind, at: hook)
+
+      // A skip ends only the hook. Before the callback, that means the element
+      // doesn't run and nothing needs undoing. After it, the element and its
+      // teardown have already run.
+      if kind != .skip && disposition == .propagate {
         throw error
       }
     }
