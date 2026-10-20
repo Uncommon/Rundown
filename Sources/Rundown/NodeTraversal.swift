@@ -2,10 +2,10 @@ import Foundation
 
 // This is the start of the single traversal that is meant to replace the
 // five that exist now: the four `ExampleRunner.run()` variants and
-// `runActivity()` for XCTest. Nothing in the library calls it yet. Only
-// `NodeTraversalTests` do, and they run the same groups through this and
-// through the existing runners to check that the calls, their order and the
-// first error come out the same.
+// `runActivity()` for XCTest. Nothing in the library calls it yet. Only tests
+// do (`MultiRunTests` and the `NodeTraversal*` tests), which run the same
+// groups through this and through the existing runners to check that the
+// calls, their order and the first error come out the same.
 //
 // What it lacks (see the Phase 1 tasks in Documentation/Roadmap.md): a guard
 // that the sync version is only reached on the main actor when it has
@@ -28,6 +28,11 @@ extension ExampleNode {
   /// everything has run.
   @DeAsyncRD
   func run(with reporter: any Reporter) async throws {
+    await checkCanRun()
+    if let current = ExampleRunner.current {
+      ExampleRunner.logger.error("running new element \"\(name)\" when already running \"\(current.description)\"")
+    }
+
     var thrown: (any Error)?
     await ExampleRunner.$current.withValue(ExampleRunner()) {
       await ExampleRunner.$elementStack.withValue([]) {
@@ -305,6 +310,21 @@ extension ExampleNode {
 }
 
 extension ExampleNode {
+  /// Async: any group can run from anywhere, because main-actor bodies are
+  /// awaited.
+  fileprivate func checkCanRun() async {}
+
+  /// Sync: main-actor bodies are called with `assumeIsolated`, which traps if
+  /// the code isn't on the main actor. This traps first, before anything has
+  /// run and with a message that says why, instead of partway through, when a
+  /// `beforeAll` has run and its `afterAll` never will.
+  fileprivate func checkCanRun() {
+    // A sync group can't mix isolations, so the root says what is inside
+    if isolation == .mainActor {
+      MainActor.preconditionIsolated("a group with main-actor nodes has to be run on the main actor")
+    }
+  }
+
   /// Runs `body` for each child, one after another or all at once, and returns
   /// the first error. An error doesn't stop the other children.
   ///
