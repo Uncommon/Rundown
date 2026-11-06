@@ -55,6 +55,10 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "RundownSwiftTestingTests",
+            dependencies: ["Rundown", "RundownSwiftTesting"]
+        ),
+        .testTarget(
             name: "RundownCompileFailureTests",
             dependencies: []
         ),
