@@ -20,7 +20,7 @@ What a throwaway test under Swift Testing found (reading its source first, then 
 What this decides for the tasks:
 
 - `SwiftTestingReporter` takes `allowsConcurrency` when it is created. The `spec` overloads in task 5 will pass `false` for the sync traversal and `true` for the async traversal.
-- A skip under Swift Testing means "stop": finish teardown, run no more examples. Running on in a cancelled task is wrong, and the test is already marked cancelled. The traversal needs a way for a reporter to say so, such as a `Disposition` or a flag that the traversal checks before each element. Settle the shape in task 7.
+- A skip under Swift Testing means "stop": finish teardown, run no more examples. Running on in a cancelled task is wrong, and the test is already marked cancelled. The traversal needs a way for a reporter to say so, such as an `ErrorHandlingDecision` or a flag that the traversal checks before each element. Settle the shape in task 7.
 - `SwiftTestingReporter` runs both scope closures inline and records thrown failures with the full Rundown path as an issue comment. It classifies `ExpectationFailedError` as an already reported failure and handles `Testing.SkipInfo` or `CancellationError` in a cancelled task as a skip. The skip classification uses the qualified type name for `Testing.SkipInfo`, which the toolchain does not expose.
 
 The adapter boundary uses Swift `package` access. A separate module in the package ran all four call types through `ExampleGroup.node` and `ExampleNode.run(with:)`, including the macro-generated sync overload. The compiler rejected access from a different package.
@@ -97,7 +97,7 @@ A group whose elements are all excluded runs no hooks at all.
 
 ### What this means for the design
 
-- The traversal's flow is the same for both runners except for skips. Failures differ only in disposition, so `record` or `propagate` belongs to the reporter, and the table's "failure" column to the traversal.
+- The traversal's flow is the same for both runners except for skips. The reporter decides whether to `record` or `propagate` a failure. The table's "failure" column describes what the traversal does.
 - Skips need a rule per phase, in the traversal: a *setup skip* abandons the element or group without teardown, and a skip anywhere else (an example, a teardown hook, an `aroundEach` hook) is swallowed and ends only the node that threw it. The reporter only classifies an error as failure or skip, and logs it. It does not decide what a skip does.
 
 ### Behavior changes

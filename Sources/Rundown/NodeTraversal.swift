@@ -184,14 +184,14 @@ extension ExampleNode {
     if kind == .alreadyReported {
       return .failed(nil)
     }
-    let disposition = reporter.report(error, kind: kind, at: self)
+    let decision = reporter.report(error, kind: kind, at: self)
 
     // A skip ends only the node that threw it, whether that's a setup hook, an
     // example or a teardown hook. What follows is up to the caller.
     if kind == .skip {
       return .skipped
     }
-    return .failed(disposition == .propagate ? error : nil)
+    return .failed(decision == .propagate ? error : nil)
   }
 
   /// Nests the `aroundEach` hooks, outermost first, around `inner`.

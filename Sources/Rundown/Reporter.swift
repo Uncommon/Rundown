@@ -8,8 +8,8 @@
 ///   to wrap the node's execution because it takes a closure;
 /// - **classification** of an error as a failure or a skip, since `XCTSkip` is
 ///   a framework type that the traversal doesn't know about;
-/// - the **disposition** of an error: whether it is recorded where it
-///   happened, such as as an `XCTIssue`, or propagated to the caller.
+/// - a **decision** about whether to record the error where it happened,
+///   for example as an `XCTIssue`, or propagate it to the caller.
 ///
 /// A reporter is `Sendable` because concurrent groups call it from several
 /// tasks or threads. Its methods are not isolated. A reporter that needs the
@@ -33,12 +33,12 @@ package protocol Reporter: Sendable {
 
   /// Called for a new failure or skip thrown by a node's own code, in the
   /// scope of that node, except for `aroundEach` hooks, which have no scope.
-  /// The returned disposition says whether the traversal should rethrow the
+  /// The returned decision says whether the traversal should rethrow the
   /// error once the run is over, or consider it dealt with.
   ///
-  /// This is also where a reporter logs a skip. The disposition of a skip is
-  /// ignored: a skip never propagates.
-  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition
+  /// This is also where a reporter logs a skip. The traversal ignores the
+  /// returned decision for skips.
+  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision
 
   /// Whether groups with the `.concurrent` trait run their children at once.
   /// If not, the trait is ignored and they run one after another. The XCTest
@@ -59,7 +59,9 @@ package enum ErrorKind: Hashable, Sendable {
   case skip
 }
 
-package enum Disposition: Hashable, Sendable {
+/// The reporter's decision to treat a thrown failure as handled or let the
+/// traversal rethrow it after teardown. The traversal ignores this value for skips.
+package enum ErrorHandlingDecision: Hashable, Sendable {
   /// The reporter has recorded the error. The traversal carries on and doesn't
   /// rethrow it.
   case record
@@ -81,7 +83,7 @@ struct PlainReporter: Reporter {
 
   func classify(_ error: any Error) -> ErrorKind { .failure }
 
-  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition {
+  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision {
     .propagate
   }
 }

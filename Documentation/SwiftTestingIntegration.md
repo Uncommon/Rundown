@@ -648,7 +648,7 @@ package protocol Reporter: Sendable {
   func scope(for node: ExampleNode, _ body: () async -> Void) async
   func scope(for node: ExampleNode, _ body: () -> Void)
   func classify(_ error: any Error) -> ErrorKind          // .failure, .alreadyReported, or .skip
-  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition  // .record or .propagate
+  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision  // .record or .propagate
   var allowsConcurrency: Bool { get }
 }
 ```
@@ -657,7 +657,7 @@ It is not a set of events (`willRunGroup`, `didFinishNode` and so on), which is 
 
 - `scope` is called around the root group, each nested group, each example and each hook except `aroundEach`. There are sync and async versions because the traversal is written once as async and the sync version is generated from it. The XCTest reporter only implements the sync one.
 - `classify` exists because `XCTSkip` is a framework type that the traversal doesn't know.
-- `report` is called for new failures and skips thrown by a node's own code. Its disposition says whether the error is recorded where it happened or propagated, so that the group keeps the first and rethrows it after teardown. The traversal handles already reported failures directly.
+- `report` is called for new failures and skips thrown by a node's own code. Its decision says whether the error is recorded where it happened or propagated, so that the group keeps the first and rethrows it after teardown. The traversal handles already reported failures directly.
 - `allowsConcurrency` keeps `.concurrent` groups serial under XCTest because `XCTContext` only works on the main thread. Swift Testing can use concurrency in the async traversal, where child tasks inherit the host test context.
 
 The traversal owns everything else: the order of hooks, what an error or a skip does to the rest of the run (see the roadmap's "Error and skip rules"), concurrency, and the element path.

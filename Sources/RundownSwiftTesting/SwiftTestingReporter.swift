@@ -29,7 +29,7 @@ struct SwiftTestingReporter: Reporter {
     return .failure
   }
 
-  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition {
+  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision {
     guard kind == .failure else { return .record }
 
     var path = ExampleRunner.current?.path ?? []

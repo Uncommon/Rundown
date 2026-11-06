@@ -9,10 +9,10 @@ final class RecordingReporter: Reporter, @unchecked Sendable {
   private let lock = NSLock()
   private var _events: [String] = []
   private var stack: [String] = []
-  let disposition: Disposition
+  let decision: ErrorHandlingDecision
 
-  init(disposition: Disposition = .record) {
-    self.disposition = disposition
+  init(decision: ErrorHandlingDecision = .record) {
+    self.decision = decision
   }
 
   var events: [String] { lock.withLock { _events } }
@@ -47,12 +47,12 @@ final class RecordingReporter: Reporter, @unchecked Sendable {
     error is TestSkip ? .skip : .failure
   }
 
-  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition {
+  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision {
     lock.withLock {
       let path = (stack + (stack.last == node.name ? [] : [node.name])).joined(separator: "/")
       _events.append("\(kind) \(path)")
     }
-    return disposition
+    return decision
   }
 }
 
@@ -146,7 +146,7 @@ final class ReporterTests: XCTestCase {
         it("fails") { throw TestError(id: 1) }
         it("also fails") { throw TestError(id: 2) }
         afterAll { log.note("afterAll") }
-      }, reporter: .init(disposition: .propagate))
+      }, reporter: .init(decision: .propagate))
     ) { XCTAssertEqual($0 as? TestError, TestError(id: 1)) }
     XCTAssertEqual(log.wrappedValue, ["afterAll"])
   }
@@ -185,9 +185,9 @@ final class ReporterTests: XCTestCase {
       it("skips") { throw RecordingReporter.TestSkip() }
       it("next") { log.note("next") }
       afterEach { log.note("afterEach") }
-    }, reporter: .init(disposition: .propagate))
+    }, reporter: .init(decision: .propagate))
 
-    // Nothing was thrown, even though the disposition is .propagate
+    // Nothing was thrown, even though the decision is .propagate
     XCTAssertEqual(log.wrappedValue, ["afterEach", "next", "afterEach"])
   }
 
@@ -203,9 +203,9 @@ final class ReporterTests: XCTestCase {
       afterEach("next") { log.note("afterEach") }
       afterAll("skips") { throw RecordingReporter.TestSkip() }
       afterAll("next") { log.note("afterAll") }
-    }, reporter: .init(disposition: .propagate))
+    }, reporter: .init(decision: .propagate))
 
-    // Nothing was thrown, though the disposition is .propagate
+    // Nothing was thrown, though the decision is .propagate
     XCTAssertEqual(log.wrappedValue,
                    ["runs", "afterEach", "runs too", "afterEach", "afterAll"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("skip") },
@@ -222,7 +222,7 @@ final class ReporterTests: XCTestCase {
       }
       it("y") { log.note("y") }
       afterAll { log.note("afterAll") }
-    }, reporter: .init(disposition: .propagate))
+    }, reporter: .init(decision: .propagate))
 
     XCTAssertEqual(log.wrappedValue, ["x", "y", "afterAll"])
   }
@@ -249,7 +249,7 @@ final class ReporterTests: XCTestCase {
       it("never") { log.note("never") }
       afterEach { log.note("afterEach") }
       afterAll { log.note("afterAll") }
-    }, reporter: .init(disposition: .propagate))
+    }, reporter: .init(decision: .propagate))
 
     XCTAssertEqual(log.wrappedValue, ["afterAll"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("skip") },
@@ -266,7 +266,7 @@ final class ReporterTests: XCTestCase {
       it("first") { log.note("first") }
       it("second") { log.note("second") }
       afterEach { log.note("afterEach") }
-    }, reporter: .init(disposition: .propagate))
+    }, reporter: .init(decision: .propagate))
 
     XCTAssertEqual(log.wrappedValue, ["first", "afterEach", "second", "afterEach"])
   }
@@ -282,7 +282,7 @@ final class ReporterTests: XCTestCase {
   }
 
   func testPropagatedErrorInsideAroundEachIsNotReportedAgain() throws {
-    let reporter = RecordingReporter(disposition: .propagate)
+    let reporter = RecordingReporter(decision: .propagate)
     XCTAssertThrowsError(try run(describe("Root") {
       aroundEach { callback in try callback() }
       it("fails") { throw TestError(id: 1) }

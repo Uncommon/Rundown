@@ -152,7 +152,7 @@ struct XCTestReporter: Reporter, @unchecked Sendable {
   /// Records an error as an issue on the test, with the full path of the
   /// element that threw. This is called while that element is still the
   /// current one, so that the path is right.
-  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition {
+  func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision {
     switch kind {
       case .alreadyReported:
         break
