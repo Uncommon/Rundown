@@ -181,6 +181,9 @@ extension ExampleNode {
 
   private func outcomeOf(_ error: any Error, _ reporter: any Reporter) -> Outcome {
     let kind = reporter.classify(error)
+    if kind == .alreadyReported {
+      return .failed(nil)
+    }
     let disposition = reporter.report(error, kind: kind, at: self)
 
     // A skip ends only the node that threw it, whether that's a setup hook, an
@@ -229,13 +232,10 @@ extension ExampleNode {
 
       // Otherwise the hook threw it, before calling the callback or after it
       // returned.
-      let kind = reporter.classify(error)
-      let disposition = reporter.report(error, kind: kind, at: hook)
-
       // A skip ends only the hook. Before the callback, that means the element
       // doesn't run and nothing needs undoing. After it, the element and its
       // teardown have already run.
-      if kind != .skip && disposition == .propagate {
+      if case .failed(let error?) = hook.outcomeOf(error, reporter) {
         throw error
       }
     }

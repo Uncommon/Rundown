@@ -28,13 +28,13 @@ package protocol Reporter: Sendable {
   /// The sync version, for the sync traversal
   func scope(for node: ExampleNode, _ body: () -> Void)
 
-  /// Whether an error means that something failed, or that it doesn't apply.
+  /// Whether an error is a new failure, an already reported failure, or a skip.
   func classify(_ error: any Error) -> ErrorKind
 
-  /// Called once for each error thrown by a node's own code, in the scope of
-  /// that node, except for `aroundEach` hooks, which have no scope. The
-  /// returned disposition says whether the traversal should rethrow the error
-  /// once the run is over, or consider it dealt with.
+  /// Called for a new failure or skip thrown by a node's own code, in the
+  /// scope of that node, except for `aroundEach` hooks, which have no scope.
+  /// The returned disposition says whether the traversal should rethrow the
+  /// error once the run is over, or consider it dealt with.
   ///
   /// This is also where a reporter logs a skip. The disposition of a skip is
   /// ignored: a skip never propagates.
@@ -53,6 +53,8 @@ extension Reporter {
 package enum ErrorKind: Hashable, Sendable {
   /// Something went wrong
   case failure
+  /// Something went wrong and the host has already recorded the issue.
+  case alreadyReported
   /// Something doesn't apply. What follows depends on where it was thrown.
   case skip
 }

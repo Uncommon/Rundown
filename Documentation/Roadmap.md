@@ -19,9 +19,9 @@ What a throwaway test under Swift Testing found (reading its source first, then 
 
 What this decides for the tasks:
 
-- The Swift Testing reporter's `allowsConcurrency` must be false for the sync traversal. The reporter protocol has no way to say that for one flavor yet. Either make it a property of the flavor (a parameter on `allowsConcurrency`), or have the adapter's sync `spec` always run `.concurrent` groups serially and document it.
+- `SwiftTestingReporter` takes `allowsConcurrency` when it is created. The `spec` overloads in task 5 will pass `false` for the sync traversal and `true` for the async traversal.
 - A skip under Swift Testing means "stop": finish teardown, run no more examples. Running on in a cancelled task is wrong, and the test is already marked cancelled. The traversal needs a way for a reporter to say so, such as a `Disposition` or a flag that the traversal checks before each element. Settle the shape in task 7.
-- The adapter classifies `ExpectationFailedError` as already reported, and `SkipInfo` or `CancellationError` while cancelled as a skip.
+- `SwiftTestingReporter` runs both scope closures inline and records thrown failures with the full Rundown path as an issue comment. It classifies `ExpectationFailedError` as an already reported failure and handles `Testing.SkipInfo` or `CancellationError` in a cancelled task as a skip. The skip classification uses the qualified type name for `Testing.SkipInfo`, which the toolchain does not expose.
 
 The adapter boundary uses Swift `package` access. A separate module in the package ran all four call types through `ExampleGroup.node` and `ExampleNode.run(with:)`, including the macro-generated sync overload. The compiler rejected access from a different package.
 
@@ -29,7 +29,6 @@ The optional `RundownSwiftTesting` product imports `Rundown` and the toolchain's
 
 Tasks, in order. Each step should end green and could be its own commit.
 
-- [ ] **4. `SwiftTestingReporter`.** Conforms to `Reporter`: `report` records through `Issue.record` with the full path as the comment, `classify` follows the findings above (`ExpectationFailedError` is already reported; `SkipInfo` or `CancellationError` while cancelled is a skip), `scope` is either empty or tracks `Test.Case.current`, and it implements the async scope, which XCTest's reporter does not. `allowsConcurrency` is true. It must be `Sendable`.
 - [ ] **5. `spec` overloads.** Following the design doc, put them on a suite protocol in the adapter module, as `MainActorSuite` does, and keep a target that imports both adapters from becoming ambiguous. This is the compile-time risk of the phase: extra overloads can multiply type checking for every statement of a spec. Measure the 60-context benchmark (about 5.0 s) before and after, and back out or restructure if it moves.
 - [ ] **6. Paths for assertion failures inside examples.** The `.rundown` trait described above, which wraps `IssueHandlingTrait`.
 - [ ] **7. Skips.** A skip means stop: add the traversal support described above, so that a reporter can end the run of examples while teardown still happens. The traversal's existing rules for the XCTest reporter stay as they are.
@@ -37,7 +36,7 @@ Tasks, in order. Each step should end green and could be its own commit.
 - [ ] **9. Tests for the adapter.** The design doc's list: a failing example includes the full path; a skip in `beforeEach` or `beforeAll` is reported once with the right path; main-actor suites run on the right actor; no existing XCTest behavior changes. Testing Swift Testing from inside Swift Testing needs a way to observe issues without failing the run: probably `withKnownIssue` with a matcher, or an issue-handling trait on the test under test. The trait technique in the findings above does this.
 - [ ] **10. Docs.** A README section for Swift Testing: how to write the `@Test`, what is and isn't supported (no per-example discovery or filtering). Update `SwiftTestingIntegration.md` and this roadmap.
 
-Tasks 6 and 7 depend on task 4. Tasks 8 and 9 come last.
+Tasks 8 and 9 come last.
 
 Done when, from the design doc's acceptance criteria: the existing XCTest tests pass without changes, `Rundown.TestCase` is still supported, the core builds without `Testing`, a failure under Swift Testing includes the full path, main-actor behavior is explicit, no built-in trait loses its meaning under XCTest, and the compile benchmark is unchanged.
 

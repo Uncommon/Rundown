@@ -119,6 +119,7 @@ package struct ExampleNode: Sendable {
 
   var isGroup: Bool { kind == .group }
   var isExample: Bool { kind == .example }
+  package var isAroundEachHook: Bool { kind == .hook(.aroundEach) }
 
   var isExcluded: Bool { traits.contains { $0 is ExcludedTrait } }
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }

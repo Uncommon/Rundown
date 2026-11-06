@@ -154,6 +154,8 @@ struct XCTestReporter: Reporter, @unchecked Sendable {
   /// current one, so that the path is right.
   func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> Disposition {
     switch kind {
+      case .alreadyReported:
+        break
       case .skip:
         let message = (error as? XCTSkip)?.message.map { ": (\($0))" } ?? ""
         ExampleRunner.logger.info("Skipped \"\(ExampleRunner.current?.description ?? node.description)\"\(message)")
