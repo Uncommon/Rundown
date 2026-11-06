@@ -120,7 +120,7 @@ This is done, as `ExampleNode` and the traversal in `NodeTraversal.swift`. It di
 - A node holds metadata *and* the closures to run, each in the call type it was written with (`sync`, `async`, `syncMain` or `asyncMain`). A tree without closures could not be traversed on its own, and the sync XCTest runner cannot run on type-erased async closures.
 - Each-hooks stay attached to the group that declares them and wrap its child nodes, groups included. They are not flattened onto leaves (see "Hook Replay Order" under Option B).
 - Focus and exclude are resolved when the tree is built, as `isSelected` on each node. Excluded nodes stay in the tree, so it still reflects the structure of the spec.
-- The tree is internal. Making it, or the reporter, public or SPI for an adapter in a separate target is still undecided.
+- Same-package adapters can obtain an `ExampleNode` from `ExampleGroup.node` for any of the four call types and run it with a reporter. Tree construction, traversal helpers and stored closures are internal to `Rundown`.
 
 ## Option A: Host-Test Swift Testing Adapter
 
@@ -190,7 +190,7 @@ The minimum new internal types would likely be:
 - `TraitBridgeContext`
 - `SwiftTestingFailureFormatter`
 
-The traversal already takes a reporter, so this is one more conformance to `Reporter`. That protocol is internal today, so an adapter in its own target needs it to be public or SPI.
+The traversal already takes a reporter, so this is one more conformance to `Reporter`. The protocol, its error types and both `run(with:)` overloads use `package` access, so an adapter target in the same package can use them with a regular `import Rundown`.
 
 The public API goal is that users still write `spec()`. Framework selection should come from the module/protocol overload set, not from a renamed entrypoint.
 
@@ -651,7 +651,7 @@ Swift Testing needs an equivalent concept even if the rendering mechanism is dif
 The traversal talks to its host through `Reporter` (`Reporter.swift`):
 
 ```swift
-protocol Reporter: Sendable {
+package protocol Reporter: Sendable {
   func scope(for node: ExampleNode, _ body: () async -> Void) async
   func scope(for node: ExampleNode, _ body: () -> Void)
   func classify(_ error: any Error) -> ErrorKind          // .failure or .skip

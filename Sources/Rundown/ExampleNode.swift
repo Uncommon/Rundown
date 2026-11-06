@@ -24,7 +24,7 @@
 /// derived from them and never built by hand, and nothing about order is
 /// checked here, because by this point the builder has already guaranteed it.
 /// Only the call-type split that can't be erased remains (see `Body`).
-struct ExampleNode: Sendable {
+package struct ExampleNode: Sendable {
   enum Kind: Hashable, Sendable {
     case group
     case example
@@ -70,7 +70,7 @@ struct ExampleNode: Sendable {
   /// The same text as the `description` of the element, so a hook's includes
   /// its phase, such as "before each: name".
   let name: String
-  let traits: [any Trait]
+  package let traits: [any Trait]
   let isolation: Isolation
   let execution: Execution
 
@@ -145,7 +145,7 @@ struct ExampleNode: Sendable {
 }
 
 extension ExampleNode: TestElement {
-  var description: String { name }
+  package var description: String { name }
 }
 
 // MARK: - Building
@@ -192,9 +192,29 @@ protocol NodeConvertible {
 extension ExampleGroup: NodeConvertible where Call: NodeCallType {}
 extension It: NodeConvertible where Call: NodeCallType {}
 
+// The adapter builds roots from these four call types. The generic node
+// builder and its call-type requirements stay internal to Rundown.
+extension ExampleGroup where Call == SyncCall {
+  package var node: ExampleNode { makeNode() }
+}
+
+extension ExampleGroup where Call == AsyncCall {
+  package var node: ExampleNode { makeNode() }
+}
+
+extension ExampleGroup where Call == SyncMainCall {
+  package var node: ExampleNode { makeNode() }
+}
+
+extension ExampleGroup where Call == AsyncMainCall {
+  package var node: ExampleNode { makeNode() }
+}
+
 extension ExampleGroup where Call: NodeCallType {
   /// The tree of nodes for this group and everything in it
-  var node: ExampleNode {
+  var node: ExampleNode { makeNode() }
+
+  fileprivate func makeNode() -> ExampleNode {
     nodeBeforeSelection.resolvingSelection()
   }
 

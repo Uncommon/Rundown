@@ -15,7 +15,7 @@
 /// tasks or threads. Its methods are not isolated. A reporter that needs the
 /// main actor, such as one for XCTest, does that work inside them with
 /// `MainActor.assumeIsolated`, which the sync traversal also relies on.
-protocol Reporter: Sendable {
+package protocol Reporter: Sendable {
   /// Runs `body` as the scope of `node`. The traversal calls this around the
   /// root group, each nested group, each example and each hook except
   /// `aroundEach`. Everything the node does happens inside `body`, including
@@ -47,17 +47,17 @@ protocol Reporter: Sendable {
 }
 
 extension Reporter {
-  var allowsConcurrency: Bool { true }
+  package var allowsConcurrency: Bool { true }
 }
 
-enum ErrorKind: Hashable, Sendable {
+package enum ErrorKind: Hashable, Sendable {
   /// Something went wrong
   case failure
   /// Something doesn't apply. What follows depends on where it was thrown.
   case skip
 }
 
-enum Disposition: Hashable, Sendable {
+package enum Disposition: Hashable, Sendable {
   /// The reporter has recorded the error. The traversal carries on and doesn't
   /// rethrow it.
   case record

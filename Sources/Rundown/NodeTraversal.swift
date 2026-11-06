@@ -17,7 +17,7 @@ extension ExampleNode {
   /// own and a fresh path. Errors that the reporter propagates are thrown after
   /// everything has run.
   @DeAsyncRD
-  func run(with reporter: any Reporter) async throws {
+  package func run(with reporter: any Reporter) async throws {
     await checkCanRun()
     if let current = ExampleRunner.current {
       ExampleRunner.logger.error("running new element \"\(name)\" when already running \"\(current.description)\"")
