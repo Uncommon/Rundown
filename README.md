@@ -75,7 +75,54 @@ XCTest support has the following features:
 * A subclass of `XCTestCase`, named `Rundown.TestCase`, is provided so that test failures include the full name of the test element, including enclosing `describe` and `context` elements.
 * `XCTSkip` is handled, skipping the remaining steps at that level in the hierarchy.
 
-Similar support for Swift Testing is planned, but the Swift Testing APIs do not yet provide for implementing those features. It is still possible to simply run the test elements, though. 
+### Swift Testing
+
+Add the `RundownSwiftTesting` product to your test target's dependencies. Import `Testing` and `RundownSwiftTesting`, and make your test type conform to `SwiftTestingSuite`. Each `spec` runs inside its enclosing `@Test`.
+
+```swift
+import RundownSwiftTesting
+import Testing
+
+struct CheckoutTests: SwiftTestingSuite {
+  @Test func showsTotal() async throws {
+    try await spec("Checkout") {
+      context("with two items") {
+        it("adds the prices") {
+          let total = [19, 23].reduce(0, +)
+          #expect(total == 42)
+        }
+      }
+    }
+  }
+}
+```
+
+With Swift 6.2 or later, async `spec` automatically adds a comment such as `Rundown path: Checkout, with two items, adds the prices` to failed `#expect` and `#require` assertions. The issue keeps the assertion's source location and any comments you supplied.
+
+#### Assertion paths in synchronous specs
+
+Apply `@Suite(.rundownPaths)` once above a `SwiftTestingSuite` type to get the same assertion paths when its tests use synchronous `try spec { … }`.
+
+```swift
+import RundownSwiftTesting
+import Testing
+
+@Suite(.rundownPaths)
+struct CartTests: SwiftTestingSuite {
+  @Test func totalsItems() throws {
+    try spec("Cart") {
+      it("adds the prices") {
+        let total = [19, 23].reduce(0, +)
+        #expect(total == 42)
+      }
+    }
+  }
+}
+```
+
+The annotation is a workaround for Swift Testing's async issue-scoping API. It lets Swift Testing install the handler before the synchronous test runs. A mixed suite can use the same annotation for its sync tests, and each async assertion still gets a single path comment. Assertions outside a running spec keep their normal Swift Testing output. A public synchronous scope would let Rundown install the handler automatically. [Proposal notes](Documentation/SwiftTestingScopedIssueHandlingProposal.md)
+
+On Swift 6.0 and 6.1, native assertions use Swift Testing's standard output. The adapter reports thrown errors with their Rundown paths on all supported toolchains.
 
 ## Running tests
 
@@ -96,8 +143,6 @@ The `spec()` function creates an outer `describe` element, using either the name
 There is also an `async` version of `spec()`, so if your test function is `async` then just call `await spec { ··· }`, and then you can use `await` inside your test elements.
 
 When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` - or more precisely, a method of the subclass `Rundown.TestCase`. This subclass should always be used so that issues can be logged with the full test element description, and this version of `spec()` uses an `XCTActivity` for each test element (for non-`async` tests). An `XCTestCase` subclass should also be marked with `@MainActor` because test steps are tracked with `XCTContext.runActivity()`, which is `@MainActor`. Async tests don't use `XCTContext.runActivity()` because it is not async compatible.
-
-The goal is to do something similar for Swift Testing, but it doesn't yet have an equivalent for `XCTActivity`.
 
 ## Errors and skips
 

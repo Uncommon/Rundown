@@ -262,6 +262,8 @@ Implementation details:
 
 `SwiftTestingReporter` attaches the Rundown path to each newly recorded error. A failed `#require` has already recorded an issue, so the traversal handles its `ExpectationFailedError` as a failure without recording it again. The reporter classifies Swift Testing cancellation as a skip. The traversal currently applies its existing node-local skip rules, with stopping the rest of a cancelled run tracked in roadmap task 7.
 
+On Swift 6.2 and later, async `spec` installs an `IssueHandlingTrait` directly around traversal in the current Swift Testing test case. Sync specs use `@Suite(.rundownPaths)` to have Swift Testing install that handler before the test runs. Both scopes use the same transform. It adds a path comment only to native assertion failures with an active Rundown path and checks for an identical comment when scopes overlap. The transform preserves the original issue, including its source location. See the [README usage](../README.md#assertion-paths-in-synchronous-specs) and the [upstream proposal brief](SwiftTestingScopedIssueHandlingProposal.md).
+
 ### Testing Strategy For Option A
 
 Add adapter-focused tests that prove:
