@@ -6,12 +6,16 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "Rundown",
-    platforms: [.macOS(.v15), .iOS(.v16), .tvOS(.v16), .watchOS(.v9), .macCatalyst(.v16)],
+    platforms: [.macOS(.v15), .iOS(.v17), .tvOS(.v17), .watchOS(.v10), .macCatalyst(.v17)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "Rundown",
             targets: ["Rundown"]
+        ),
+        .library(
+            name: "RundownSwiftTesting",
+            targets: ["RundownSwiftTesting"]
         ),
         .executable(
             name: "RundownClient",
@@ -35,6 +39,8 @@ let package = Package(
 
         // Library that exposes a macro as part of its API, which is used in client programs.
         .target(name: "Rundown", dependencies: ["RundownMacros"]),
+
+        .target(name: "RundownSwiftTesting", dependencies: ["Rundown"]),
 
         // A client of the library, which is able to use the macro in its own code.
         .executableTarget(name: "RundownClient", dependencies: ["Rundown"]),

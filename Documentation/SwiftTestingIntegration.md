@@ -81,7 +81,7 @@ That implies an architecture closer to this:
   - `XCTContext.runActivity()` support
   - `XCTSkip` handling
   - XCTest issue formatting
-- `RundownTesting`
+- `RundownSwiftTesting`
   - Swift Testing reporter
   - trait bridge
   - optional discovery bridge
@@ -174,14 +174,7 @@ This is still worth doing because it improves the normal user experience immedia
 
 ### Package and Type Shape
 
-The implementation should live in a separate adapter target, for example:
-
-- `RundownTesting`
-  - imports the Rundown core module
-  - imports `Testing`
-  - defines the Swift Testing reporter
-  - defines trait-bridge helpers
-  - defines Swift Testing-specific `spec()` overloads
+The optional `RundownSwiftTesting` product and target import `Rundown` and `Testing`. Both products use the deployment minimums in `Package.swift`. This target will hold the Swift Testing reporter, trait-bridge helpers, and Swift Testing-specific `spec()` overloads.
 
 The minimum new internal types would likely be:
 
@@ -219,7 +212,7 @@ For Swift Testing, the intended user shape should stay close to:
 
 ```swift
 import Testing
-import RundownTesting
+import RundownSwiftTesting
 
 struct FeatureTests: MainActorSuite {
   @Test func behavesCorrectly() async throws {
