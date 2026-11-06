@@ -132,9 +132,9 @@ Users continue writing Swift Testing tests like this:
 
 ```swift
 import Testing
-import Rundown
+import RundownSwiftTesting
 
-struct FeatureTests: MainActorSuite {
+struct FeatureTests: SwiftTestingSuite {
   @Test func behavesCorrectly() async throws {
     try await spec {
       context("logged in") {
@@ -147,7 +147,7 @@ struct FeatureTests: MainActorSuite {
 }
 ```
 
-Rundown still executes the whole spec as one host test, but a new Swift Testing-specific adapter improves what happens inside that run.
+Rundown executes the whole spec as one host test. `SwiftTestingSuite` supplies `spec()` overloads that report thrown errors to Swift Testing.
 
 ### What It Can Improve
 
@@ -174,7 +174,7 @@ This is still worth doing because it improves the normal user experience immedia
 
 ### Package and Type Shape
 
-The optional `RundownSwiftTesting` product and target import `Rundown` and `Testing`. Both products use the deployment minimums in `Package.swift`. The target defines `SwiftTestingReporter` and will also hold trait-bridge helpers and Swift Testing-specific `spec()` overloads.
+The optional `RundownSwiftTesting` product and target import `Rundown` and `Testing`. Both products use the deployment minimums in `Package.swift`. The target defines `SwiftTestingReporter` and the `SwiftTestingSuite` overloads. It re-exports the core DSL.
 
 The minimum new internal types would likely be:
 
@@ -193,7 +193,7 @@ The likely execution flow for host-test mode is:
 
 1. User enters a normal Swift Testing `@Test`.
 2. User calls a Swift Testing-specific `spec()` overload supplied by the adapter module.
-3. The existing `spec()` / `run()` path builds the group and its node tree.
+3. The existing builder constructs the group and its node tree.
 4. The traversal runs the tree with the Swift Testing reporter, as it does for the plain and XCTest reporters.
 5. Reporter methods translate failures, skips, and path information into Swift Testing-friendly output.
 
@@ -204,17 +204,17 @@ This keeps the execution model familiar:
 - Rundown still owns its current concurrency model
 - Swift Testing becomes the outer host and reporter sink, not the leaf scheduler
 
-### API Surface Ideas
+### API Surface
 
 Keep `spec()` as the author-facing API.
 
-For Swift Testing, the intended user shape should stay close to:
+A Swift Testing suite adopts `SwiftTestingSuite`.
 
 ```swift
 import Testing
 import RundownSwiftTesting
 
-struct FeatureTests: MainActorSuite {
+struct FeatureTests: SwiftTestingSuite {
   @Test func behavesCorrectly() async throws {
     try await spec {
       it("works") {
@@ -224,13 +224,13 @@ struct FeatureTests: MainActorSuite {
 }
 ```
 
-For XCTest, the intended user shape should remain:
+An XCTest suite inherits from `Rundown.TestCase`.
 
 ```swift
-import RundownXCTest
+import Rundown
 
 @MainActor
-final class FeatureTests: TestCase {
+final class FeatureTests: Rundown.TestCase {
   func testBehavesCorrectly() throws {
     try spec {
       it("works") {
@@ -240,43 +240,11 @@ final class FeatureTests: TestCase {
 }
 ```
 
-Implementation options:
-
-- keep a plain-runner global `spec()` in the framework-neutral core
-- put XCTest activity/reporting behavior in member `spec()` overloads from the XCTest adapter
-- put Swift Testing reporting behavior in global or member `spec()` overloads from the Swift Testing adapter
-- prefer member `spec()` overloads on suite protocols where overload choice depends on isolation or framework context
-
-This mirrors the technique already used by `MainActorSuite`: conformance changes which DSL helpers and `spec()` overloads are available in the test type.
+The core provides global `spec()` overloads for the plain runner. `Rundown.TestCase` supplies member overloads for XCTest activities, and `SwiftTestingSuite` supplies member overloads for Swift Testing reporting. Each host test type selects its runner through inheritance or protocol conformance, so both adapters can be used from the same target.
 
 ### Suite Protocol Shape
 
-If framework support is split into modules, adapter modules can define the suite-facing protocols that carry the right overload set.
-
-Possible shape:
-
-- core module
-  - `MainActorIsolation` or similarly named marker protocol
-  - plain global `spec()` overloads
-  - no `Testing` or `XCTest` imports
-- XCTest adapter module
-  - `TestCase`
-  - `MainActorSuite`
-  - member `spec()` overloads that run XCTest activities
-- Swift Testing adapter module
-  - `Suite`
-  - `MainActorSuite`
-  - member `spec()` overloads that install a Swift Testing reporter before running
-
-It is acceptable for the XCTest and Swift Testing adapter modules to expose protocols with the same short name if ordinary test targets import only one adapter module.
-
-However, avoid requiring a target to import both adapters. If adapter modules both extend the same core protocol with identical `spec()` signatures, calls can become ambiguous. A cleaner design is:
-
-- put shared isolation markers in the core with intentionally boring names
-- put user-facing suite protocols and framework-aware `spec()` overloads in the adapter module
-- make adapter modules re-export the DSL the user needs
-
-That gives users one import and one `spec()` spelling per test framework.
+`SwiftTestingSuite` supports synchronous and asynchronous specs. Both can take an explicit name or derive one from the calling function using Rundown's existing naming rules. Synchronous specs run `.concurrent` groups serially so each example keeps the host test context. Asynchronous specs use task groups when `.concurrent` is present. Roadmap task 8 covers main-actor specs.
 
 ### Failure and Skip Reporting Details
 
