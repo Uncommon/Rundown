@@ -548,6 +548,33 @@ That means the core library should continue to define:
 
 The Swift Testing adapter can then provide a bridge from neutral Rundown traits to Swift Testing semantics.
 
+### Current Rundown trait behavior
+
+The DSL accepts `any Trait` on groups, examples, and hooks. `ExampleNode` keeps those declarations on their original nodes. `ExampleTrait` is a marker protocol, so the effective scope comes from where Rundown reads each built-in trait. [Trait declarations](../Sources/Rundown/Trait.swift) · [Node construction and selection](../Sources/Rundown/ExampleNode.swift)
+
+| Trait | Nodes where it takes effect | Effect |
+|---|---|---|
+| `.excluded` | Examples, child groups, and all five hook kinds | The parent omits excluded children from execution. Excluded hooks are omitted individually, including `aroundEach`. |
+| `.focused` | Examples and groups | Within each group, focus selects branches and filters out their unfocused siblings. |
+| `.concurrent` | Groups, including an explicitly run root | Schedules the group's selected direct children together when the reporter permits it. Each child group determines its own scheduling. |
+
+**Selection is local to each group.** When the tree is built, each group removes directly excluded children from its candidates. If any candidate is focused or contains focus, only candidates with focus are selected. Otherwise every candidate is selected. A focused group can make its parent select that branch while its own children are still selected by the same local rule. Hook selection depends only on each hook's `.excluded` trait. [Node selection tests](../Tests/RundownTests/ExampleNodeTests.swift)
+
+**The tree retains every node.** Traversal follows selected branches from the root, even when an unselected branch contains descendants locally marked `isSelected`. An explicitly run root stays selected even if it carries `.excluded`, since it has no parent to filter it. A group with zero selected children runs none of its own hooks. Its parent can still run each-hooks around it if the group itself is selected. Each invocation of an each-hook wraps one selected direct child, and a nested group counts as one child. [Shared traversal](../Sources/Rundown/NodeTraversal.swift) · [Execution tests](../Tests/RundownTests/MultiRunTests.swift)
+
+**Focus inside an excluded subtree can affect an ancestor.** The deep-focus check walks the stored tree without filtering excluded descendants. In `testFocusInsideExcludedSubtreeStillCountsAsFocus`, the root selects the holder group because it contains a focused example inside an excluded subgroup. Inside the holder, the excluded subgroup is dropped from the candidates and the plain example runs. This is the baseline for the separate [focus and exclusion cleanup](Roadmap.md#cleanup). [Baseline test](../Tests/RundownTests/ExampleNodeTests.swift)
+
+**Concurrency is gated when a group runs.** `NodeTraversal` checks `isConcurrent && reporter.allowsConcurrency` after checking that there is work to run. An active concurrent group runs `beforeAll` before scheduling children and waits for the children and their each-hooks before running `afterAll`. If the group is main-actor isolated and concurrency is enabled, the traversal throws `ConcurrentDisallowedError` before that group's hooks. [Shared traversal](../Sources/Rundown/NodeTraversal.swift)
+
+| Entry point | Reporter permits concurrency | Effect on a `.concurrent` group with selected children |
+|---|---|---|
+| Plain sync or async run | Yes | Uses `DispatchQueue.concurrentPerform` in the sync traversal or a task group in the async traversal. Main-actor groups are rejected. |
+| XCTest `runActivity()` | No | Runs its children serially. |
+| Swift Testing sync `spec` | No | Runs its children serially to preserve the host test context. |
+| Swift Testing async `spec` | Yes | Uses a task group. Main-actor groups are rejected. |
+
+The Swift Testing entry points choose the reporter gate for the entire traversal. A sync group inside an async spec follows the async traversal's scheduling. All three built-ins are currently local to Rundown execution inside the host test. [Swift Testing entry points](../Sources/RundownSwiftTesting/SwiftTestingSuite.swift) · [Main-actor entry points](../Sources/RundownSwiftTesting/MainActorSwiftTestingSuite.swift)
+
 ### Proposed Shape
 
 At the adapter layer, define something like:
