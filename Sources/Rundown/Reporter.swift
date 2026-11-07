@@ -44,10 +44,16 @@ package protocol Reporter: Sendable {
   /// If not, the trait is ignored and they run one after another. The XCTest
   /// reporter says no, because `XCTContext` only works on the main thread.
   var allowsConcurrency: Bool { get }
+
+  /// Whether to stop starting setup hooks and examples and unwind the run.
+  /// A reporter can set this when it receives a skip that cancels the run.
+  /// The traversal still calls teardown for groups and elements it entered.
+  var shouldStop: Bool { get }
 }
 
 extension Reporter {
   package var allowsConcurrency: Bool { true }
+  package var shouldStop: Bool { false }
 }
 
 package enum ErrorKind: Hashable, Sendable {

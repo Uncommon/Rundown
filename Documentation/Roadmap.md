@@ -20,7 +20,7 @@ What a throwaway test under Swift Testing found (reading its source first, then 
 What this decides for the tasks:
 
 - `SwiftTestingSuite` provides named and caller-named `spec` overloads for Swift Testing. The overloads pass `allowsConcurrency: false` to the reporter for sync traversal and `true` for async traversal. Swift Testing suites and `Rundown.TestCase` subclasses can call their respective `spec` overloads in the same target.
-- A skip under Swift Testing means "stop": finish teardown, run no more examples. Running on in a cancelled task is wrong, and the test is already marked cancelled. The traversal needs a way for a reporter to say so, such as an `ErrorHandlingDecision` or a flag that the traversal checks before each element. Settle the shape in task 7.
+- Swift Testing cancellation stops new setup hooks and examples. The traversal still calls teardown for each group and element it entered. `SwiftTestingReporter.shouldStop` observes task cancellation and shares any cancellation caught by a child across the spec run.
 - `SwiftTestingReporter` runs both scope closures inline and records thrown failures with the full Rundown path as an issue comment. It classifies `ExpectationFailedError` as an already reported failure and handles `Testing.SkipInfo` or `CancellationError` in a cancelled task as a skip. The skip classification uses the qualified type name for `Testing.SkipInfo`, which the toolchain does not expose.
 
 The adapter boundary uses Swift `package` access. A separate module in the package ran all four call types through `ExampleGroup.node` and `ExampleNode.run(with:)`, including the macro-generated sync overload. The compiler rejected access from a different package.
@@ -29,7 +29,6 @@ The optional `RundownSwiftTesting` product imports `Rundown` and the toolchain's
 
 Tasks, in order. Each step should end green and could be its own commit.
 
-- [ ] **7. Skips.** A skip means stop: add the traversal support described above, so that a reporter can end the run of examples while teardown still happens. The traversal's existing rules for the XCTest reporter stay as they are.
 - [ ] **8. Main-actor specs.** A `@MainActor` suite with sync and async specs, checked for the right isolation inside hooks and examples.
 - [ ] **9. Tests for the adapter.** `RundownSwiftTestingTests` covers all four `spec` overloads, concurrency, full paths on thrown errors and native assertion failures, and XCTest reporting with both frameworks imported. Add coverage for a skip in `beforeEach` or `beforeAll` being reported once with the right path, and for main-actor suites running on the right actor.
 - [ ] **10. Docs.** A README section for Swift Testing: how to write the `@Test`, what is and isn't supported (no per-example discovery or filtering). Update `SwiftTestingIntegration.md` and this roadmap.
@@ -72,9 +71,9 @@ What this decides:
 
 ## Error and skip rules
 
-What the traversal (`NodeTraversal.swift`) does, which is what the plain and XCTest runners did, except for skips in teardown and `aroundEach` hooks (see "Behavior changes"). Covered by `ReporterTests`, `MessageXCTests` and `MultiRunTests`.
+The table describes failures and XCTest's local skips. `ReporterTests`, `MessageXCTests` and `MultiRunTests` cover these rules.
 
-A **failure** is any error other than a skip. Only the XCTest runner has **skips**, which are `XCTSkip`. The plain runners treat it as an ordinary error.
+A **failure** is any error other than a skip. XCTest treats `XCTSkip` as a local skip. The plain runners treat it as an ordinary error.
 
 | Thrown in | Failure | Skip (XCTest only) |
 |---|---|---|
@@ -88,6 +87,8 @@ A **failure** is any error other than a skip. Only the XCTest runner has **skips
 
 A group whose elements are all excluded runs no hooks at all.
 
+Swift Testing cancellation ends the spec run. Cancellation during `beforeAll` or `beforeEach` stops the remaining setup and invokes the corresponding teardown. In-flight examples may finish, and entered `aroundEach` hooks can unwind. Teardown runs in the existing task and observes its cancellation state. `CancellationTests` covers both host test cancellation and cancellation caught in a concurrent child.
+
 **What happens to a failure** depends on the runner, not on where it was thrown:
 
 - **Plain runners:** propagate. The group keeps the *first* error, carries on, and rethrows it after `afterAll`. A parent group sees a nested group's error as that element's error. In a `.concurrent` group, the first error across elements wins.
@@ -96,7 +97,7 @@ A group whose elements are all excluded runs no hooks at all.
 ### What this means for the design
 
 - The traversal's flow is the same for both runners except for skips. The reporter decides whether to `record` or `propagate` a failure. The table's "failure" column describes what the traversal does.
-- Skips need a rule per phase, in the traversal: a *setup skip* abandons the element or group without teardown, and a skip anywhere else (an example, a teardown hook, an `aroundEach` hook) is swallowed and ends only the node that threw it. The reporter only classifies an error as failure or skip, and logs it. It does not decide what a skip does.
+- A local setup skip abandons the element or group. A local skip in an example or teardown hook ends that node. The reporter can also ask the traversal to stop the run, which still invokes teardown for scopes that were entered.
 
 ### Behavior changes
 

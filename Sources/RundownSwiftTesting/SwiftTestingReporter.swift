@@ -1,3 +1,4 @@
+import os
 import Rundown
 import Testing
 
@@ -5,6 +6,11 @@ struct SwiftTestingReporter: Reporter {
   // Async task groups inherit Swift Testing's context. The sync traversal's
   // GCD workers do not, so sync callers pass false.
   let allowsConcurrency: Bool
+  private let receivedCancellation = OSAllocatedUnfairLock(initialState: false)
+
+  var shouldStop: Bool {
+    Task.isCancelled || receivedCancellation.withLock { $0 }
+  }
 
   func scope(for node: ExampleNode, _ body: () async -> Void) async {
     await body()
@@ -30,6 +36,10 @@ struct SwiftTestingReporter: Reporter {
   }
 
   func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision {
+    if kind == .skip {
+      // A child can observe cancellation before the rest of the run does.
+      receivedCancellation.withLock { $0 = true }
+    }
     guard kind == .failure else { return .record }
 
     var path = ExampleRunner.current?.path ?? []

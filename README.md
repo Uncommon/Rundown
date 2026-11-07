@@ -155,6 +155,8 @@ An error never skips teardown or the remaining elements. Everything that can sti
 
 `XCTSkip` is different: it means that something does not apply, so there is nothing to undo. A skip in `beforeAll` skips the whole group, including `afterAll`. A skip in `beforeEach` skips that element, including its `afterEach` hooks. A skip in an example still runs the `afterEach` hooks. A skip in an `afterEach`, `afterAll` or `aroundEach` hook is logged and ignored: the rest of the run carries on.
 
+Under Swift Testing, `try Test.cancel("reason")` (Swift 6.3 or later) cancels the host test or its current parameterized case. Rundown stops starting setup hooks and examples, then invokes teardown for groups and elements it already entered. Examples already running concurrently may finish. Teardown runs in the existing task, so cancellation-aware calls within it can still throw. A `CancellationError` caught in a cancelled task also stops the spec.
+
 ## MainActor tests
 
 Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorSuite`. For XCTest, the `Rundown.TestCase` class already does this.

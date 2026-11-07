@@ -60,6 +60,7 @@ extension ExampleNode {
   /// The body of a group: its hooks and children, but not its scope.
   @DeAsyncRD
   fileprivate func traverse(_ reporter: any Reporter) async throws {
+    guard !reporter.shouldStop else { return }
     let selected = selectedChildren
     guard !selected.isEmpty
     else { return }
@@ -75,19 +76,20 @@ extension ExampleNode {
     var setUpSucceeded = true
 
     for hook in selectedHooks(.beforeAll) {
+      guard !reporter.shouldStop else { break }
       switch await hook.runLeaf(reporter) {
         case .completed:
           continue
         case .skipped:
-          // Skip execution and teardown
-          return
+          // A local skip abandons the group. Cancellation still unwinds it.
+          if !reporter.shouldStop { return }
         case .failed(let error):
           firstError = error
-          setUpSucceeded = false
       }
+      setUpSucceeded = false
       break
     }
-    if setUpSucceeded {
+    if setUpSucceeded && !reporter.shouldStop {
       let childError = await forEachChild(selected, concurrently: concurrent) { child in
         try await self.runAround(self.selectedHooks(.aroundEach)[...], reporter) {
           try await self.runElement(child, reporter)
@@ -108,23 +110,25 @@ extension ExampleNode {
 
   @DeAsyncRD
   fileprivate func runElement(_ child: ExampleNode, _ reporter: any Reporter) async throws {
+    guard !reporter.shouldStop else { return }
     var firstError: (any Error)?
     var setUpSuccessful = true
 
     for hook in selectedHooks(.beforeEach) {
+      guard !reporter.shouldStop else { break }
       switch await hook.runLeaf(reporter) {
         case .completed:
           continue
         case .skipped:
-          return
+          if !reporter.shouldStop { return }
         case .failed(let error):
           // The element doesn't run, but afterEach still does
           firstError = error
-          setUpSuccessful = false
       }
+      setUpSuccessful = false
       break
     }
-    if setUpSuccessful {
+    if setUpSuccessful && !reporter.shouldStop {
       let outcome = await child.runChild(reporter)
       // An example that skips is swallowed, and afterEach still runs
       if case .failed(let error) = outcome {
@@ -186,8 +190,7 @@ extension ExampleNode {
     }
     let decision = reporter.report(error, kind: kind, at: self)
 
-    // A skip ends only the node that threw it, whether that's a setup hook, an
-    // example or a teardown hook. What follows is up to the caller.
+    // The caller checks whether the reporter has asked to stop the run.
     if kind == .skip {
       return .skipped
     }
@@ -203,6 +206,7 @@ extension ExampleNode {
   fileprivate func runAround(_ hooks: ArraySlice<ExampleNode>,
                              _ reporter: any Reporter,
                              inner: @Sendable () async throws -> Void) async throws {
+    guard !reporter.shouldStop else { return }
     guard let hook = hooks.first else { return try await inner() }
 
     // The hook gets a callback that runs everything inside it. If that

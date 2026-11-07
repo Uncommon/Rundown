@@ -260,7 +260,7 @@ Implementation details:
   - unexpected thrown errors
 - make skip reporting path-aware in the same way failure reporting is path-aware
 
-`SwiftTestingReporter` attaches the Rundown path to each newly recorded error. A failed `#require` has already recorded an issue, so the traversal handles its `ExpectationFailedError` as a failure without recording it again. The reporter classifies Swift Testing cancellation as a skip. The traversal currently applies its existing node-local skip rules, with stopping the rest of a cancelled run tracked in roadmap task 7.
+`SwiftTestingReporter` attaches the Rundown path to each newly recorded error. A failed `#require` has already recorded an issue, so the traversal handles its `ExpectationFailedError` as a failure without recording it again. The reporter treats Swift Testing cancellation as a skip and asks the traversal to stop starting new setup hooks and examples. The traversal still invokes teardown for groups and elements it entered, and Swift Testing reports the cancellation using the reason and source location from `Test.cancel`.
 
 On Swift 6.2 and later, async `spec` installs an `IssueHandlingTrait` directly around traversal in the current Swift Testing test case. Sync specs use `@Suite(.rundownPaths)` to have Swift Testing install that handler before the test runs. Both scopes use the same transform. It adds a path comment only to native assertion failures with an active Rundown path and checks for an identical comment when scopes overlap. The transform preserves the original issue, including its source location. See the [README usage](../README.md#assertion-paths-in-synchronous-specs) and the [upstream proposal brief](SwiftTestingScopedIssueHandlingProposal.md).
 
@@ -620,6 +620,7 @@ package protocol Reporter: Sendable {
   func classify(_ error: any Error) -> ErrorKind          // .failure, .alreadyReported, or .skip
   func report(_ error: any Error, kind: ErrorKind, at node: ExampleNode) -> ErrorHandlingDecision  // .record or .propagate
   var allowsConcurrency: Bool { get }
+  var shouldStop: Bool { get }
 }
 ```
 
@@ -629,6 +630,7 @@ It is not a set of events (`willRunGroup`, `didFinishNode` and so on), which is 
 - `classify` exists because `XCTSkip` is a framework type that the traversal doesn't know.
 - `report` is called for new failures and skips thrown by a node's own code. Its decision says whether the error is recorded where it happened or propagated, so that the group keeps the first and rethrows it after teardown. The traversal handles already reported failures directly.
 - `allowsConcurrency` keeps `.concurrent` groups serial under XCTest because `XCTContext` only works on the main thread. Swift Testing can use concurrency in the async traversal, where child tasks inherit the host test context.
+- `shouldStop` lets the Swift Testing reporter stop new work while the traversal unwinds scopes it has entered.
 
 The traversal owns everything else: the order of hooks, what an error or a skip does to the rest of the run (see the roadmap's "Error and skip rules"), concurrency, and the element path.
 
