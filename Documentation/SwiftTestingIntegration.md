@@ -691,6 +691,8 @@ See the [Phase 3 task checklist](Roadmap.md#phase-3--swift-testing-trait-bridge)
 - require no migration to XCTest users
 - measure complexity of hook replay, naming, and trait inheritance
 
+The [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md) record the first registration and hook-replay probes.
+
 ### Phase 5: Decide Whether Leaf-Native Is Worth It
 
 Proceed only if the prototype delivers clear value:
