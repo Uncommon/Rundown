@@ -77,7 +77,7 @@ XCTest support has the following features:
 
 ### Swift Testing
 
-Add the `RundownSwiftTesting` product to your test target's dependencies. Import `Testing` and `RundownSwiftTesting`, and make your test type conform to `SwiftTestingSuite`. Each `spec` runs inside its enclosing `@Test`.
+Add the `RundownSwiftTesting` product to your test target's dependencies. Import `Testing` and `RundownSwiftTesting`, and make your test type conform to `SwiftTestingSuite`. Use `try await spec` in an async test or `try spec` in a synchronous test. You can name the spec explicitly or omit the name to derive it from the test function.
 
 ```swift
 import RundownSwiftTesting
@@ -97,11 +97,17 @@ struct CheckoutTests: SwiftTestingSuite {
 }
 ```
 
-With Swift 6.2 or later, async `spec` automatically adds a comment such as `Rundown path: Checkout, with two items, adds the prices` to failed `#expect` and `#require` assertions. The issue keeps the assertion's source location and any comments you supplied.
+Rundown reports errors thrown by examples and hooks with their full paths. With Swift 6.2 or later, async `spec` also adds a comment such as `Rundown path: Checkout, with two items, adds the prices` to failed `#expect` and `#require` assertions. The issue keeps the assertion's source location and any comments you supplied.
+
+#### Discovery and filtering
+
+Swift Testing discovers, filters, and schedules the enclosing `@Test`. Individual Rundown examples and hooks have no separate entries in the test navigator or `swift test --filter`. Within a spec, use Rundown's `.focused` and `.excluded` traits to select examples. Rundown runs `.concurrent` groups serially in synchronous specs and uses task groups in asynchronous specs.
+
+Use [`MainActorSwiftTestingSuite`](#mainactor-tests) when hooks or examples need the main actor.
 
 #### Assertion paths in synchronous specs
 
-Apply `@Suite(.rundownPaths)` once above a `SwiftTestingSuite` type to get the same assertion paths when its tests use synchronous `try spec { … }`.
+Apply `@Suite(.rundownPaths)` once above a `SwiftTestingSuite` or `MainActorSwiftTestingSuite` type to get the same assertion paths when its tests use synchronous `try spec { … }`.
 
 ```swift
 import RundownSwiftTesting
@@ -157,9 +163,32 @@ An error never skips teardown or the remaining elements. Everything that can sti
 
 Under Swift Testing, `try Test.cancel("reason")` (Swift 6.3 or later) cancels the host test or its current parameterized case. Rundown stops starting setup hooks and examples, then invokes teardown for groups and elements it already entered. Examples already running concurrently may finish. Teardown runs in the existing task, so cancellation-aware calls within it can still throw. A `CancellationError` caught in a cancelled task also stops the spec.
 
+Swift Testing displays the comment supplied to `Test.cancel`. To include the hook or example path, read `ExampleRunner.current?.description` inside it and include that value in the comment.
+
 ## MainActor tests
 
-Tests that require `@MainActor` need to have the enclosing type conform to `Rundown.MainActorSuite`. For XCTest, the `Rundown.TestCase` class already does this.
+For Swift Testing, conform to `MainActorSwiftTestingSuite`. Declare the conformance in the same file as the suite type so Swift infers `@MainActor` for the suite. Its `spec` builders, hooks, and examples run on the main actor. Use `try spec { … }` in a synchronous test or `try await spec { … }` in an asynchronous test.
+
+Sync specs run `.concurrent` groups serially. Async specs reject `.concurrent` on main-actor groups before running their hooks.
+
+```swift
+import RundownSwiftTesting
+import Testing
+
+struct ScreenTests: MainActorSwiftTestingSuite {
+  @Test func showsTitle() async throws {
+    try await spec("Screen") {
+      it("shows the home title") {
+        #expect(screenTitle() == "Home")
+      }
+    }
+  }
+
+  private func screenTitle() -> String { "Home" }
+}
+```
+
+For XCTest, `Rundown.TestCase` already conforms to `Rundown.MainActorSuite`.
 
 The main actor versions of `describe`, `it` and the rest are members of `MainActorSuite`. That means if you have a helper function that builds a group for a `@MainActor` spec, it has to be a member of such a type as well. A free function would get the ordinary versions instead, which don't produce a `@MainActor` group, and the compiler will report an error.
 

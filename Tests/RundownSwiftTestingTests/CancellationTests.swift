@@ -27,26 +27,35 @@ struct CancellationTests: SwiftTestingSuite {
   @Test func cancellationInBeforeAllRunsAfterAll() throws {
     let events = OSAllocatedUnfairLock(initialState: [String]())
 
-    try spec {
-      beforeAll { try Test.cancel("Cancel in beforeAll") }
+    try spec("Fixture setup") {
+      beforeAll("open fixture") {
+        let path = try #require(ExampleRunner.current?.description)
+        events.withLock { $0.append(path) }
+        try Test.cancel("Fixture unavailable at \(path)")
+      }
       beforeAll { Issue.record("Started another setup hook after cancellation") }
       it("never starts") { Issue.record("Started an example after cancellation") }
       afterAll { events.withLock { $0.append("afterAll") } }
     }
 
-    #expect(events.withLock { $0 } == ["afterAll"])
+    #expect(Task.isCancelled)
+    #expect(events.withLock { $0 } == ["Fixture setup, before all: open fixture", "afterAll"])
   }
 
   @Test func cancellationInBeforeEachUnwindsEnclosingGroups() throws {
     let events = OSAllocatedUnfairLock(initialState: [String]())
 
-    try spec {
+    try spec("Example setup") {
       aroundEach { run in
         defer { events.withLock { $0.append("outer aroundEach cleanup") } }
         try run()
       }
       context("nested group") {
-        beforeEach { try Test.cancel("Cancel in beforeEach") }
+        beforeEach("open fixture") {
+          let path = try #require(ExampleRunner.current?.description)
+          events.withLock { $0.append(path) }
+          try Test.cancel("Fixture unavailable at \(path)")
+        }
         it("never starts") { Issue.record("Started an example after cancellation") }
         afterEach { events.withLock { $0.append("nested afterEach") } }
         afterAll { events.withLock { $0.append("nested afterAll") } }
@@ -56,7 +65,9 @@ struct CancellationTests: SwiftTestingSuite {
       afterAll { events.withLock { $0.append("root afterAll") } }
     }
 
+    #expect(Task.isCancelled)
     #expect(events.withLock { $0 } == [
+      "Example setup, nested group, before each: open fixture",
       "nested afterEach", "nested afterAll", "root afterEach",
       "outer aroundEach cleanup", "root afterAll",
     ])

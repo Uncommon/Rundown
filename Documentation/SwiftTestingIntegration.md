@@ -19,10 +19,8 @@ Today, the integration split looks like this:
 - `Rundown.TestCase` improves XCTest failures by prefixing issues with the full example path.
 - XCTest behavior is a reporter on the shared traversal (`XCTestReporter`): each node runs as an `XCTContext` activity to show nested structure in the test log, errors are recorded as issues, and `XCTSkip` is classified as a skip. This is synchronous and main-actor only.
 - A built spec can be viewed as a tree of `ExampleNode`s (`ExampleNode.swift`), which does not depend on the call type. All specs are run by one traversal over that tree (`NodeTraversal.swift`), which takes a `Reporter` (`Reporter.swift`). The plain runners use `PlainReporter`.
-- Swift Testing currently uses the generic `run()` / `spec()` path only. There is no direct `import Testing` dependency in the package.
+- The optional `RundownSwiftTesting` product supplies `SwiftTestingSuite` and `MainActorSwiftTestingSuite`. Their `spec()` methods use `SwiftTestingReporter` inside a Swift Testing `@Test`. The core `Rundown` target remains independent of `Testing`.
 - Rundown traits are currently neutral library concepts and are not coupled to Swift Testing traits.
-
-That is a sound baseline. It keeps the DSL reusable, but it means Swift Testing currently gets less framework-native behavior than XCTest.
 
 ## Hard Constraints
 
@@ -124,7 +122,7 @@ This is done, as `ExampleNode` and the traversal in `NodeTraversal.swift`. It di
 
 ## Option A: Host-Test Swift Testing Adapter
 
-This is the lowest-risk improvement and should be the first serious implementation target.
+This is the implemented adapter. See the [README](../README.md#swift-testing) for setup and usage.
 
 ### Model
 
@@ -149,12 +147,11 @@ struct FeatureTests: SwiftTestingSuite {
 
 Rundown executes the whole spec as one host test. `SwiftTestingSuite` supplies `spec()` overloads that report thrown errors to Swift Testing.
 
-### What It Can Improve
+### Reporting
 
-- failure messages include the full Rundown path
-- skips are reported with Rundown path context
-- the current example path can be attached as comments or issue context
-- built-in neutral traits can influence Swift Testing metadata where appropriate
+- Thrown failures include the full Rundown path.
+- Native assertion failures can include a Rundown path comment on Swift 6.2 and later.
+- Swift Testing reports host cancellation using the comment and source location passed to `Test.cancel`.
 
 ### Why This Is Attractive
 
@@ -170,18 +167,9 @@ Rundown executes the whole spec as one host test. `SwiftTestingSuite` supplies `
 - filtering still happens at the outer test-function level
 - per-example parallelization is still mostly Rundown-managed, not Swift Testing-managed
 
-This is still worth doing because it improves the normal user experience immediately without large architectural risk.
-
 ### Package and Type Shape
 
-The optional `RundownSwiftTesting` product and target import `Rundown` and `Testing`. Both products use the deployment minimums in `Package.swift`. The target defines `SwiftTestingReporter` and the `SwiftTestingSuite` overloads. It re-exports the core DSL.
-
-The minimum new internal types would likely be:
-
-- `SwiftTestingReporter: Reporter`
-- `SwiftTestingExecutionContext`
-- `TraitBridgeContext`
-- `SwiftTestingFailureFormatter`
+The optional `RundownSwiftTesting` product and target import `Rundown` and `Testing`. Both products use the deployment minimums in `Package.swift`. The adapter defines `SwiftTestingReporter` and the `spec` overloads for `SwiftTestingSuite` and `MainActorSwiftTestingSuite`. It re-exports the core DSL.
 
 The traversal already takes a reporter, so this is one more conformance to `Reporter`. The protocol, its error types and both `run(with:)` overloads use `package` access, so an adapter target in the same package can use them with a regular `import Rundown`.
 
@@ -189,13 +177,13 @@ The public API goal is that users still write `spec()`. Framework selection shou
 
 ### Runtime Flow
 
-The likely execution flow for host-test mode is:
+The adapter runs a spec as follows.
 
 1. User enters a normal Swift Testing `@Test`.
 2. User calls a Swift Testing-specific `spec()` overload supplied by the adapter module.
 3. The existing builder constructs the group and its node tree.
 4. The traversal runs the tree with the Swift Testing reporter, as it does for the plain and XCTest reporters.
-5. Reporter methods translate failures, skips, and path information into Swift Testing-friendly output.
+5. The reporter records thrown failures with their paths and stops new work when Swift Testing cancels the host test or case.
 
 This keeps the execution model familiar:
 
@@ -244,7 +232,9 @@ The core provides global `spec()` overloads for the plain runner. `Rundown.TestC
 
 ### Suite Protocol Shape
 
-`SwiftTestingSuite` supports synchronous and asynchronous specs. Both can take an explicit name or derive one from the calling function using Rundown's existing naming rules. Synchronous specs run `.concurrent` groups serially so each example keeps the host test context. Asynchronous specs use task groups when `.concurrent` is present. Roadmap task 8 covers main-actor specs.
+`SwiftTestingSuite` supports synchronous and asynchronous specs. Both can take an explicit name or derive one from the calling function using Rundown's existing naming rules. Synchronous specs run `.concurrent` groups serially so each example keeps the host test context. Asynchronous specs use task groups when `.concurrent` is present.
+
+`MainActorSwiftTestingSuite` refines `MainActorSuite` and supplies the same four overloads with main-actor builders, hooks, and examples. It uses the Swift Testing reporter and assertion path handling in both sync and async specs. Sync specs run `.concurrent` groups serially, and async specs reject `.concurrent` on main-actor groups before running their hooks.
 
 ### Failure and Skip Reporting Details
 
@@ -258,22 +248,22 @@ Implementation details:
   - assertion failures raised inside an example
   - skips raised inside hooks
   - unexpected thrown errors
-- make skip reporting path-aware in the same way failure reporting is path-aware
 
-`SwiftTestingReporter` attaches the Rundown path to each newly recorded error. A failed `#require` has already recorded an issue, so the traversal handles its `ExpectationFailedError` as a failure without recording it again. The reporter treats Swift Testing cancellation as a skip and asks the traversal to stop starting new setup hooks and examples. The traversal still invokes teardown for groups and elements it entered, and Swift Testing reports the cancellation using the reason and source location from `Test.cancel`.
+`SwiftTestingReporter` attaches the Rundown path to each newly recorded error. A failed `#require` has already recorded an issue, so the traversal handles its `ExpectationFailedError` as a failure without recording it again. The reporter treats Swift Testing cancellation as a skip and asks the traversal to stop starting new setup hooks and examples. The traversal still invokes teardown for groups and elements it entered. Swift Testing emits the cancellation event when `Test.cancel` is called. Include `ExampleRunner.current?.description` in the cancellation comment to show the hook or example path.
 
 On Swift 6.2 and later, async `spec` installs an `IssueHandlingTrait` directly around traversal in the current Swift Testing test case. Sync specs use `@Suite(.rundownPaths)` to have Swift Testing install that handler before the test runs. Both scopes use the same transform. It adds a path comment only to native assertion failures with an active Rundown path and checks for an identical comment when scopes overlap. The transform preserves the original issue, including its source location. See the [README usage](../README.md#assertion-paths-in-synchronous-specs) and the [upstream proposal brief](SwiftTestingScopedIssueHandlingProposal.md).
 
 ### Testing Strategy For Option A
 
-Add adapter-focused tests that prove:
+`RundownSwiftTestingTests` covers the following behaviors.
 
-- a failing example under Swift Testing includes the full Rundown path
-- a skip inside `beforeEach` or `beforeAll` is reported once with the correct path
-- main-actor suites use the correct execution path
-- no existing XCTest test behavior changes
+- Named and caller-named specs preserve Swift Testing reporting and the host test context in both execution modes.
+- Thrown errors and native assertion failures include the full Rundown path when path handling is enabled.
+- Cancelling in `beforeEach` or `beforeAll` supplies the active hook path, stops new work, and runs teardown.
+- Main-actor tests, hooks, and examples run on the main actor.
+- XCTest reports through `Rundown.TestCase` with both frameworks imported.
 
-Option A should be considered complete only if it adds value without requiring any semantic change to the current DSL.
+To check cancellation output on the Swift 6.4 toolchain, run `swift test --filter CancellationTests --event-stream-output-path /tmp/rundown-cancellation.jsonl`. The stream contains one `testCancelled` event for each setup-cancellation test. Each `testEnded` event shows the supplied comment with the full hook path. The SwiftPM tests check the path and teardown directly, and the event stream checks the host runner's output.
 
 ## Option B: Leaf-Native Swift Testing Execution
 
@@ -636,14 +626,11 @@ The traversal owns everything else: the order of hooks, what an error or a skip 
 
 The reporter is `Sendable` because concurrent groups call it from several tasks or threads, and its methods are not actor-isolated. A reporter that needs the main actor does that inside its methods with `MainActor.assumeIsolated`.
 
-### Swift Testing Reporter Goals
+### Swift Testing Reporter Behavior
 
-- prefix failures with the full Rundown path
-- record skip reasons consistently
-- preserve example hierarchy in some form, even if there is no `XCTActivity` equivalent
-- attach path or context metadata where the framework makes that useful
-
-This is likely the highest-value runtime improvement after the plan model split.
+- Record thrown errors with the full Rundown path as an issue comment.
+- Stop new setup and examples on cancellation. Swift Testing reports the reason supplied by the caller.
+- Keep the hierarchy in path comments within the host test's results.
 
 ## Main Actor and Isolation Strategy
 
@@ -661,7 +648,7 @@ In practical terms:
 
 - keep `MainActorSuite`
 - keep `Rundown.TestCase` conforming to it
-- make any future Swift Testing adapter understand main-actor plans directly rather than relying on incidental overload selection only
+- use `MainActorSwiftTestingSuite` to build and run main-actor plans under Swift Testing
 
 ## Packaging Strategy
 
@@ -696,10 +683,10 @@ Medium term:
 - behavior unchanged, except that a skip in an `afterEach`, `afterAll` or `aroundEach` hook now ends only that hook, instead of aborting the run under XCTest
 - tests prove XCTest behavior remains identical (`ActivityStructureXCTests`, `MessageXCTests`, `MultiRunTests`)
 
-### Phase 2: Swift Testing Runtime Adapter
+### Phase 2: Swift Testing Runtime Adapter (done)
 
 - add an optional Swift Testing integration target
-- implement a reporter for full-path failures and skips
+- report full-path failures and honor Swift Testing cancellation
 - expose small helper APIs for use inside `@Test` functions
 - keep discovery at the outer host-test level
 

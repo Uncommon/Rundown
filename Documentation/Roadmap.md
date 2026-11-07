@@ -2,13 +2,11 @@
 
 Open work from the 2026-10-12 review of the library. Delete items as they land.
 
-## Next: Phase 2, the host-test Swift Testing adapter
+## Phase 2, the host-test Swift Testing adapter (done)
 
 Phase 1 (the node model, the reporter and the single traversal) is done. Phase 2 is Option A of `SwiftTestingIntegration.md`: a user writes a normal `@Test` that calls `spec`, Rundown runs the whole spec inside that one test, and an adapter makes what happens inside it feel native to Swift Testing. Individual examples are still not separately discoverable or filterable, which is what Option B and C would add.
 
-What the installed Swift Testing (Xcode's Swift 6.4 toolchain) offers, from reading its `Testing.swiftinterface`, none of it tried yet: `Issue.record(_:_:sourceLocation:)`, including a form that takes an `Error`; `Issue.Severity` with a `.warning`; `Test.current` and `Test.Case.current`; `IssueHandlingTrait`, which can transform issues; and `Test.cancel(_:)`, which ends the running test. The last one matters, because a Swift Testing cancellation ends the whole test, and Rundown's skips are local to a node.
-
-What a throwaway test under Swift Testing found (reading its source first, then running the node traversal inside `@Test` functions with Xcode's Swift 6.4 toolchain; the test is deleted):
+The initial Swift Testing probes used Xcode's Swift 6.4 toolchain.
 
 - *Issues with a path.* A handler built with `IssueHandlingTrait.compactMapIssues` appended the Rundown path to failed native assertions. Async `spec` now installs it directly through `provideScope(for:testCase:performing:)`. Synchronous specs use [`@Suite(.rundownPaths)`](../README.md#assertion-paths-in-synchronous-specs) so Swift Testing installs the handler before they run. The handler is available with Swift 6.2 and later and adds each path comment once, even when scopes overlap.
 - *`#require` inside an example: needs a rule.* It records its own issue and throws `ExpectationFailedError` (public), which came out of `spec` and was ignored by the runner. Exactly one issue was recorded. A reporter that records errors must skip `ExpectationFailedError`, or it will report the failure twice. With `PlainReporter` nothing needs doing.
@@ -17,9 +15,10 @@ What a throwaway test under Swift Testing found (reading its source first, then 
 - *`.concurrent` in the sync traversal does not work under Swift Testing.* In `DispatchQueue.concurrentPerform`, the iteration that runs on the calling thread sees `Test.current`, and the others see `nil`. Rundown's own runner and path are re-bound for those threads, but Swift Testing's context cannot be. Issues from the worker threads were recorded *twice* each (the event goes to every registered handler), were not covered by `withKnownIssue` or an issue-handling trait, and failed the test (11 issues from 6 failing examples, 1 of them known). The async traversal is fine: task-group children inherit the context, and `Test.current` was set in all of them.
 - *Observing issues in tests.* The trait approach doubles as the test technique: a trait whose handler records the transformed issue and returns `nil` lets a `@Test` examine issues without failing. `withKnownIssue(matching:)` sees an issue *before* any trait transforms it, so it can't be used to check the path comment.
 
-What this decides for the tasks:
+The adapter uses the following behavior.
 
 - `SwiftTestingSuite` provides named and caller-named `spec` overloads for Swift Testing. The overloads pass `allowsConcurrency: false` to the reporter for sync traversal and `true` for async traversal. Swift Testing suites and `Rundown.TestCase` subclasses can call their respective `spec` overloads in the same target.
+- `MainActorSwiftTestingSuite` provides the same overloads for main-actor builders, hooks, and examples. The adapter tests verify isolation and full error paths in both sync and async specs.
 - Swift Testing cancellation stops new setup hooks and examples. The traversal still calls teardown for each group and element it entered. `SwiftTestingReporter.shouldStop` observes task cancellation and shares any cancellation caught by a child across the spec run.
 - `SwiftTestingReporter` runs both scope closures inline and records thrown failures with the full Rundown path as an issue comment. It classifies `ExpectationFailedError` as an already reported failure and handles `Testing.SkipInfo` or `CancellationError` in a cancelled task as a skip. The skip classification uses the qualified type name for `Testing.SkipInfo`, which the toolchain does not expose.
 
@@ -27,15 +26,7 @@ The adapter boundary uses Swift `package` access. A separate module in the packa
 
 The optional `RundownSwiftTesting` product imports `Rundown` and the toolchain's `Testing` module. Both products share the package's deployment minimums of macOS 15, iOS 17, tvOS 17, watchOS 10, and Mac Catalyst 17. In Xcode 27.2, `Testing` supports macOS 14 and later. On watchOS, its simulator and `arm64_32` device slices support watchOS 10 and later, while its `arm64` and `arm64e` device slices start at watchOS 26. Use `@available` for individual adapter APIs that need a later version than the package minimum.
 
-Tasks, in order. Each step should end green and could be its own commit.
-
-- [ ] **8. Main-actor specs.** A `@MainActor` suite with sync and async specs, checked for the right isolation inside hooks and examples.
-- [ ] **9. Tests for the adapter.** `RundownSwiftTestingTests` covers all four `spec` overloads, concurrency, full paths on thrown errors and native assertion failures, and XCTest reporting with both frameworks imported. Add coverage for a skip in `beforeEach` or `beforeAll` being reported once with the right path, and for main-actor suites running on the right actor.
-- [ ] **10. Docs.** A README section for Swift Testing: how to write the `@Test`, what is and isn't supported (no per-example discovery or filtering). Update `SwiftTestingIntegration.md` and this roadmap.
-
-Tasks 8 and 9 come last.
-
-Done when, from the design doc's acceptance criteria: the existing XCTest tests pass without changes, `Rundown.TestCase` is still supported, the core builds without `Testing`, a failure under Swift Testing includes the full path, main-actor behavior is explicit, no built-in trait loses its meaning under XCTest, and the compile benchmark is unchanged.
+`RundownSwiftTestingTests` covers all four `SwiftTestingSuite` overloads, concurrency, failure paths, cancellation, main-actor isolation, and XCTest reporting with both frameworks imported. The cancellation tests supply the current setup hook path in `Test.cancel` and check that teardown runs. The [adapter design](SwiftTestingIntegration.md#testing-strategy-for-option-a) records how to verify the cancellation events. The [README](../README.md#swift-testing) shows how to adopt the adapter and filter tests.
 
 Not in this phase: bridging Rundown traits to Swift Testing metadata (design doc Phase 3), and the discovery experiment (Phases 4 and 5).
 
