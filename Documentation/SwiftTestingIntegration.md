@@ -575,6 +575,21 @@ The DSL accepts `any Trait` on groups, examples, and hooks. `ExampleNode` keeps 
 
 The Swift Testing entry points choose the reporter gate for the entire traversal. A sync group inside an async spec follows the async traversal's scheduling. All three built-ins are currently local to Rundown execution inside the host test. [Swift Testing entry points](../Sources/RundownSwiftTesting/SwiftTestingSuite.swift) · [Main-actor entry points](../Sources/RundownSwiftTesting/MainActorSwiftTestingSuite.swift)
 
+### Swift Testing metadata timing probe
+
+The probe ran on macOS with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403. It used a parameterized `@Test` with two async `spec` calls and a deliberate known assertion failure in each spec and in the host body. A trait attached to the first spec's group attempted to append native traits to a copy of `Test.current` while the builder ran. The probe compared the console, `swift test list`, and the JSON Lines event stream from `swift test --parallel --event-stream-output-path …`.
+
+| API | On the host `@Test` | Inside the running host |
+|---|---|---|
+| `Test.traits` and `.tags` | The declared tag appeared in `Test.current.tags` and the host's discovery record. The declared `TestTrait.prepare(for:)` marker ran during planning. | The added tag appeared on the local `Test` copy only. The running host retained its declared tag in both specs. The appended preparation marker never ran, and the discovery record had no added tag. |
+| `ConditionTrait` and `.disabled` | The disabled host was listed and emitted `testSkipped` without entering its body. | Appending `.disabled` to the copy left the host running. `evaluate()` returned `false` without cancelling the host, so the caller can use the result for its own control flow. Calling `prepare(for:)` directly in a separate running host cancelled that task and emitted `testCancelled`. |
+| `ParallelizationTrait` and `.serialized` | The host's two Swift Testing cases ran serially with parallel testing enabled. Rundown's two `.concurrent` children still overlapped within each case. | Explicitly wrapping the first spec in `.serialized.provideScope` still let the Rundown children overlap. In the control, removing `.serialized` from `@Test` while keeping the runtime scope let the two host cases overlap. |
+| `IssueHandlingTrait.provideScope` | Swift Testing can install an issue handler declared on the test or suite. | A handler wrapping only the first spec added its comment to that spec's assertion. The second spec's assertion had its usual Rundown path, and the assertion outside both specs had neither added comment. All three issues shared the host's test ID. |
+
+The CLI listed the three probe functions, including the disabled host. The event stream attributed the assertions from both specs and the host body to the same test ID. A runtime scope can affect work within a spec while reporting through the existing host test. [Swift Testing scoping API](https://developer.apple.com/documentation/testing/testscoping/providescope%28for%3Atestcase%3Aperforming%3A%29)
+
+The declared traits and mutable `Test.traits` are present in Swift 6.0. Custom `TestScoping` arrived in Swift 6.1. Swift 6.2 added `ConditionTrait.evaluate()`, `IssueHandlingTrait`, and the public scoping implementation on `ParallelizationTrait`. These are API availability checks from the published sources. The runtime and CLI observations above were verified on Swift 6.4.2. [Swift 6.0 `Test` source](https://github.com/swiftlang/swift-testing/blob/swift-6.0-RELEASE/Sources/Testing/Test.swift) · [Swift 6.1 release notes](https://www.swift.org/blog/swift-6.1-released/) · [ST-0010](https://github.com/swiftlang/swift-evolution/blob/main/proposals/testing/0010-evaluate-condition.md) · [ST-0011](https://github.com/swiftlang/swift-evolution/blob/main/proposals/testing/0011-issue-handling-traits.md) · [Swift 6.2 parallelization source](https://github.com/swiftlang/swift-testing/blob/swift-6.2-RELEASE/Sources/Testing/Traits/ParallelizationTrait.swift)
+
 ### Proposed Shape
 
 At the adapter layer, define something like:
