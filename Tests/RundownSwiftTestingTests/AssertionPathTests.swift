@@ -44,6 +44,41 @@ struct AsyncAssertionPathTests: SwiftTestingSuite {
     #expect(comments.contains(["probe require", "Rundown path: Checkout, signed in, requires a receipt"]))
     #expect(comments.contains(["probe outside"]))
   }
+
+  @Test(AssertionProbe.capture)
+  func failedRequirementsInHooksRecordOnceAndRunTeardown() async throws {
+    let issues = OSAllocatedUnfairLock(initialState: [Issue]())
+    let trace = OSAllocatedUnfairLock(initialState: [String]())
+    let assertionLocation = SourceLocation(fileID: #fileID, filePath: #filePath, line: #line, column: #column)
+
+    try await AssertionProbe.$issues.withValue(issues) {
+      try await spec("Requirements") {
+        context("nested") {
+          aroundEach { run in
+            defer { trace.withLock { $0.append("wrapper exit") } }
+            try await run()
+          }
+          beforeEach("fixture") {
+            await Task.yield()
+            try #require(Bool(false), "probe setup", sourceLocation: assertionLocation)
+          }
+          it("never starts") { Issue.record("Ran an example after a failed setup requirement") }
+          afterEach("release") { try #require(Bool(false), "probe teardown") }
+          afterEach { trace.withLock { $0.append("remaining afterEach") } }
+          afterAll { trace.withLock { $0.append("nested afterAll") } }
+        }
+        it("runs after the nested group") { trace.withLock { $0.append("sibling") } }
+      }
+    }
+
+    let recorded = issues.withLock { $0 }
+    #expect(recorded.map { $0.comments.map(\.rawValue) } == [
+      ["probe setup", "Rundown path: Requirements, nested, before each: fixture"],
+      ["probe teardown", "Rundown path: Requirements, nested, after each: release"],
+    ])
+    #expect(recorded.first?.sourceLocation == assertionLocation)
+    #expect(trace.withLock { $0 } == ["remaining afterEach", "wrapper exit", "nested afterAll", "sibling"])
+  }
 }
 
 @Suite(AssertionProbe.capture, .rundownPaths)

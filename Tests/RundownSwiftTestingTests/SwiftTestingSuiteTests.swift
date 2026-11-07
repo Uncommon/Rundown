@@ -52,4 +52,19 @@ struct SwiftTestingSuiteTests: SwiftTestingSuite {
 
     #expect(started.withLock { $0 } == 2)
   }
+
+  @Test func asyncSpecRunsInATaskWithoutHostContext() async throws {
+    let path = OSAllocatedUnfairLock(initialState: [String]())
+
+    try await Task.detached {
+      try await spec("Detached spec") {
+        it("runs") {
+          await Task.yield()
+          path.withLock { $0 = ExampleRunner.current?.path ?? [] }
+        }
+      }
+    }.value
+
+    #expect(path.withLock { $0 } == ["Detached spec", "runs"])
+  }
 }

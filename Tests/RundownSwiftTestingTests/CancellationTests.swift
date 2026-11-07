@@ -6,13 +6,32 @@ struct CancellationTests: SwiftTestingSuite {
   @Test func cancellationInAConcurrentChildStopsTheRestOfTheSpec() async throws {
     let events = OSAllocatedUnfairLock(initialState: [String]())
 
+    @Sendable func waitFor(_ event: String) async throws {
+      let clock = ContinuousClock()
+      let deadline = clock.now + .seconds(5)
+      while !events.withLock({ $0.contains(event) }) && clock.now < deadline {
+        try await clock.sleep(for: .milliseconds(1))
+      }
+      try #require(events.withLock { $0.contains(event) })
+    }
+
     try await spec {
       context("concurrent group", .concurrent) {
-        it("cancels its task") {
-          withUnsafeCurrentTask { $0?.cancel() }
-          try Task.checkCancellation()
+        context("cancelling child") {
+          it("cancels its task") {
+            try await waitFor("sibling in flight")
+            withUnsafeCurrentTask { $0?.cancel() }
+            try Task.checkCancellation()
+          }
+          afterEach { events.withLock { $0.append("child afterEach") } }
+          afterAll { events.withLock { $0.append("child afterAll") } }
         }
-        afterEach { events.withLock { $0.append("child afterEach") } }
+        it("finishes once already running") {
+          events.withLock { $0.append("sibling in flight") }
+          try await waitFor("child afterAll")
+          #expect(!Task.isCancelled)
+          events.withLock { $0.append("sibling finished") }
+        }
         afterAll { events.withLock { $0.append("group afterAll") } }
       }
       it("never starts") { Issue.record("Started an example after cancellation") }
@@ -20,7 +39,9 @@ struct CancellationTests: SwiftTestingSuite {
     }
 
     #expect(!Task.isCancelled)
-    #expect(events.withLock { $0 } == ["child afterEach", "group afterAll", "root afterAll"])
+    #expect(events.withLock { $0 } == [
+      "sibling in flight", "child afterEach", "child afterAll", "sibling finished", "group afterAll", "root afterAll",
+    ])
   }
 
 #if compiler(>=6.3)
@@ -88,6 +109,36 @@ struct CancellationTests: SwiftTestingSuite {
     }
 
     #expect(events.withLock { $0 } == ["example", "afterEach", "afterAll"])
+  }
+
+  @Test(arguments: [false, true])
+  func cancellationInTeardownOnlyStopsTheCurrentCase(cancel: Bool) async throws {
+    let events = OSAllocatedUnfairLock(initialState: [String]())
+
+    try await spec("Parameterized cleanup") {
+      context("fixture") {
+        it("runs") {
+          await Task.yield()
+          #expect(Test.Case.current?.isParameterized == true)
+          events.withLock { $0.append("example") }
+        }
+        afterEach("cancel if needed") {
+          if cancel {
+            let path = try #require(ExampleRunner.current?.description)
+            try Test.cancel("Cancel only this case at \(path)")
+          }
+        }
+        afterEach { events.withLock { $0.append("remaining afterEach") } }
+        afterAll { events.withLock { $0.append("group afterAll") } }
+      }
+      it("runs only in the active case") { events.withLock { $0.append("sibling") } }
+      afterAll { events.withLock { $0.append("root afterAll") } }
+    }
+
+    #expect(Task.isCancelled == cancel)
+    let expected = ["example", "remaining afterEach", "group afterAll"]
+      + (cancel ? [] : ["sibling"]) + ["root afterAll"]
+    #expect(events.withLock { $0 } == expected)
   }
 #endif
 }
