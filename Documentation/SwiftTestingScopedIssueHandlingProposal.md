@@ -105,4 +105,4 @@ try await handler.provideScope(for: test, testCase: Test.Case.current) {
 
 ## Rundown status
 
-Roadmap task 6 implemented automatic async paths and the sync suite annotation. The handler is gated to Swift 6.2 and later while the manifest keeps Swift tools 6.0. A public synchronous scope would let the adapter attach paths inside sync `spec` and remove the need for the annotation. [Roadmap](Roadmap.md) · [Implementation](../Sources/RundownSwiftTesting/AssertionPaths.swift)
+Phase 2 implemented automatic async paths and the sync suite annotation. The handler is gated to Swift 6.2 and later while the manifest keeps Swift tools 6.0. A public synchronous scope would let the adapter attach paths inside sync `spec` and remove the need for the annotation. [Phase 2 notes](CompletedPhases.md#phase-2--swift-testing-host-test-adapter) · [Implementation](../Sources/RundownSwiftTesting/AssertionPaths.swift)

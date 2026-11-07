@@ -622,7 +622,7 @@ It is not a set of events (`willRunGroup`, `didFinishNode` and so on), which is 
 - `allowsConcurrency` keeps `.concurrent` groups serial under XCTest because `XCTContext` only works on the main thread. Swift Testing can use concurrency in the async traversal, where child tasks inherit the host test context.
 - `shouldStop` lets the Swift Testing reporter stop new work while the traversal unwinds scopes it has entered.
 
-The traversal owns everything else: the order of hooks, what an error or a skip does to the rest of the run (see the roadmap's "Error and skip rules"), concurrency, and the element path.
+The traversal owns hook order, [error and skip rules](Roadmap.md#error-and-skip-rules), concurrency, and the element path. The completed adapter notes describe [cancellation and teardown](CompletedPhases.md#cancellation-and-teardown).
 
 The reporter is `Sendable` because concurrent groups call it from several tasks or threads, and its methods are not actor-isolated. A reporter that needs the main actor does that inside its methods with `MainActor.assumeIsolated`.
 
@@ -675,26 +675,15 @@ Medium term:
 
 ## Phased Plan
 
-### Phase 1: Internal Cleanup For Extensibility (done)
-
-- introduce an explicit plan/tree model (`ExampleNode`)
-- extract reporting hooks from `ExampleRunner` (`Reporter`, with `PlainReporter` and `XCTestReporter`)
-- one traversal for every way of running a spec (`NodeTraversal.swift`)
-- behavior unchanged, except that a skip in an `afterEach`, `afterAll` or `aroundEach` hook now ends only that hook, instead of aborting the run under XCTest
-- tests prove XCTest behavior remains identical (`ActivityStructureXCTests`, `MessageXCTests`, `MultiRunTests`)
-
-### Phase 2: Swift Testing Runtime Adapter (done)
-
-- add an optional Swift Testing integration target
-- report full-path failures and honor Swift Testing cancellation
-- expose small helper APIs for use inside `@Test` functions
-- keep discovery at the outer host-test level
+The [completed phases](CompletedPhases.md) record the shared node traversal from Phase 1 and the Swift Testing host-test adapter from Phase 2.
 
 ### Phase 3: Trait Bridge
 
 - bridge built-in Rundown traits to Swift Testing metadata where the mapping is obvious and safe
 - leave ambiguous traits as Rundown-local semantics
 - document which traits are execution-only vs metadata-capable
+
+See the [Phase 3 task checklist](Roadmap.md#phase-3--swift-testing-trait-bridge).
 
 ### Phase 4: Discovery Experiment
 
