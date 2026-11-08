@@ -546,7 +546,7 @@ That means the core library should continue to define:
 - `ExampleTrait`
 - built-in Rundown traits such as `FocusedTrait`, `ExcludedTrait`, and `ConcurrentTrait`
 
-The Swift Testing adapter can then provide a bridge from neutral Rundown traits to Swift Testing semantics.
+The Swift Testing adapter can interpret neutral traits when it has a Swift Testing node or scheduling scope that matches the Rundown node.
 
 ### Current Rundown trait behavior
 
@@ -590,46 +590,17 @@ The CLI listed the three probe functions, including the disabled host. The event
 
 The declared traits and mutable `Test.traits` are present in Swift 6.0. Custom `TestScoping` arrived in Swift 6.1. Swift 6.2 added `ConditionTrait.evaluate()`, `IssueHandlingTrait`, and the public scoping implementation on `ParallelizationTrait`. These are API availability checks from the published sources. The runtime and CLI observations above were verified on Swift 6.4.2. [Swift 6.0 `Test` source](https://github.com/swiftlang/swift-testing/blob/swift-6.0-RELEASE/Sources/Testing/Test.swift) · [Swift 6.1 release notes](https://www.swift.org/blog/swift-6.1-released/) · [ST-0010](https://github.com/swiftlang/swift-evolution/blob/main/proposals/testing/0010-evaluate-condition.md) · [ST-0011](https://github.com/swiftlang/swift-evolution/blob/main/proposals/testing/0011-issue-handling-traits.md) · [Swift 6.2 parallelization source](https://github.com/swiftlang/swift-testing/blob/swift-6.2-RELEASE/Sources/Testing/Traits/ParallelizationTrait.swift)
 
-### Proposed Shape
+### Phase 3 trait decisions
 
-At the adapter layer, define something like:
+All three built-ins are execution-only in host-test mode. `RundownSwiftTesting` builds the tree after Swift Testing has selected the host test and delegates selection and scheduling to the shared traversal. Phase 3 defers a bridge API until discovery exposes a matching Swift Testing scope. [Host-test probe](#swift-testing-metadata-timing-probe)
 
-```swift
-protocol SwiftTestingBridgedTrait: Trait {
-  func testingMetadata(
-    context: TraitBridgeContext
-  ) -> SwiftTestingMetadata
-}
-```
+| Rundown trait | Host-test decision | Candidate for native discovery |
+|---|---|---|
+| `.excluded` | Omit the example, child group, or hook locally. A spec with all children excluded returns without running its hooks, and the host can continue. Use native `.disabled` when the whole host test or suite should be skipped. | Omit excluded nodes and their subtrees from generated test content. This preserves temporary omission. Use native `.disabled` for a discoverable test intended to appear as skipped. |
+| `.focused` | Resolve focus within the spec using Rundown's branch selection. The documented focus-inside-exclusion behavior is the baseline for the separate cleanup. | Focus stays a development-time execution control by default. If Phase 4 tests an opt-in discovery mode for focused examples, derive its selection from the resolved tree and keep the IDs of the tests it includes. |
+| `.concurrent` | Rundown schedules the group's children. Native `.serialized` on a parameterized host test controls its Swift Testing cases. Rundown runs sync groups serially under the sync adapter, uses task groups in async specs, and rejects concurrent async main-actor groups before their hooks. | Consider native scheduling only at a boundary that represents a group's selected siblings. Test `.serialized` for boundaries that need sequential execution and allow Swift Testing parallelism where the Rundown group permits it. Verify hook lifetimes and main-actor isolation at that boundary. |
 
-The exact API can vary, but the idea is:
-
-- the core trait types do not import `Testing`
-- the Swift Testing adapter can look at the plan and derive framework-native behavior
-
-### Built-In Trait Mapping Ideas
-
-`ExcludedTrait`
-
-- Swift Testing host-test mode: no-op at framework level; Rundown omits execution as it does today
-- Swift Testing leaf-native mode: can map to disabled leaf cases or omit them from discovery
-
-`FocusedTrait`
-
-- keep library-local at first
-- in host-test mode, continue filtering inside Rundown
-- in leaf-native mode, possibly omit non-focused leaves from discovery in development configurations
-
-`ConcurrentTrait`
-
-- host-test mode: keep current Rundown-managed concurrency semantics
-- leaf-native mode: reconsider whether this should map to Swift Testing parallelization metadata, or whether the native test runner should own parallelism entirely
-
-### Important Principle
-
-Traits that affect discovery should be distinguished from traits that affect execution only.
-
-That distinction is currently implicit. A deeper Swift Testing integration would benefit from making it explicit in the plan layer.
+If the discovery prototype exposes a top-level group as a single case, Rundown still owns its internal hooks and child scheduling. Apply discovery choices to the nodes or cases the prototype actually emits. [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md)
 
 ## Reporting Adapter Design
 
@@ -721,9 +692,7 @@ The [completed phases](CompletedPhases.md) record the shared node traversal from
 
 ### Phase 3: Trait Bridge
 
-- bridge built-in Rundown traits to Swift Testing metadata where the mapping is obvious and safe
-- leave ambiguous traits as Rundown-local semantics
-- document which traits are execution-only vs metadata-capable
+Keep the built-in traits local to the Rundown traversal in host-test mode. Carry the candidate discovery mappings into the prototype. [Phase 3 trait decisions](#phase-3-trait-decisions)
 
 See the [Phase 3 task checklist](Roadmap.md#phase-3--swift-testing-trait-bridge).
 
@@ -733,7 +702,7 @@ See the [Phase 3 task checklist](Roadmap.md#phase-3--swift-testing-trait-bridge)
 - require no migration to XCTest users
 - measure complexity of hook replay, naming, and trait inheritance
 
-The [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md) record the first registration and hook-replay probes.
+The [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md) record the first registration and hook-replay probes. The [Phase 3 trait decisions](#phase-3-trait-decisions) describe which mappings to evaluate at the discovery boundary.
 
 ### Phase 5: Decide Whether Leaf-Native Is Worth It
 

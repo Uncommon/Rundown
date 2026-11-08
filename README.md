@@ -105,6 +105,43 @@ Swift Testing discovers, filters, and schedules the enclosing `@Test`. Individua
 
 Use [`MainActorSwiftTestingSuite`](#mainactor-tests) when hooks or examples need the main actor.
 
+#### Rundown and Swift Testing traits
+
+Traits on `@Suite` and `@Test` apply to Swift Testing's suite and test. In this example, `.serialized` applies to the suite and `.tags(.checkout)` labels the host test. The `.excluded` trait applies to a Rundown example. Because it is the only example in the first spec, that spec returns without running its setup hook. The same host test then runs the cached-price spec.
+
+```swift
+import RundownSwiftTesting
+import Testing
+
+extension Tag {
+  @Tag static var checkout: Self
+}
+
+@Suite(.serialized)
+struct CheckoutTraitTests: SwiftTestingSuite {
+  @Test(.tags(.checkout))
+  func checksPrices() async throws {
+    try await spec("Live prices") {
+      beforeAll { Issue.record("Live-price setup ran") }
+      it("reads the live feed", .excluded) {
+        Issue.record("Live-price example ran")
+      }
+    }
+
+    try await confirmation("Cached prices were checked") { checked in
+      try await spec("Cached prices") {
+        it("adds prices") {
+          #expect([19, 23].reduce(0, +) == 42)
+          checked()
+        }
+      }
+    }
+  }
+}
+```
+
+Use native `.disabled` on `@Test` or `@Suite` to skip the whole host test or suite.
+
 #### Assertion paths in synchronous specs
 
 Apply `@Suite(.rundownPaths)` once above a `SwiftTestingSuite` or `MainActorSwiftTestingSuite` type to get the same assertion paths when its tests use synchronous `try spec { … }`.
