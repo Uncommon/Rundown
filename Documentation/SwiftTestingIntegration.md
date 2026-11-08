@@ -688,13 +688,7 @@ Medium term:
 
 ## Phased Plan
 
-The [completed phases](CompletedPhases.md) record the shared node traversal from Phase 1 and the Swift Testing host-test adapter from Phase 2.
-
-### Phase 3: Trait Bridge
-
-Keep the built-in traits local to the Rundown traversal in host-test mode. Carry the candidate discovery mappings into the prototype. [Phase 3 trait decisions](#phase-3-trait-decisions)
-
-See the [Phase 3 task checklist](Roadmap.md#phase-3--swift-testing-trait-bridge).
+The [completed phases](CompletedPhases.md) record the shared node traversal, the Swift Testing host-test adapter, and the decisions about built-in traits in host-test mode.
 
 ### Phase 4: Discovery Experiment
 
@@ -702,7 +696,7 @@ See the [Phase 3 task checklist](Roadmap.md#phase-3--swift-testing-trait-bridge)
 - require no migration to XCTest users
 - measure complexity of hook replay, naming, and trait inheritance
 
-The [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md) record the first registration and hook-replay probes. The [Phase 3 trait decisions](#phase-3-trait-decisions) describe which mappings to evaluate at the discovery boundary.
+The [Phase 4 checklist](Roadmap.md#phase-4--swift-testing-discovery-experiment) breaks down the experiment. The [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md) record the first registration and hook-replay probes. The [Phase 3 trait decisions](#phase-3-trait-decisions) describe which mappings to evaluate at the discovery boundary.
 
 ### Phase 5: Decide Whether Leaf-Native Is Worth It
 
