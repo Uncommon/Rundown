@@ -65,7 +65,24 @@ The host filter ran one test, including every example in its spec. Filtering for
 
 The ordinary trace shows root `beforeAll` and `afterAll` once each. Root `aroundEach`, `beforeEach`, and `afterEach` wrap the whole generated group once and the independent example once. Inside the generated group, `beforeAll` and `afterAll` bracket all four examples, and `beforeEach` and `afterEach` run for each example, including the failing ones. Both tests assert the full traces in the fixture source.
 
-## Reproducing the registration probe
+## Prototype registration
+
+On `codex/swift-testing-discovery`, the package-scoped `@Spec` macro and `Spec` protocol are available in `RundownSwiftTesting` on macOS with Swift 6.4 or later when `RUNDOWN_DISCOVERY_PROTOTYPE` is defined. The prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. [Adapter implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
+
+The macro emits one Mach-O `__DATA_CONST,__swift5_tests` record with kind `0x74657374`. It uses a local copy of the record layout with a nonoptional C accessor because Swift 6.4.2 rejected the optional accessor literal in `@section`. The layouts matched at a 32-byte stride and 8-byte alignment on the tested toolchain. The accessor passes the runtime type pointer to `Test.__store`, and its generator uses `Test.__function` with `__SourceBounds` derived from the spec declaration. Swift Testing synthesizes the containing suite from the test ID. [Swift Testing test content ABI](https://github.com/swiftlang/swift-testing/blob/main/Documentation/ABI/TestContent.md)
+
+The generated test evaluates the computed `spec` property at execution time and runs its named `ExampleNode` tree with the existing reporter. The fixture checks the generated test name and nested Rundown path after suspension. This establishes whole-spec registration. The next experiment compares cases and leaves.
+
+```sh
+swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest \
+  --filter 'DiscoveryRegistrationSpec|DiscoveryComparisonTests/hostAdapterBaseline' \
+  --event-stream-output-path /tmp/rundown-discovery-registration.jsonl
+swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE list --skip-build --disable-xctest
+```
+
+The listing contained `RundownSwiftTestingTests.DiscoveryRegistrationSpec/examples()` and `RundownSwiftTestingTests.DiscoveryComparisonTests/hostAdapterBaseline()`. The filtered run passed both tests and the event stream identified the generated test at the `DiscoveryRegistrationSpec` declaration. A build with the flag omitted listed only the conventional host baseline of those two tests.
+
+## Original scratch probe
 
 A macro can be probed without a new package: put the macro in `Sources/RundownMacros`, register it in `RundownPlugin`, and declare it in a `ZZ…` test file with `#externalMacro(module: "RundownMacros", type: …)`. Revert the plugin list afterward. `ExampleNode.children` is `private(set)`, so a probe that edits a tree needs a temporary extension in `ExampleNode.swift`. Swift Testing starts its test generators concurrently, so a probe that creates shared state in them needs a lock. `swift test list` shows what was discovered, and `swift build` compiling a hand-written record proves nothing until the test appears there.
 

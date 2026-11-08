@@ -40,7 +40,7 @@ let package = Package(
         // Library that exposes a macro as part of its API, which is used in client programs.
         .target(name: "Rundown", dependencies: ["RundownMacros"]),
 
-        .target(name: "RundownSwiftTesting", dependencies: ["Rundown"]),
+        .target(name: "RundownSwiftTesting", dependencies: ["Rundown", "RundownMacros"]),
 
         // A client of the library, which is able to use the macro in its own code.
         .executableTarget(name: "RundownClient", dependencies: ["Rundown"]),
