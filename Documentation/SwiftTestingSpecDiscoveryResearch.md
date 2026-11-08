@@ -36,6 +36,35 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - The probe depends on underscored APIs whose signatures already differed between the source tree and the toolchain. That approach would need checks against each supported toolchain. See the [possible upstream proposal](#possible-upstream-proposal).
 - `Spec` types would be opt-in alongside the existing `@Test` and `spec` entry points. If the experiment goes ahead, update `SwiftTestingIntegration.md` with what it established about Option C.
 
+## Host-test baseline
+
+The comparison fixtures ran on macOS with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403. Both expose a builder that the prototype can reuse. The ordinary fixture has a helper-built nested group with a loop and conditional. It produces a synchronous and an asynchronous example with the same label and full path, followed by a required assertion and a thrown error. The root also has an independent example. The main-actor fixture checks isolation in the builder and its callbacks, including an example that suspends before recording its trace. [Comparison fixtures](../Tests/RundownSwiftTestingTests/DiscoveryComparisonTests.swift)
+
+```sh
+swift test --disable-xctest --filter DiscoveryComparisonTests \
+  --event-stream-output-path /tmp/rundown-discovery-baseline.jsonl
+swift test list --skip-build --disable-xctest
+swift test --skip-build --disable-xctest --filter 'DiscoveryComparisonTests/hostAdapterBaseline'
+swift test --skip-build --disable-xctest --filter 'Repeated discovery label'
+```
+
+The listing contained these two entries for the fixtures.
+
+```text
+RundownSwiftTestingTests.DiscoveryComparisonTests/hostAdapterBaseline()
+RundownSwiftTestingTests.MainActorDiscoveryComparisonTests/mainActorBaseline()
+```
+
+The host filter ran one test, including every example in its spec. Filtering for `Repeated discovery label` returned `No matching test cases were run`. The event stream attributed all three deliberate known issues to `hostAdapterBaseline()`, with one `issueRecorded` event per failure.
+
+| Failure | Path comment | Source location in the result |
+|---|---|---|
+| Failed `#expect` | `Rundown path: Discovery comparison, Generated group, Repeated discovery label` | The assertion in `DiscoveryComparisonTests.swift` |
+| Failed `#require` | `Rundown path: Discovery comparison, Generated group, Required assertion` | The assertion in `DiscoveryComparisonTests.swift` |
+| Thrown `ExampleFailure` | `Discovery comparison, Generated group, Thrown error` | The `Issue.record` call in `SwiftTestingReporter.swift` |
+
+The ordinary trace shows root `beforeAll` and `afterAll` once each. Root `aroundEach`, `beforeEach`, and `afterEach` wrap the whole generated group once and the independent example once. Inside the generated group, `beforeAll` and `afterAll` bracket all four examples, and `beforeEach` and `afterEach` run for each example, including the failing ones. Both tests assert the full traces in the fixture source.
+
 ## Reproducing the registration probe
 
 A macro can be probed without a new package: put the macro in `Sources/RundownMacros`, register it in `RundownPlugin`, and declare it in a `ZZ…` test file with `#externalMacro(module: "RundownMacros", type: …)`. Revert the plugin list afterward. `ExampleNode.children` is `private(set)`, so a probe that edits a tree needs a temporary extension in `ExampleNode.swift`. Swift Testing starts its test generators concurrently, so a probe that creates shared state in them needs a lock. `swift test list` shows what was discovered, and `swift build` compiling a hand-written record proves nothing until the test appears there.
