@@ -87,7 +87,7 @@ package struct ExampleNode: Sendable {
   /// children of the group that declares it, and a child group counts as one
   /// child, so each-hooks are not copied down to the examples of a nested
   /// group. Empty for examples and hooks.
-  let hooks: [HookKind: [ExampleNode]]
+  private(set) var hooks: [HookKind: [ExampleNode]]
 
   func hooks(_ kind: HookKind) -> [ExampleNode] {
     hooks[kind] ?? []
@@ -158,6 +158,13 @@ extension ExampleNode {
   package func retainingOnly(_ child: Self) -> Self {
     var node = self
     node.children = [child]
+    return node
+  }
+
+  package var withoutGroupHooks: Self {
+    var node = self
+    node.hooks[.beforeAll] = nil
+    node.hooks[.afterAll] = nil
     return node
   }
 }

@@ -71,7 +71,7 @@ On `codex/swift-testing-discovery`, the package-scoped `@Spec` macro and `Spec` 
 
 Apply `@Spec` to a struct that provides the computed `spec` property. The macro adds the `Spec` conformance, applies the result builder to a DSL getter, and emits the registration record. A getter can also return a prebuilt group explicitly.
 
-The macro emits one Mach-O `__DATA_CONST,__swift5_tests` record with kind `0x74657374`. It uses a local copy of the record layout with a nonoptional C accessor because Swift 6.4.2 rejected the optional accessor literal in `@section`. The layouts matched at a 32-byte stride and 8-byte alignment on the tested toolchain. The accessor passes the runtime type pointer to `Test.__store`, and its generator uses `Test.__function` with `__SourceBounds` derived from the spec declaration. Swift Testing synthesizes the containing suite from the test ID. [Swift Testing test content ABI](https://github.com/swiftlang/swift-testing/blob/main/Documentation/ABI/TestContent.md)
+The macro emits Mach-O `__DATA_CONST,__swift5_tests` records with kind `0x74657374`. It uses a local copy of the record layout with a nonoptional C accessor because Swift 6.4.2 rejected the optional accessor literal in `@section`. The layouts matched at a 32-byte stride and 8-byte alignment on the tested toolchain. The accessor passes the runtime type pointer to `Test.__store`, and the generators use `Test.__function` and `Test.__type` with `__SourceBounds` derived from the spec declaration. [Swift Testing test content ABI](https://github.com/swiftlang/swift-testing/blob/main/Documentation/ABI/TestContent.md)
 
 The initial registration at `1070563` evaluated the computed `spec` property at execution time and ran its named `ExampleNode` tree with the existing reporter. SwiftPM listed `DiscoveryRegistrationSpec/examples()` alongside `DiscoveryComparisonTests/hostAdapterBaseline()`, and both tests passed in the same run. The flag-off build listed the conventional host baseline. The parameterized prototype below builds on that registration.
 
@@ -89,7 +89,7 @@ Each case encodes its zero-based child indices with `CustomTestArgumentEncodable
 
 The declared `DiscoveryRegistrationSpec.Leaves` type appears as a nested Swift Testing suite. `Registered group` appears in the case labels, with no suite entry. The top-level `DiscoveryRegistrationLeafSpec` controls for nesting by registering the same leaf cases in a separate top-level suite.
 
-The argument collection builds the tree during planning and carries a projected tree into each case. A top-level case keeps its subtree intact, and a leaf case keeps only its ancestor chain and leaf. Each projection retains its ancestor hooks, so running several cases can repeat ancestor setup and teardown. The plan lifetime and hook tasks will compare that behavior with the host baseline.
+The argument collection builds the tree during planning and carries a projected tree into each case. A top-level case keeps its subtree intact, and a leaf case keeps only its ancestor chain and leaf. The initial projections retained all ancestor hooks. The suite scope below now owns the root hooks for generated suites.
 
 ```sh
 SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1 \
@@ -99,6 +99,33 @@ swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE list --skip-build --disable-xc
 ```
 
 For the Xcode comparison, build `Rundown-Package` for testing with `OTHER_SWIFT_FLAGS='$(inherited) -DRUNDOWN_DISCOVERY_PROTOTYPE'`. Use the resulting `.xctestrun` with `xcodebuild test-without-building -enumerate-tests`, then run the discovery suites into a result bundle. `xcresulttool get test-results tests` reports each argument's `nodeIdentifierURL`, which can be passed to `xcodebuild test-without-building -only-testing:<url>`.
+
+## Plan and fixture lifetime
+
+The Swift 6.4.2 scratch probe used the current `@Spec` adapter and an explicit native `@Suite` with a nonrecursive `TestScoping` trait. Two specs built the same helper-generated group with a loop, a conditional exclusion, and an independent example. The leaf variant exposed `item-1 [0.0]`, `item-3 [0.2]`, and `Tail [1]`. The top-level variant exposed `Generated [0]` and `Tail [1]`. The five names and case IDs matched across runs.
+
+- **Listing and filtering.** Swift Testing's `--list-tests` entry point listed both generated functions without initializing their `Spec` instances or evaluating either getter. Filtering to one function initialized and built only that spec. The getter ran with the generated `Test.current` during planning, before the suite entered its execution scope. [Lazy argument evaluation](https://developer.apple.com/documentation/testing/parameterizedtesting)
+- **Sharing during execution.** The projected cases held the same state captured by their planned tree. Each suite's scope initialized a separate task-local fixture, which its cases inherited and updated. The getter saw no suite fixture during planning. Setup can share state with running cases through that scope, and setup that needs the exact planned tree must receive it from planning. [Swift Testing execution scopes](https://developer.apple.com/documentation/testing/testscoping/providescope%28for%3Atestcase%3Aperforming%3A%29)
+- **Repeating a case and rerunning a plan.** With `--repetitions 2` at Swift Testing's entry point, each case's counter went from one to two in both its plan fixture and its suite fixture. Two complete runner invocations in the same process each built fresh state and restarted those counters. The two specs had distinct state throughout. For hook coordination, keep the root with its plan and give each execution scope a fresh lifetime.
+
+## Hook lifetimes
+
+`@Spec` emits a native suite record with a recursive trait. The generated function inherits that trait during planning and gives it the original root tree. The trait enters its execution scope only for the owning suite. It runs the root's `beforeAll` and `afterAll` through the shared traversal, and the projected cases keep the root's each-hooks and their own subtree hooks. An explicit `@Suite` already registers the same suite ID, so those declarations retain their native traits and per-case root hooks. [Scope implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+| Scenario | Observed behavior |
+|---|---|
+| Full run with serial case scheduling | The generated spec and the host adapter produced the same trace. Root setup and teardown ran once. The parent's `aroundEach`, `beforeEach`, and `afterEach` wrapped the whole nested group once, including both of its examples, then wrapped the tail example once. |
+| Xcode rerun of `Nested [0]` | Root setup and teardown ran once, the parent each-hooks wrapped only the nested group, and the tail case did not start. |
+| All examples excluded | Swift Testing skipped the function with `No test cases found.` The root hooks and example were untouched. |
+| Root setup throws | The reporter recorded one issue with the `FailingSetup, before all: open` path. Root teardown ran with the task still active, then the adapter cancelled the suite before any cases started. |
+| Root setup calls `Test.cancel` | The suite emitted a cancellation event and root teardown saw a cancelled task. No cases started. |
+
+A function-level scope entered before its first parameterized case blocked the bodies on setup interruption, but `Test.cancel` did not cancel that scope's task. The native suite scope restored cancellation-aware teardown. Suite cancellation also reaches any separately declared child suites under it. Leaf cases still replay hooks of intermediate groups. Preserving those lifetimes would require coordinating the selected leaves of each shared group, especially when an each-hook wraps a whole nested group. [Hook fixtures](../Tests/RundownSwiftTestingTests/DiscoveryHookLifetimeTests.swift)
+
+```sh
+swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest --no-parallel \
+  --filter DiscoveryHook --event-stream-output-path /tmp/rundown-discovery-hooks.jsonl
+```
 
 ## Original scratch probe
 
