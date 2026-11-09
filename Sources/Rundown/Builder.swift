@@ -80,6 +80,27 @@ internal extension Accumulator {
 
 @resultBuilder
 public struct ExampleBuilder<Call: CallType> {
+  // Give an inline wrapper the builder's call type before Swift resolves the
+  // overload. A closure that ignores its callback can otherwise resolve as sync.
+  public static func buildExpression(_ expression: AroundEach<Call>) -> AroundEach<Call> {
+    expression
+  }
+
+  // Preserve the types of other expressions for the partial-block overloads.
+  public static func buildExpression<Example: TestExample>(_ expression: Example) -> Example {
+    expression
+  }
+
+  public static func buildExpression<Phase: HookPhase, C: CallType>(
+    _ expression: TestHook<Phase, C>
+  ) -> TestHook<Phase, C> {
+    expression
+  }
+
+  public static func buildExpression<Phase: AccumulatorPhase>(_ expression: Accumulator<Phase>) -> Accumulator<Phase> {
+    expression
+  }
+
   // Hooks of the same sync type can repeat
   public static func buildPartialBlock<Phase: AccumulatorPhase, C: CallType>(
       accumulated: Accumulator<Phase>,
@@ -411,21 +432,10 @@ public extension ExampleBuilder where Call: AsyncConvertibleCallType {
     fatalError("unavailable")
   }
 
-  // AroundEach can't be converted from sync to async because it
-  // would require passing the new async callback to the old sync
-  // callback, and there's no good way to make that work.
-  // This also makes sense because every AroundEach must be able
-  // to handle every example in the group, so if any are async then
-  // every AroundEach must also be async.
+  // A sync wrapper cannot call an async callback. Match an explicitly sync
+  // wrapper here so the builder can report the mismatch at the expression.
   @available(*, unavailable, message: "Every aroundEach must be async in an async test")
-  static func buildPartialBlock(first: AroundEach<Call.SyncVersion>) -> Accumulator<AroundEachPhase> {
-    fatalError("unavailable")
-  }
-
-  @available(*, unavailable, message: "Every aroundEach must be async in an async test")
-  static func buildPartialBlock<Phase: AccumulatorPhase>(
-    accumulated: Accumulator<Phase>,
-    next: AroundEach<Call.SyncVersion>) -> Accumulator<AroundEachPhase> {
+  static func buildExpression(_ expression: AroundEach<Call.SyncVersion>) -> AroundEach<Call> {
     fatalError("unavailable")
   }
 }

@@ -87,7 +87,7 @@ package struct ExampleNode: Sendable {
   /// children of the group that declares it, and a child group counts as one
   /// child, so each-hooks are not copied down to the examples of a nested
   /// group. Empty for examples and hooks.
-  let hooks: [HookKind: [ExampleNode]]
+  private(set) var hooks: [HookKind: [ExampleNode]]
 
   func hooks(_ kind: HookKind) -> [ExampleNode] {
     hooks[kind] ?? []
@@ -117,7 +117,7 @@ package struct ExampleNode: Sendable {
     hooks(kind).filter(\.isSelected)
   }
 
-  var isGroup: Bool { kind == .group }
+  package var isGroup: Bool { kind == .group }
   var isExample: Bool { kind == .example }
   package var isAroundEachHook: Bool { kind == .hook(.aroundEach) }
 
@@ -148,6 +148,27 @@ package struct ExampleNode: Sendable {
 extension ExampleNode: TestElement {
   package var description: String { name }
 }
+
+#if canImport(Darwin) && compiler(>=6.4)
+extension ExampleNode {
+  package var indexedSelectedChildren: [(offset: Int, element: ExampleNode)] {
+    children.enumerated().filter { $0.element.isSelected }
+  }
+
+  package func retainingOnly(_ child: Self) -> Self {
+    var node = self
+    node.children = [child]
+    return node
+  }
+
+  package var withoutGroupHooks: Self {
+    var node = self
+    node.hooks[.beforeAll] = nil
+    node.hooks[.afterAll] = nil
+    return node
+  }
+}
+#endif
 
 // MARK: - Building
 

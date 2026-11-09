@@ -5,5 +5,6 @@ import SwiftSyntaxMacros
 struct RundownPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [
     DeAsyncMacro.self,
+    DiscoverySpecMacro.self,
   ]
 }

@@ -96,6 +96,13 @@ public func it(_ description: String,
   .init(description, traits, execute: execute)
 }
 
+@DeAsyncRD
+public func it(_ description: String,
+               _ traits: [any Trait],
+               execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
+  .init(description, traits, execute: execute)
+}
+
 @DeAsyncRD(stripSendable: .parameters)
 public func spec(@ExampleBuilder<AsyncCall> builder: @Sendable () -> ExampleGroup<AsyncCall>,
                  function: String = #function) async throws {

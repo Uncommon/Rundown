@@ -19,6 +19,11 @@ extension ExampleNode {
   @DeAsyncRD
   package func run(with reporter: any Reporter) async throws {
     await checkCanRun()
+    try await runInRootScope(reporter) { try await traverse(reporter) }
+  }
+
+  @DeAsyncRD
+  fileprivate func runInRootScope(_ reporter: any Reporter, _ body: () async throws -> Void) async throws {
     if let current = ExampleRunner.current {
       ExampleRunner.logger.error("running new element \"\(name)\" when already running \"\(current.description)\"")
     }
@@ -28,7 +33,7 @@ extension ExampleNode {
       await ExampleRunner.$elementStack.withValue([]) {
         await withPath {
           await reporter.scope(for: self) {
-            do { try await traverse(reporter) }
+            do { try await body() }
             catch { thrown = error }
           }
         }
@@ -72,6 +77,18 @@ extension ExampleNode {
       throw ConcurrentDisallowedError()
     }
 
+    try await withGroupHooks(reporter) {
+      let error = await forEachChild(selected, concurrently: concurrent) { child in
+        try await self.runAround(self.selectedHooks(.aroundEach)[...], reporter) {
+          try await self.runElement(child, reporter)
+        }
+      }
+      if let error { throw error }
+    }
+  }
+
+  @DeAsyncRD
+  fileprivate func withGroupHooks(_ reporter: any Reporter, _ body: () async throws -> Void) async throws {
     var firstError: (any Error)?
     var setUpSucceeded = true
 
@@ -90,12 +107,8 @@ extension ExampleNode {
       break
     }
     if setUpSucceeded && !reporter.shouldStop {
-      let childError = await forEachChild(selected, concurrently: concurrent) { child in
-        try await self.runAround(self.selectedHooks(.aroundEach)[...], reporter) {
-          try await self.runElement(child, reporter)
-        }
-      }
-      firstError = firstError ?? childError
+      do { try await body() }
+      catch { firstError = error }
     }
     // Teardown runs even if setup failed
     for hook in selectedHooks(.afterAll) {
@@ -245,6 +258,22 @@ extension ExampleNode {
     }
   }
 }
+
+#if canImport(Darwin) && compiler(>=6.4)
+extension ExampleNode {
+  package func runDiscoveryRootHooks(with reporter: any Reporter, _ cases: () async throws -> Void) async throws {
+    guard !selectedChildren.isEmpty, !reporter.shouldStop else { return }
+    try await runInRootScope(reporter) {
+      try await withGroupHooks(reporter) {
+        // Each generated case enters its own traversal and path.
+        try await ExampleRunner.$current.withValue(nil) {
+          try await ExampleRunner.$elementStack.withValue([]) { try await cases() }
+        }
+      }
+    }
+  }
+}
+#endif
 
 // MARK: Per-flavor helpers
 

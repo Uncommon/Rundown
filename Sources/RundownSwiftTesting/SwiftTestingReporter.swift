@@ -6,7 +6,13 @@ struct SwiftTestingReporter: Reporter {
   // Async task groups inherit Swift Testing's context. The sync traversal's
   // GCD workers do not, so sync callers pass false.
   let allowsConcurrency: Bool
+  private let cancelsTaskOnSkip: Bool
   private let receivedCancellation = OSAllocatedUnfairLock(initialState: false)
+
+  init(allowsConcurrency: Bool, cancelsTaskOnSkip: Bool = false) {
+    self.allowsConcurrency = allowsConcurrency
+    self.cancelsTaskOnSkip = cancelsTaskOnSkip
+  }
 
   var shouldStop: Bool {
     Task.isCancelled || receivedCancellation.withLock { $0 }
@@ -39,6 +45,11 @@ struct SwiftTestingReporter: Reporter {
     if kind == .skip {
       // A child can observe cancellation before the rest of the run does.
       receivedCancellation.withLock { $0 = true }
+      if cancelsTaskOnSkip && !Task.isCancelled {
+        // Test.cancel throws in a parameterized function scope, where there
+        // is no current case to cancel. Root teardown still needs cancellation.
+        withUnsafeCurrentTask { $0?.cancel() }
+      }
     }
     guard kind == .failure else { return .record }
 
