@@ -1,4 +1,4 @@
-#if os(macOS) && compiler(>=6.4)
+#if canImport(Darwin) && compiler(>=6.4)
 import os
 import RundownSwiftTesting
 import Testing
@@ -81,21 +81,38 @@ private func interruptedSetup(cancel: Bool) -> ExampleGroup<AsyncCall> {
   }
 }
 
-private struct ExpectDiscoverySetupFailure: SuiteTrait, TestScoping {
+private struct ExpectDiscoveryHookIssue: SuiteTrait, TestScoping {
+  let matches: @Sendable (Issue) -> Bool
+
   func provideScope(for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void) async throws {
     try await withKnownIssue {
       try await function()
-    } matching: { issue in
-      issue.error is DiscoverySetupFailure && issue.comments.contains("FailingSetup, before all: open")
-    }
+    } matching: { matches($0) }
   }
 }
 
-@Suite(ExpectDiscoverySetupFailure())
+@Suite(ExpectDiscoveryHookIssue { issue in
+  issue.error is DiscoverySetupFailure && issue.comments.contains("FailingSetup, before all: open")
+})
 struct DiscoveryHookFailureTests {
   @Spec
   struct FailingSetup {
     var spec: ExampleGroup<AsyncCall> { return interruptedSetup(cancel: false) }
+  }
+}
+
+@Suite(ExpectDiscoveryHookIssue { issue in
+  guard case .expectationFailed = issue.kind else { return false }
+  return issue.comments.contains("Intentional discovery teardown failure")
+})
+@Spec
+struct DiscoveryHookTeardownSpec {
+  var spec: ExampleGroup<AsyncCall> {
+    it("First") {}
+    it("Second") {}
+    afterAll("close") {
+      #expect(Bool(false), "Intentional discovery teardown failure")
+    }
   }
 }
 

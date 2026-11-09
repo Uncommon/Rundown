@@ -149,7 +149,7 @@ extension ExampleNode: TestElement {
   package var description: String { name }
 }
 
-#if os(macOS) && compiler(>=6.4)
+#if canImport(Darwin) && compiler(>=6.4)
 extension ExampleNode {
   package var indexedSelectedChildren: [(offset: Int, element: ExampleNode)] {
     children.enumerated().filter { $0.element.isSelected }

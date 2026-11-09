@@ -1,4 +1,4 @@
-#if os(macOS) && compiler(>=6.4)
+#if canImport(Darwin) && compiler(>=6.4)
 import Foundation
 import os
 import RundownSwiftTesting

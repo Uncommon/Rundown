@@ -1,4 +1,4 @@
-#if os(macOS) && compiler(>=6.4)
+#if canImport(Darwin) && compiler(>=6.4)
 import os
 import Rundown
 import Testing
@@ -21,7 +21,7 @@ package protocol Spec: SendableMetatype {
 }
 
 package enum SpecRegistration {
-  // This macOS record always has an accessor. The nonoptional C function
+  // This Mach-O record always has an accessor. The nonoptional C function
   // pointer has the same layout and lets Swift emit the closure in @section.
   package typealias Accessor = @convention(c) (
     UnsafeMutableRawPointer, UnsafeRawPointer, UnsafeRawPointer?, UInt
@@ -36,17 +36,14 @@ package enum SpecRegistration {
     into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
   ) -> CBool {
     Test.__store({
-      Test.__function(
-        named: "examples(unit:)", in: spec, xcTestCompatibleSelector: nil, traits: [],
+      let scope = DiscoveryRootScope()
+      return Test.__function(
+        named: "examples(unit:)", in: spec, xcTestCompatibleSelector: nil, traits: [scope],
         arguments: {
           let root = S().spec.named(String(describing: spec)).node
-          let scope = Test.current?.traits.lazy.compactMap { $0 as? DiscoveryRootScope }
-            .first { $0.owner == ObjectIdentifier(spec) }
-          let cases = DiscoveryCase.makeCases(in: scope == nil ? root : root.withoutGroupHooks,
+          let cases = DiscoveryCase.makeCases(in: root.withoutGroupHooks,
                                               unit: unit, path: [root.description], indices: [])
-          if !cases.isEmpty {
-            scope?.root.withLock { $0 = root }
-          }
+          scope.root.withLock { $0 = cases.isEmpty ? nil : root }
           return cases
         },
         sourceBounds: bounds(at: sourceLocation),
@@ -64,10 +61,7 @@ package enum SpecRegistration {
     into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
   ) -> CBool {
     Test.__store({
-      let sourceBounds = bounds(at: sourceLocation)
-      let suiteID = Test.__type(spec, traits: [], sourceBounds: sourceBounds).id
-      let scope = DiscoveryRootScope(owner: ObjectIdentifier(spec), suiteID: suiteID)
-      return Test.__type(spec, traits: [scope], sourceBounds: sourceBounds)
+      Test.__type(spec, traits: [], sourceBounds: bounds(at: sourceLocation))
     }, into: outValue, asTypeAt: type)
   }
 
@@ -76,20 +70,12 @@ package enum SpecRegistration {
   }
 }
 
-private final class DiscoveryRootScope: SuiteTrait, TestTrait, TestScoping {
-  let owner: ObjectIdentifier
-  let suiteID: Test.ID
+private final class DiscoveryRootScope: TestTrait, TestScoping {
   let root = OSAllocatedUnfairLock<ExampleNode?>(initialState: nil)
-  var isRecursive: Bool { true }
-
-  init(owner: ObjectIdentifier, suiteID: Test.ID) {
-    self.owner = owner
-    self.suiteID = suiteID
-  }
 
   func scopeProvider(for test: Test, testCase: Test.Case?) -> DiscoveryRootScope? {
-    // Inherit the trait into planning, but only enter the owning suite's scope.
-    test.id == suiteID ? self : nil
+    // Xcode's XCTest bridge requires issues to be attributed to a function.
+    testCase == nil ? self : nil
   }
 
   func provideScope(for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void) async throws {
@@ -98,17 +84,8 @@ private final class DiscoveryRootScope: SuiteTrait, TestTrait, TestScoping {
       return
     }
     try await withRundownAssertionPaths {
-      var startedCases = false
-      try await root.runDiscoveryRootHooks(with: SwiftTestingReporter(allowsConcurrency: true)) {
-        startedCases = true
-        try await function()
-      }
-      if !startedCases {
-        // The reporter has already recorded the hook failure. End the native
-        // suite before it can report cases whose bodies will never run.
-        try Task.checkCancellation()
-        try Test.cancel("Rundown root setup did not complete")
-      }
+      let reporter = SwiftTestingReporter(allowsConcurrency: true, cancelsTaskOnSkip: true)
+      try await root.runDiscoveryRootHooks(with: reporter, function)
     }
   }
 }

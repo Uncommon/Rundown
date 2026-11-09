@@ -14,7 +14,7 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - *Examples can be dynamic, as test cases.* `__function(…arguments:…)` evaluates its closure when the plan is built, so the leaves of `Self().spec.node` become cases, including those from `for` loops. Each case is labelled by a `CustomTestStringConvertible` argument, here the full path ("FeatureSpec, logged in, throws"), and an issue is attributed to its case. A thrown error recorded by the reporter carried the path as a comment as well; a failed `#expect` did not (see below). `swift test list` shows only `Type/examples`, and `--filter` matches test IDs, not cases (`--filter "loop example"` ran nothing).
 - *Nested `@Spec` types are nested suites.* With the macro on both, `OuterSpec { @Spec struct InnerSpec }` listed as `OuterSpec/examples` and `OuterSpec/InnerSpec/examples`, and ran as nested suites. This is the only nesting available, and it follows the source declaration, not the `describe` structure.
 - *One case per leaf repeats group hooks.* Each case ran its own copy of every enclosing hook: with 7 leaves, the root `beforeAll` ran 7 times, concurrently, and the `logged in` group's `beforeAll` and `afterAll` ran 3 times each. This is the Option B problem, shown.
-- *One case per top-level child, with the root's `beforeAll` and `afterAll` in a suite trait, matches the traversal.* A `SuiteTrait & TestScoping` on the suite's `Test.__type` is entered once around everything in it, and nests (outer suite, inner suite, tests). Running the root's `beforeAll` and `afterAll` there, and giving each case the root minus those hooks and with one child, gave: root `beforeAll` once before, root `afterAll` once after, `logged in`'s hooks once around its group, and the root's `beforeEach` once per top-level child, as `traverse` does. A test-level trait's scope is entered once per case, not once around the test.
+- *One case per top-level child preserves the traversal's hook order when the root hooks wrap the cases.* The original probe used a suite trait to run root `beforeAll` and `afterAll` once. Each case kept the root's each-hooks and one child, so the nested group's hooks still ran around the whole group. The current prototype uses the [generated function's scope](#hook-lifetimes).
 - *Cases run in parallel.* The cases of one test ran concurrently, so sibling elements overlap where the traversal runs them one after another.
 
 ## Further probes
@@ -27,7 +27,7 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 ## Implications
 
 - Discovery by type evaluates the `spec` property normally, so loops, conditionals, and helper-built subtrees work. Each type needs an attribute such as `@Spec` to emit its registration record. [Discovery bridge design](SwiftTestingIntegration.md#option-c-discovery-bridge)
-- Leaves as cases (Option B) needs the lifecycle coordinator. The workable granularity is one case per top-level child, with the root's `beforeAll` and `afterAll` in a suite trait and everything below a top-level child running whole through the existing traversal. Groups keep their exact semantics, each-hooks included, at the price of case labels that name the top-level child, not the leaf.
+- Leaves as cases (Option B) needs a lifecycle coordinator. A top-level case keeps its subtree intact and uses the existing traversal for everything below the root. The root's `beforeAll` and `afterAll` wrap the selected cases once. The case label names the top-level child.
 - Nested suites are real only for nested types. A `describe` stays a path in the case label. If real suites per group are wanted, each would need to be a declared type, and the outer each-hooks would then wrap a suite, which is the unsolved part of Option B.
 - Failed `#expect`s inside a nested group are attributed to the top-level child's case. A Rundown path comment can identify the leaf within that case.
 - `Self()` is made for the plan, for the suite scope and for each case, so state kept in stored properties is not shared between a `beforeAll` and the examples.
@@ -66,7 +66,7 @@ The ordinary trace shows root `beforeAll` and `afterAll` once each. Root `around
 
 ## Prototype registration
 
-The package-scoped `@Spec` macro and `Spec` protocol are available in `RundownSwiftTesting` on macOS with Swift 6.4 or later. Applying the macro opts a type into discovery. The prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. [Adapter implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
+The package-scoped `@Spec` macro and `Spec` protocol are available in `RundownSwiftTesting` on Apple platforms with Swift 6.4 or later. Applying the macro opts a type into discovery. The initial prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. [Adapter implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
 
 Apply `@Spec` to a struct that provides the computed `spec` property. The macro adds the `Spec` conformance, applies the result builder to a DSL getter, and emits the registration record. A getter can also return a prebuilt group explicitly.
 
@@ -88,7 +88,7 @@ Each case encodes its zero-based child indices with `CustomTestArgumentEncodable
 
 The declared `DiscoveryRegistrationSpec.Leaves` type appears as a nested Swift Testing suite. `Registered group` appears in the case labels, with no suite entry. The top-level `DiscoveryRegistrationLeafSpec` controls for nesting by registering the same leaf cases in a separate top-level suite.
 
-The argument collection builds the tree during planning and carries a projected tree into each case. A top-level case keeps its subtree intact, and a leaf case keeps only its ancestor chain and leaf. The initial projections retained all ancestor hooks. The suite scope below now owns the root hooks for generated suites.
+The argument collection builds the tree during planning and carries a projected tree into each case. A top-level case keeps its subtree intact, and a leaf case keeps only its ancestor chain and leaf. The generated function's scope owns the root group hooks.
 
 ```sh
 SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1 \
@@ -109,17 +109,18 @@ The Swift 6.4.2 scratch probe used the current `@Spec` adapter and an explicit n
 
 ## Hook lifetimes
 
-`@Spec` emits a native suite record with a recursive trait. The generated function inherits that trait during planning and gives it the original root tree. The trait enters its execution scope only for the owning suite. It runs the root's `beforeAll` and `afterAll` through the shared traversal, and the projected cases keep the root's each-hooks and their own subtree hooks. An explicit `@Suite` already registers the same suite ID, so those declarations retain their native traits and per-case root hooks. [Scope implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+`@Spec` attaches a scoping trait to the generated `examples(unit:)` function. Planning gives that trait the original root tree when it has cases. The trait wraps the function once around its selected cases, so root `beforeAll` and `afterAll` run with the function as the current test. Projected cases keep the root's each-hooks and their own subtree hooks. An explicit `@Suite` keeps its own suite record and traits, with the same function-level root hook lifetime. [Scope implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift)
 
 | Scenario | Observed behavior |
 |---|---|
 | Full run with serial case scheduling | The generated spec and the host adapter produced the same trace. Root setup and teardown ran once. The parent's `aroundEach`, `beforeEach`, and `afterEach` wrapped the whole nested group once, including both of its examples, then wrapped the tail example once. |
 | Xcode rerun of `Nested [0]` | Root setup and teardown ran once, the parent each-hooks wrapped only the nested group, and the tail case did not start. |
 | All examples excluded | Swift Testing skipped the function with `No test cases found.` The root hooks and example were untouched. |
-| Root setup throws | The reporter recorded one issue with the `FailingSetup, before all: open` path. Root teardown ran with the task still active, then the adapter cancelled the suite before any cases started. |
-| Root setup calls `Test.cancel` | The suite emitted a cancellation event and root teardown saw a cancelled task. No cases started. |
+| Root setup throws | The generated function received one issue with the `FailingSetup, before all: open` path. Root teardown ran with the task still active. No cases started. |
+| Root setup calls `Test.cancel` | The root hook reporter cancelled the function scope's task when it caught the skip. Root teardown saw a cancelled task. No cases started. |
+| Root teardown fails an assertion | The generated function received one issue after its cases, with the original assertion location and root hook path. |
 
-A function-level scope entered before its first parameterized case blocked the bodies on setup interruption, but `Test.cancel` did not cancel that scope's task. The native suite scope restored cancellation-aware teardown. Suite cancellation also reaches any separately declared child suites under it. Leaf cases still replay hooks of intermediate groups. Preserving those lifetimes would require coordinating the selected leaves of each shared group, especially when an each-hook wraps a whole nested group. [Hook fixtures](../Tests/RundownSwiftTestingTests/DiscoveryHookLifetimeTests.swift)
+`Test.cancel` throws in a parameterized function scope without a current case. Rundown cancels the scope's task when that error reaches the root hook reporter, so teardown sees cancellation. This path emits no native cancellation event, and separately declared child suites run independently. Leaf cases still replay hooks of intermediate groups. Preserving those lifetimes would require coordinating the selected leaves of each shared group, especially when an each-hook wraps a whole nested group. [Hook fixtures](../Tests/RundownSwiftTestingTests/DiscoveryHookLifetimeTests.swift)
 
 ```sh
 swift test --disable-xctest --no-parallel \
@@ -159,7 +160,7 @@ On Swift 6.4.2 with Swift Testing 2403, temporary fixtures compared the host ada
 | Children inside a top-level case | Ordinary siblings stayed serial. A `.concurrent` subgroup still overlapped under both `@Suite(.serialized)` and `--no-parallel`. |
 | Leaf cases | With `--parallel`, two leaves from an ordinary serial group overlapped. Under `@Suite(.serialized)`, two leaves from a `.concurrent` group ran in declaration order. |
 
-`--no-parallel` also put the default top-level and leaf cases in declaration order. The generated function registers no scheduling trait, so outer cases follow the native runner's configuration. A top-level case preserves Rundown's scheduling within its subtree. A flat leaf list shares one native scheduling policy across groups with potentially different Rundown traits. The explicit `@Suite(.serialized)` probe had no root group hooks. An explicit `@Suite` uses the [per-case root hook path](#hook-lifetimes) in this prototype.
+`--no-parallel` also put the default top-level and leaf cases in declaration order. The generated function registers no scheduling trait, so outer cases follow the native runner's configuration. A top-level case preserves Rundown's scheduling within its subtree. A flat leaf list shares one native scheduling policy across groups with potentially different Rundown traits. The explicit `@Suite(.serialized)` probe had no root group hooks.
 
 The host main-actor fixture checked the builder, hooks, and example after suspension with `MainActor.preconditionIsolated()`. The concurrent async main-actor host test caught `ConcurrentDisallowedError` before the group's own hooks and verified that a valid sibling and the root teardown still ran. A compile probe for an `@Spec` with an `ExampleGroup<AsyncMainCall>` getter failed because both the generated builder and the `Spec` requirement use `AsyncCall`. The host adapter remains the entry point for main-actor group semantics. [Main-actor fixture](../Tests/RundownSwiftTestingTests/DiscoveryComparisonTests.swift) · [Concurrent main-actor check](../Tests/RundownSwiftTestingTests/MainActorSpecTests.swift) · [Registration](../Sources/RundownSwiftTesting/SpecRegistration.swift)
 
@@ -194,12 +195,22 @@ The prototype branch was checked with Xcode 27.2 (27B52), Swift 6.4.2, and Swift
 | macOS with the discovery flag off | 125 XCTest and 23 Swift Testing tests passed, with 16 expected known issues. The host comparison appeared in test listing and generated discovery tests were absent. |
 | macOS with the discovery flag on | 125 XCTest and 32 Swift Testing tests passed, with 17 expected known issues. The suite includes the plain-runner, XCTest, and Swift Testing host tests alongside the discovery fixtures. |
 | Compile-failure fixture | A separate SwiftPM build of `Tests/InvalidSequencesFixture` produced all 20 expected diagnostics. |
-| Other Apple targets | With the discovery flag defined, both library modules compiled for iOS 17 and tvOS 17 device and simulator, watchOS 10 arm64_32 device and arm64 simulator, and Mac Catalyst 17 arm64. These were SDK compile checks. Discovery remains gated to macOS. |
+| Other Apple targets | With the discovery flag defined, both library modules compiled for iOS 17 and tvOS 17 device and simulator, watchOS 10 arm64_32 device and arm64 simulator, and Mac Catalyst 17 arm64. At that point the guard still limited discovery itself to macOS. |
 | Test content objects | The arm64 registration fixture emitted six 32-byte records aligned to eight bytes in Mach-O `__DATA_CONST,__swift5_tests`. An x86_64 macOS compile-only probe emitted the same layout with two records for one spec. Runtime discovery was verified on arm64. ELF, PE/COFF, and Wasm remain unverified. |
 
-After the flag was removed, the same 157 macOS runtime tests passed and SwiftPM listed both discovery modes with its default build. In a separate compile-only probe with the macOS guard removed, the registration code compiled for the iOS, tvOS, watchOS, and Mac Catalyst targets above. A minimal `@Spec` emitted the same Mach-O section, record size, and alignment as a native `@Suite` with one `@Test` on each target, including 20-byte records with four-byte alignment on watchOS arm64_32. The macOS guard keeps discovery scoped to the platform with verified runtime behavior.
+After the flag was removed, the same 157 macOS runtime tests passed and SwiftPM listed both discovery modes with its default build. In a separate compile-only probe with the macOS guard removed, the registration code compiled for the iOS, tvOS, watchOS, and Mac Catalyst targets above. A minimal `@Spec` emitted the same Mach-O section, record size, and alignment as a native `@Suite` with one `@Test` on each target, including 20-byte records with four-byte alignment on watchOS arm64_32.
 
 The host adapter uses Swift Testing's normal `@Test` registration and leaves the spec lifecycle to Rundown's traversal. It uses the toolchain's public issue scoping when available. Both modes share the reporter's reflected `Testing.SkipInfo` name check for cancellation. The prototype additionally depends on `@used` and `@section`, the test content record layout and kind and context values, and the underscored `Test.__store`, `Test.__function`, `Test.__type`, and `__SourceBounds` APIs. Those entry points and the record ABI are toolchain dependencies. The public `TestScoping` trait and case argument APIs handle scope and identity after registration. [Host reporter](../Sources/RundownSwiftTesting/SwiftTestingReporter.swift) · [Registration macro](../Sources/RundownMacros/DiscoverySpecMacro.swift) · [Registration adapter](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+### Runtime checks without the macOS guard
+
+In a scratch copy with the guard removed, Xcode 27.2 discovered and ran six selected test functions on both iOS 17.5 and iOS 27.2 simulators. The passing fixtures covered top-level and leaf cases, selection, root hook lifetime, and setup cancellation.
+
+The full iOS 27.2 run failed when the root setup failure fixture recorded a suite-level issue. Swift Testing reported the expected known issue, then Xcode's XCTest harness trapped with `Recording issues for suites is not supported`. Xcode on macOS reproduced the crash with the same fixture and with a native `@Suite` whose `TestScoping` trait recorded a known issue. SwiftPM on macOS completed the Rundown fixture with the expected known issue.
+
+Moving the [root hooks into the generated function's scope](#hook-lifetimes) gives setup and teardown issues a function identity that the Xcode bridge accepts. Discovery now uses a Darwin import check and the Swift 6.4 compiler check. [Root hook fixtures](../Tests/RundownSwiftTestingTests/DiscoveryHookLifetimeTests.swift)
+
+All 33 Swift Testing adapter tests passed in Xcode on macOS, iOS 17.5 and 27.2 simulators, watchOS 27.2 Simulator, and Mac Catalyst. Separate unexpected setup and teardown failures produced a failed Xcode result without crashing. Rerunning one discovered group in Xcode ran root setup and teardown once around just that group. The tvOS checks covered compilation and object layout, with device and simulator records matching native sizes and alignment.
 
 ### 60-context compile comparison
 
@@ -222,7 +233,7 @@ A separate interleaved run used the same getter with an explicit `@ExampleBuilde
 
 ### Implementation size
 
-These counts use physical source lines, including comments and blanks, and exclude tests and documentation.
+These counts describe the suite-scoped prototype before the Xcode workaround. They use physical source lines, including comments and blanks, and exclude tests and documentation.
 
 | Approach | Registration and lifecycle code |
 |---|---|
