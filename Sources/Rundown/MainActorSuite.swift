@@ -23,6 +23,14 @@ public extension MainActorSuite {
           execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
     .init(description, traits, execute: execute)
   }
+
+  @DeAsyncRD
+  @_disfavoredOverload
+  func it(_ description: String,
+          _ traits: [any Trait],
+          execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
+    .init(description, traits, execute: execute)
+  }
   
   @DeAsyncRD
   @_disfavoredOverload

@@ -27,18 +27,18 @@ private struct DiscoverySelectionFixture: Sendable {
     it("Unfocused root example") { record("Unfocused root example") }
     context("Nested focus") {
       it("Unfocused nested example") { record("Unfocused nested example") }
-      It<AsyncCall>("Chosen", focused ? [.focused] : [], execute: { record("Chosen") })
-      It<AsyncCall>("Excluded focused example", focused ? [.excluded, .focused] : [.excluded], execute: {
+      it("Chosen", focused ? [.focused] : []) { record("Chosen") }
+      it("Excluded focused example", focused ? [.excluded, .focused] : [.excluded]) {
         Issue.record("Ran an excluded focused example")
-      })
+      }
       afterEach("excluded", .excluded) { Issue.record("Ran an excluded nested afterEach") }
     }
     context("Holder") {
       it("Holder example") { record("Holder example") }
       xContext("Excluded nested branch") {
-        It<AsyncCall>("Hidden focus", focused ? [.focused] : [], execute: {
+        it("Hidden focus", focused ? [.focused] : []) {
           Issue.record("Ran inside an excluded nested branch")
-        })
+        }
       }
     }
     xContext("Excluded root branch") {
