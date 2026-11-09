@@ -3,20 +3,15 @@ import RundownSwiftTesting
 import Testing
 
 @Spec
-struct DiscoveryRegistrationSpec: Spec {
-  var spec: ExampleGroup<AsyncCall> {
-    return Self.makeSpec()
-  }
-
+struct DiscoveryRegistrationSpec {
   @Spec(.leaves)
-  struct Leaves: Spec {
+  struct Leaves {
     var spec: ExampleGroup<AsyncCall> {
-      return DiscoveryRegistrationSpec.makeSpec()
+      return DiscoveryRegistrationSpec().spec
     }
   }
 
-  @ExampleBuilder<AsyncCall>
-  fileprivate static func makeSpec() -> ExampleGroup<AsyncCall> {
+  var spec: ExampleGroup<AsyncCall> {
     context("Registered group") {
       for _ in 0..<2 {
         it("Repeated item") {
@@ -33,9 +28,9 @@ struct DiscoveryRegistrationSpec: Spec {
 }
 
 @Spec(.leaves)
-struct DiscoveryRegistrationLeafSpec: Spec {
+struct DiscoveryRegistrationLeafSpec {
   var spec: ExampleGroup<AsyncCall> {
-    return DiscoveryRegistrationSpec.makeSpec()
+    return DiscoveryRegistrationSpec().spec
   }
 }
 #endif

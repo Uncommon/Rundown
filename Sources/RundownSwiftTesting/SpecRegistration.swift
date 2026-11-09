@@ -3,6 +3,8 @@ import Rundown
 import Testing
 
 @attached(member, names: named(__rundownSpecRecord))
+@attached(extension, conformances: Spec)
+@attached(memberAttribute)
 package macro Spec(_ unit: SpecDiscoveryUnit = .topLevel)
   = #externalMacro(module: "RundownMacros", type: "DiscoverySpecMacro")
 
