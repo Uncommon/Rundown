@@ -32,7 +32,7 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - Nested suites are real only for nested types. A `describe` stays a path in the case label. If real suites per group are wanted, each would need to be a declared type, and the outer each-hooks would then wrap a suite, which is the unsolved part of Option B.
 - Failed `#expect`s inside a nested group are attributed to the top-level child's case. A Rundown path comment can identify the leaf within that case.
 - `Self()` is made for the plan, for the suite scope and for each case, so state kept in stored properties is not shared between a `beforeAll` and the examples.
-- `.serialized` on the suite would give the traversal's sequential order back, and `.concurrent` could map to leaving it off. Not tried.
+- Native `.serialized` on the suite restores serial case order. Rundown still schedules children inside each top-level case. [Scheduling and isolation results](#scheduling-and-isolation)
 - The probe depends on underscored APIs whose signatures already differed between the source tree and the toolchain. That approach would need checks against each supported toolchain. See the [possible upstream proposal](#possible-upstream-proposal).
 - `Spec` types would be opt-in alongside the existing `@Test` and `spec` entry points. If the experiment goes ahead, update `SwiftTestingIntegration.md` with what it established about Option C.
 
@@ -148,6 +148,43 @@ for without_focus in 0 1; do
     --filter DiscoverySelection --event-stream-output-path "/tmp/rundown-selection-$without_focus.jsonl"
 done
 ```
+
+## Scheduling and isolation
+
+On Swift 6.4.2 with Swift Testing 2403, temporary fixtures compared the host adapter, `@Spec`, and `@Spec(.leaves)` in SwiftPM runs with `--parallel` and `--no-parallel`. Serial probes checked that the first body finished before the second began, even after a suspension. Overlap probes required both bodies to reach a rendezvous before either could finish. The event stream confirmed the start and end order of the native cases.
+
+| Boundary | Observed scheduling |
+|---|---|
+| Host adapter | Ordinary siblings ran in declaration order. Two children of an async `.concurrent` group overlapped. |
+| Top-level cases | With `--parallel`, ordinary root siblings overlapped across native cases. An explicit `@Suite(.serialized)` ran cases in declaration order even with `--parallel`. |
+| Children inside a top-level case | Ordinary siblings stayed serial. A `.concurrent` subgroup still overlapped under both `@Suite(.serialized)` and `--no-parallel`. |
+| Leaf cases | With `--parallel`, two leaves from an ordinary serial group overlapped. Under `@Suite(.serialized)`, two leaves from a `.concurrent` group ran in declaration order. |
+
+`--no-parallel` also put the default top-level and leaf cases in declaration order. The generated function registers no scheduling trait, so outer cases follow the native runner's configuration. A top-level case preserves Rundown's scheduling within its subtree. A flat leaf list shares one native scheduling policy across groups with potentially different Rundown traits. The explicit `@Suite(.serialized)` probe had no root group hooks. An explicit `@Suite` uses the [per-case root hook path](#hook-lifetimes) in this prototype.
+
+The host main-actor fixture checked the builder, hooks, and example after suspension with `MainActor.preconditionIsolated()`. The concurrent async main-actor host test caught `ConcurrentDisallowedError` before the group's own hooks and verified that a valid sibling and the root teardown still ran. A compile probe for an `@Spec` with an `ExampleGroup<AsyncMainCall>` getter failed because both the generated builder and the `Spec` requirement use `AsyncCall`. The host adapter remains the entry point for main-actor group semantics. [Main-actor fixture](../Tests/RundownSwiftTestingTests/DiscoveryComparisonTests.swift) · [Concurrent main-actor check](../Tests/RundownSwiftTestingTests/MainActorSpecTests.swift) · [Registration](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+## Reporting and reruns
+
+On Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403, three temporary wrappers ran the same `DiscoveryComparisonFixture.build()` tree. A plain async `@Test` called `spec` without `withKnownIssue`. Top-level `@Spec` and `@Spec(.leaves)` types returned the same builder's group. This exposed actual failures for Xcode's rerun comparison. [Shared fixture](../Tests/RundownSwiftTestingTests/DiscoveryComparisonTests.swift)
+
+SwiftPM emitted nine `issueRecorded` events, one per failure in each mode. Xcode's `xcresulttool get test-results tests` returned the same nine failure messages. Its summary counted three failed functions and showed one representative message per function. The detailed results kept the individual messages under the test or its argument row.
+
+| Failure | Full path suffix after the spec name | Location in both results |
+|---|---|---|
+| Failed `#expect` | `Generated group, Repeated discovery label` | Original assertion in `DiscoveryComparisonTests.swift:36` |
+| Failed `#require` | `Generated group, Required assertion` | Original assertion in `DiscoveryComparisonTests.swift:47` |
+| Thrown `ExampleFailure` | `Generated group, Thrown error` | Reporter call in `SwiftTestingReporter.swift:50`, with the leaf identified by its path |
+
+The native assertion issues kept their original messages and gained a `Rundown path:` comment. The thrown error carried the same full path as a comment. Each `#require` produced one issue.
+
+| Mode | Issue attribution | Rerun in the Xcode command-line runner |
+|---|---|---|
+| Host adapter | All three issues belonged to `reporting()`. | The target-relative function selector reran the whole spec and reproduced all three issues. The full host `nodeIdentifierURL` selected zero tests on this toolchain. |
+| Top-level cases | All three issues belonged to `Generated group [0]`. The independent case passed. | The argument's `nodeIdentifierURL` reran only the group case and reproduced all three issues. |
+| Leaf cases | The issues belonged to `Repeated discovery label [0.1]`, `Required assertion [0.2]`, and `Thrown error [0.3]` respectively. The same-label leaf at `[0.0]` passed. | The failed duplicate's `nodeIdentifierURL` reran only `[0.1]` and reproduced just the failed `#expect`. |
+
+SwiftPM's experimental event fields (`SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1`) exposed the argument labels and IDs. Filtering by the generated leaf function reran all five cases and reproduced all three issues. Filters for the required assertion's label, position, and argument hash each matched zero tests. Xcode case reruns used `test-without-building -only-testing:<nodeIdentifierURL>` with the URLs from the detailed test tree. This probe used top-level Swift types for both discovery modes. The [discovery units probe](#discovery-units-and-identities) records the separate limitation for a case inside a nested Swift suite.
 
 ## Original scratch probe
 
