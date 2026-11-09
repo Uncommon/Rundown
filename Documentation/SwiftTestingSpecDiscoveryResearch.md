@@ -127,6 +127,28 @@ swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest --no-parallel
   --filter DiscoveryHook --event-stream-output-path /tmp/rundown-discovery-hooks.jsonl
 ```
 
+## Selection at the discovery boundary
+
+The prototype already projects cases from `ExampleNode.indexedSelectedChildren`. Both case modes use the selection Rundown resolves for the host adapter, and case IDs use child positions from before filtering. The ordinary `.focused` trait therefore controls selection in the opt-in `@Spec` experiment. [Selection fixture](../Tests/RundownSwiftTestingTests/DiscoverySelectionTests.swift) · [Phase 3 trait decisions](SwiftTestingIntegration.md#phase-3-trait-decisions)
+
+| Fixture | Focus enabled | Focus disabled |
+|---|---|---|
+| Top-level cases | `Nested focus [1]`, `Holder [2]` | The same cases plus `Unfocused root example [0]` |
+| Leaf cases | `Nested focus / Chosen [1.1]`, `Holder / Holder example [2.0]` | The same cases plus `Unfocused root example [0]` and `Nested focus / Unfocused nested example [1.0]` |
+| Examples executed in either discovery mode and in the host | `Chosen`, `Holder example` | The same examples plus `Unfocused nested example` and `Unfocused root example` |
+
+The `Holder` branch is selected because focus inside an excluded subgroup still counts toward its ancestor's focus. Rundown omits that subgroup from the holder's own children and runs `Holder example`. This matches the existing node selection baseline. The excluded root branch, nested branch, and explicitly excluded leaf produced no cases, and excluded hooks of all five kinds produced no issues. [Focus baseline test](../Tests/RundownTests/ExampleNodeTests.swift)
+
+All four retained case IDs matched across the two runs on Swift 6.4.2. A retained group case can cover a different set of leaves when focus changes while keeping its own ID.
+
+```sh
+for without_focus in 0 1; do
+  RUNDOWN_DISCOVERY_SELECTION_UNFOCUSED="$without_focus" SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1 \
+    swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest \
+    --filter DiscoverySelection --event-stream-output-path "/tmp/rundown-selection-$without_focus.jsonl"
+done
+```
+
 ## Original scratch probe
 
 A macro can be probed without a new package: put the macro in `Sources/RundownMacros`, register it in `RundownPlugin`, and declare it in a `ZZ…` test file with `#externalMacro(module: "RundownMacros", type: …)`. Revert the plugin list afterward. `ExampleNode.children` is `private(set)`, so a probe that edits a tree needs a temporary extension in `ExampleNode.swift`. Swift Testing starts its test generators concurrently, so a probe that creates shared state in them needs a lock. `swift test list` shows what was discovered, and `swift build` compiling a hand-written record proves nothing until the test appears there.
