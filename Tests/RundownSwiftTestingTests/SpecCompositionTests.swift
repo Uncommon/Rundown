@@ -9,10 +9,9 @@ struct SpecCompositionTests: SwiftTestingSuite {
                              values: [Int]) -> ExampleGroup<AsyncCall> {
     context("generated group") {
       beforeAll { trace.withLock { $0.append("group setup") } }
-      let excludedWrapper: AroundEach<AsyncCall> = aroundEach(.excluded) { _ in
+      aroundEach(.excluded) { _ in
         Issue.record("Entered an excluded wrapper")
       }
-      excludedWrapper
       aroundEach { run in
         #expect(Self.fixture == "root")
         try await Self.$fixture.withValue("nested") { try await run() }

@@ -18,10 +18,9 @@ private struct DiscoverySelectionFixture: Sendable {
   @ExampleBuilder<AsyncCall>
   func build() -> ExampleGroup<AsyncCall> {
     beforeAll("excluded", .excluded) { Issue.record("Ran an excluded beforeAll") }
-    let excludedWrapper: AroundEach<AsyncCall> = aroundEach(.excluded) { _ in
+    aroundEach(.excluded) { _ in
       Issue.record("Ran an excluded aroundEach")
     }
-    excludedWrapper
     beforeEach("excluded", .excluded) { Issue.record("Ran an excluded beforeEach") }
 
     it("Unfocused root example") { record("Unfocused root example") }
