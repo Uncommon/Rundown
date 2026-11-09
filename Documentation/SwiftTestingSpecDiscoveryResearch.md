@@ -66,7 +66,7 @@ The ordinary trace shows root `beforeAll` and `afterAll` once each. Root `around
 
 ## Prototype registration
 
-On `codex/swift-testing-discovery`, the package-scoped `@Spec` macro and `Spec` protocol are available in `RundownSwiftTesting` on macOS with Swift 6.4 or later when `RUNDOWN_DISCOVERY_PROTOTYPE` is defined. The prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. [Adapter implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
+The package-scoped `@Spec` macro and `Spec` protocol are available in `RundownSwiftTesting` on macOS with Swift 6.4 or later. Applying the macro opts a type into discovery. The prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. [Adapter implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
 
 Apply `@Spec` to a struct that provides the computed `spec` property. The macro adds the `Spec` conformance, applies the result builder to a DSL getter, and emits the registration record. A getter can also return a prebuilt group explicitly.
 
@@ -92,12 +92,12 @@ The argument collection builds the tree during planning and carries a projected 
 
 ```sh
 SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1 \
-  swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest \
+  swift test --disable-xctest \
   --filter DiscoveryRegistration --event-stream-output-path /tmp/rundown-discovery-units.jsonl
-swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE list --skip-build --disable-xctest
+swift test list --skip-build --disable-xctest
 ```
 
-For the Xcode comparison, build `Rundown-Package` for testing with `OTHER_SWIFT_FLAGS='$(inherited) -DRUNDOWN_DISCOVERY_PROTOTYPE'`. Use the resulting `.xctestrun` with `xcodebuild test-without-building -enumerate-tests`, then run the discovery suites into a result bundle. `xcresulttool get test-results tests` reports each argument's `nodeIdentifierURL`, which can be passed to `xcodebuild test-without-building -only-testing:<url>`.
+For the Xcode comparison, build `Rundown-Package` for testing on macOS. Use the resulting `.xctestrun` with `xcodebuild test-without-building -enumerate-tests`, then run the discovery suites into a result bundle. `xcresulttool get test-results tests` reports each argument's `nodeIdentifierURL`, which can be passed to `xcodebuild test-without-building -only-testing:<url>`.
 
 ## Plan and fixture lifetime
 
@@ -122,7 +122,7 @@ The Swift 6.4.2 scratch probe used the current `@Spec` adapter and an explicit n
 A function-level scope entered before its first parameterized case blocked the bodies on setup interruption, but `Test.cancel` did not cancel that scope's task. The native suite scope restored cancellation-aware teardown. Suite cancellation also reaches any separately declared child suites under it. Leaf cases still replay hooks of intermediate groups. Preserving those lifetimes would require coordinating the selected leaves of each shared group, especially when an each-hook wraps a whole nested group. [Hook fixtures](../Tests/RundownSwiftTestingTests/DiscoveryHookLifetimeTests.swift)
 
 ```sh
-swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest --no-parallel \
+swift test --disable-xctest --no-parallel \
   --filter DiscoveryHook --event-stream-output-path /tmp/rundown-discovery-hooks.jsonl
 ```
 
@@ -143,7 +143,7 @@ All four retained case IDs matched across the two runs on Swift 6.4.2. A retaine
 ```sh
 for without_focus in 0 1; do
   RUNDOWN_DISCOVERY_SELECTION_UNFOCUSED="$without_focus" SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1 \
-    swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest \
+    swift test --disable-xctest \
     --filter DiscoverySelection --event-stream-output-path "/tmp/rundown-selection-$without_focus.jsonl"
 done
 ```
@@ -187,7 +187,7 @@ SwiftPM's experimental event fields (`SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABL
 
 ## Compatibility and cost
 
-The prototype branch was checked with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403. SwiftPM ran on Apple Silicon with macOS 27.0.1, the macOS 27.2 SDK, and the package's macOS 15 deployment target.
+The prototype branch was checked with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403. SwiftPM ran on Apple Silicon with macOS 27.0.1, the macOS 27.2 SDK, and the package's macOS 15 deployment target. The flag-on and flag-off rows record measurements from before the custom build flag was removed.
 
 | Check | Result |
 |---|---|
@@ -196,6 +196,8 @@ The prototype branch was checked with Xcode 27.2 (27B52), Swift 6.4.2, and Swift
 | Compile-failure fixture | A separate SwiftPM build of `Tests/InvalidSequencesFixture` produced all 20 expected diagnostics. |
 | Other Apple targets | With the discovery flag defined, both library modules compiled for iOS 17 and tvOS 17 device and simulator, watchOS 10 arm64_32 device and arm64 simulator, and Mac Catalyst 17 arm64. These were SDK compile checks. Discovery remains gated to macOS. |
 | Test content objects | The arm64 registration fixture emitted six 32-byte records aligned to eight bytes in Mach-O `__DATA_CONST,__swift5_tests`. An x86_64 macOS compile-only probe emitted the same layout with two records for one spec. Runtime discovery was verified on arm64. ELF, PE/COFF, and Wasm remain unverified. |
+
+After the flag was removed, the same 157 macOS runtime tests passed and SwiftPM listed both discovery modes with its default build. In a separate compile-only probe with the macOS guard removed, the registration code compiled for the iOS, tvOS, watchOS, and Mac Catalyst targets above. A minimal `@Spec` emitted the same Mach-O section, record size, and alignment as a native `@Suite` with one `@Test` on each target, including 20-byte records with four-byte alignment on watchOS arm64_32. The macOS guard keeps discovery scoped to the platform with verified runtime behavior.
 
 The host adapter uses Swift Testing's normal `@Test` registration and leaves the spec lifecycle to Rundown's traversal. It uses the toolchain's public issue scoping when available. Both modes share the reporter's reflected `Testing.SkipInfo` name check for cancellation. The prototype additionally depends on `@used` and `@section`, the test content record layout and kind and context values, and the underscored `Test.__store`, `Test.__function`, `Test.__type`, and `__SourceBounds` APIs. Those entry points and the record ABI are toolchain dependencies. The public `TestScoping` trait and case argument APIs handle scope and identity after registration. [Host reporter](../Sources/RundownSwiftTesting/SwiftTestingReporter.swift) · [Registration macro](../Sources/RundownMacros/DiscoverySpecMacro.swift) · [Registration adapter](../Sources/RundownSwiftTesting/SpecRegistration.swift)
 

@@ -1,4 +1,4 @@
-#if RUNDOWN_DISCOVERY_PROTOTYPE && os(macOS) && compiler(>=6.4)
+#if os(macOS) && compiler(>=6.4)
 import os
 import Rundown
 import Testing

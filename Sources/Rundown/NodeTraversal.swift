@@ -259,7 +259,7 @@ extension ExampleNode {
   }
 }
 
-#if RUNDOWN_DISCOVERY_PROTOTYPE && os(macOS) && compiler(>=6.4)
+#if os(macOS) && compiler(>=6.4)
 extension ExampleNode {
   package func runDiscoveryRootHooks(with reporter: any Reporter, _ cases: () async throws -> Void) async throws {
     guard !selectedChildren.isEmpty, !reporter.shouldStop else { return }
