@@ -22,7 +22,6 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - Try the protocol-conformance discovery listed in the 6.4 interface (`__TestContentRecordContainer` and `@_alwaysEmitConformanceMetadata`). It needs an accessor that knows `Self`, which a `@convention(c)` accessor cannot capture.
 - Check the section names Swift Testing's macros emit for ELF, COFF, and Wasm.
 - Check how Xcode displays cases and nested suites.
-- Run the 60-context compile benchmark with the macro.
 - Check a failing or skipping root `beforeAll`. The scratch trait left the cases runnable.
 
 ## Implications
@@ -185,6 +184,49 @@ The native assertion issues kept their original messages and gained a `Rundown p
 | Leaf cases | The issues belonged to `Repeated discovery label [0.1]`, `Required assertion [0.2]`, and `Thrown error [0.3]` respectively. The same-label leaf at `[0.0]` passed. | The failed duplicate's `nodeIdentifierURL` reran only `[0.1]` and reproduced just the failed `#expect`. |
 
 SwiftPM's experimental event fields (`SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1`) exposed the argument labels and IDs. Filtering by the generated leaf function reran all five cases and reproduced all three issues. Filters for the required assertion's label, position, and argument hash each matched zero tests. Xcode case reruns used `test-without-building -only-testing:<nodeIdentifierURL>` with the URLs from the detailed test tree. This probe used top-level Swift types for both discovery modes. The [discovery units probe](#discovery-units-and-identities) records the separate limitation for a case inside a nested Swift suite.
+
+## Compatibility and cost
+
+The prototype branch was checked with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403. SwiftPM ran on Apple Silicon with macOS 27.0.1, the macOS 27.2 SDK, and the package's macOS 15 deployment target.
+
+| Check | Result |
+|---|---|
+| macOS with the discovery flag off | 125 XCTest and 23 Swift Testing tests passed, with 16 expected known issues. The host comparison appeared in test listing and generated discovery tests were absent. |
+| macOS with the discovery flag on | 125 XCTest and 32 Swift Testing tests passed, with 17 expected known issues. The suite includes the plain-runner, XCTest, and Swift Testing host tests alongside the discovery fixtures. |
+| Compile-failure fixture | A separate SwiftPM build of `Tests/InvalidSequencesFixture` produced all 20 expected diagnostics. |
+| Other Apple targets | With the discovery flag defined, both library modules compiled for iOS 17 and tvOS 17 device and simulator, watchOS 10 arm64_32 device and arm64 simulator, and Mac Catalyst 17 arm64. These were SDK compile checks. Discovery remains gated to macOS. |
+| Test content objects | The arm64 registration fixture emitted six 32-byte records aligned to eight bytes in Mach-O `__DATA_CONST,__swift5_tests`. An x86_64 macOS compile-only probe emitted the same layout with two records for one spec. Runtime discovery was verified on arm64. ELF, PE/COFF, and Wasm remain unverified. |
+
+The host adapter uses Swift Testing's normal `@Test` registration and leaves the spec lifecycle to Rundown's traversal. It uses the toolchain's public issue scoping when available. Both modes share the reporter's reflected `Testing.SkipInfo` name check for cancellation. The prototype additionally depends on `@used` and `@section`, the test content record layout and kind and context values, and the underscored `Test.__store`, `Test.__function`, `Test.__type`, and `__SourceBounds` APIs. Those entry points and the record ABI are toolchain dependencies. The public `TestScoping` trait and case argument APIs handle scope and identity after registration. [Host reporter](../Sources/RundownSwiftTesting/SwiftTestingReporter.swift) · [Registration macro](../Sources/RundownMacros/DiscoverySpecMacro.swift) · [Registration adapter](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+### 60-context compile comparison
+
+Each declaration used the same 60 contexts with nine DSL statements apiece, including four hooks and five examples. One example in each context suspended. **Current host** means the conventional adapter from the discovery branch at `acc9e96`. An async `@Test` in a type conforming to `SwiftTestingSuite` calls `try await spec("60 contexts") { … }`. Both host rows compile that same test, with the flag controlling whether the package also compiles in the discovery prototype. Both discovery declarations use an `ExampleGroup<AsyncCall>` getter with the macro-supplied builder. [Host adapter](../Sources/RundownSwiftTesting/SwiftTestingSuite.swift)
+
+Each median is from three fresh `swiftc -typecheck` runs in rotated order after a warm-up, using separately compiled package modules, Swift 6 mode, and the same arm64 macOS 15 target. These measurements include macro expansion and type checking of the consumer, excluding object generation, linking, and runtime discovery.
+
+| Configuration | Median |
+|---|---:|
+| Host before discovery (`d3e22ae`) | 3.63 s |
+| Host before inline-wrapper inference (`c99eafc`, discovery flag off) | 3.69 s |
+| Current host, discovery flag off | 6.80 s |
+| Current host, discovery flag on | 7.00 s |
+| Current `@Spec` with top-level cases | 3.64 s |
+| Current `@Spec(.leaves)` | 3.82 s |
+
+With discovery disabled, the host median rose from 3.69 s to 6.80 s. The only library source change between those revisions was the inline-wrapper inference fix in `ExampleBuilder`. It added overloaded `buildExpression` methods so the builder can give `aroundEach` its expected call type before Swift resolves the closure. The benchmark contains zero `aroundEach` calls, but the new expression step applies to ordinary hooks, examples, and nested contexts too. Even the pass-through overloads likely add constraint-solving work across the large body. The host call also has sync and async overloads, whereas the discovery getter fixes the builder to `AsyncCall` at its declaration. That difference may help explain the faster getter timings. The benchmark measured total type-check time, so the cost of individual overload decisions remains unknown. [Builder implementation](../Sources/Rundown/Builder.swift)
+
+A separate interleaved run used the same getter with an explicit `@ExampleBuilder<AsyncCall>` and omitted registration. Its median was 3.66 s versus 3.74 s for the macro-supplied builder and registration. The samples overlapped. This control isolates the additional type-check cost of `@Spec` from the difference between a getter and a call to the host adapter.
+
+### Implementation size
+
+These counts use physical source lines, including comments and blanks, and exclude tests and documentation.
+
+| Approach | Registration and lifecycle code |
+|---|---|
+| Host adapter | 111 lines for the ordinary and main-actor `spec` entry points, plus 93 shared lines for reporting and assertion paths. The host's `@Test` registers the function and the existing traversal owns all group hooks. |
+| Top-level discovery | Reuses the reporter, assertion paths, and traversal. The prototype adds about 295 lines across the macro and plugin entry (116), adapter registration, suite scope, and cases (144), and guarded node projection and root hooks (35). It also extracts shared root scope and group hook helpers in the traversal and adds the adapter's macro target dependency. |
+| Leaf discovery | Uses the same registration, case IDs, and root suite scope. The projection recurses through groups and replays intermediate hooks per leaf. The measured footprint covers that experiment. A coordinator that preserves intermediate hook lifetimes and scheduling remains unimplemented. |
 
 ## Original scratch probe
 
