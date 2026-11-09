@@ -1,6 +1,6 @@
 # A `Spec` type shaped like `View`
 
-The prototype represented each spec as a type with one computed property, modeled on SwiftUI's `View`. It explored what Swift Testing could discover from that shape, especially whether Rundown groups could appear as nested suites. These findings inform the [Phase 4 discovery experiment](SwiftTestingIntegration.md#phase-4-discovery-experiment).
+The prototype represented each spec as a type with one computed property, modeled on SwiftUI's `View`. It explored what Swift Testing could discover from that shape, especially whether Rundown groups could appear as nested suites. These probes support the [Phase 4 results and Phase 5 handoff](CompletedPhases.md#phase-4--swift-testing-discovery-experiment).
 
 The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratch protocol and macro in `RundownMacros`, and hand-written test content records. It ran with Xcode's Swift 6.4 toolchain. After the scratch code was removed, all 124 tests passed.
 

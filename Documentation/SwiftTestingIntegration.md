@@ -688,25 +688,15 @@ Medium term:
 
 ## Phased Plan
 
-The [completed phases](CompletedPhases.md) record the shared node traversal, the Swift Testing host-test adapter, and the decisions about built-in traits in host-test mode.
+The [completed phases](CompletedPhases.md) record the shared node traversal, the Swift Testing host-test adapter, the trait decisions, and the discovery experiment.
 
 ### Phase 4: Discovery Experiment
 
-- prototype leaf-native Swift Testing discovery on a branch
-- require no migration to XCTest users
-- measure complexity of hook replay, naming, and trait inheritance
+Phase 4 compared top-level and leaf cases with the existing host adapter and recorded the hook, trait, filtering, and reporting behavior of each mode. [Phase 4 results](CompletedPhases.md#phase-4--swift-testing-discovery-experiment) · [Discovery research](SwiftTestingSpecDiscoveryResearch.md)
 
-The [Phase 4 checklist](Roadmap.md#phase-4--swift-testing-discovery-experiment) breaks down the experiment. The [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md) record the first registration and hook-replay probes. The [Phase 3 trait decisions](#phase-3-trait-decisions) describe which mappings to evaluate at the discovery boundary.
+### Phase 5 — Opt-in top-level discovery
 
-### Phase 5: Decide Whether Leaf-Native Is Worth It
-
-Proceed only if the prototype delivers clear value:
-
-- materially better filtering
-- materially better reporting
-- manageable implementation complexity
-
-Otherwise keep the host-test adapter model and stop there.
+Phase 5 keeps the host adapter as the supported baseline and develops opt-in top-level cases for Xcode reruns. Leaf discovery is deferred pending coordination of shared intermediate hooks and scheduling. [Phase 5 handoff](CompletedPhases.md#phase-5-handoff) · [Roadmap](Roadmap.md#phase-5--opt-in-top-level-swift-testing-discovery)
 
 ## Acceptance Criteria
 
