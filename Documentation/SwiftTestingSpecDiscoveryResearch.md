@@ -71,16 +71,32 @@ On `codex/swift-testing-discovery`, the package-scoped `@Spec` macro and `Spec` 
 
 The macro emits one Mach-O `__DATA_CONST,__swift5_tests` record with kind `0x74657374`. It uses a local copy of the record layout with a nonoptional C accessor because Swift 6.4.2 rejected the optional accessor literal in `@section`. The layouts matched at a 32-byte stride and 8-byte alignment on the tested toolchain. The accessor passes the runtime type pointer to `Test.__store`, and its generator uses `Test.__function` with `__SourceBounds` derived from the spec declaration. Swift Testing synthesizes the containing suite from the test ID. [Swift Testing test content ABI](https://github.com/swiftlang/swift-testing/blob/main/Documentation/ABI/TestContent.md)
 
-The generated test evaluates the computed `spec` property at execution time and runs its named `ExampleNode` tree with the existing reporter. The fixture checks the generated test name and nested Rundown path after suspension. This establishes whole-spec registration. The next experiment compares cases and leaves.
+The initial registration at `1070563` evaluated the computed `spec` property at execution time and ran its named `ExampleNode` tree with the existing reporter. SwiftPM listed `DiscoveryRegistrationSpec/examples()` alongside `DiscoveryComparisonTests/hostAdapterBaseline()`, and both tests passed in the same run. The flag-off build listed the conventional host baseline. The parameterized prototype below builds on that registration.
+
+## Discovery units and identities
+
+On the same Swift 6.4.2 toolchain, `@Spec` now registers `examples(unit:)` with one parameterized case per selected top-level child. `@Spec(.leaves)` uses one case per selected leaf. Both use the same fixture tree. It yields two top-level cases and three leaf cases, including two leaves with the same full Rundown path. The excluded example sits between the two selected root children and its position is retained in the numbering. [Comparison fixtures](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
+
+Each case encodes its zero-based child indices with `CustomTestArgumentEncodable`. The label includes the path and index, so the repeated items are distinguishable as `[0.0]` and `[0.1]`. All eight case IDs, scoped to their generated test function, matched across two runs. The IDs are stable for the same tree and declaration. Inserting or reordering nodes can shift the positional IDs. [Swift Testing argument encoding](https://developer.apple.com/documentation/testing/customtestargumentencodable)
+
+| Check | SwiftPM | Xcode 27.2 command-line runner |
+|---|---|---|
+| Listing | `swift test list` shows one function per declared type. Case labels appear during execution. | `-enumerate-tests` shows the functions and the declared `Leaves` suite. The result bundle shows an `Arguments` row and a case URL for each case. |
+| Filtering a function | Filtering for the top-level function ran its two cases. Filtering for the nested leaf function ran its three cases. | The target-relative nested suite and function selectors ran the three nested leaf cases. |
+| Rerunning one case | `--filter` returned zero matches for the leaf label, its position, and a regex containing the case's argument hash. | `-only-testing` with the result's case URL reran just `Registered group [0]` in the top-level case fixture and just `Repeated item [0.1]` in the separate top-level leaf fixture. The nested leaf's full case URL returned “There are no test bundles available to test.” The target-relative nested selector with `?args=` exited successfully with zero tests. |
+
+The declared `DiscoveryRegistrationSpec.Leaves` type appears as a nested Swift Testing suite. `Registered group` appears in the case labels, with no suite entry. The top-level `DiscoveryRegistrationLeafSpec` controls for nesting by registering the same leaf cases in a separate top-level suite.
+
+The argument collection builds the tree during planning and carries a projected tree into each case. A top-level case keeps its subtree intact, and a leaf case keeps only its ancestor chain and leaf. Each projection retains its ancestor hooks, so running several cases can repeat ancestor setup and teardown. The plan lifetime and hook tasks will compare that behavior with the host baseline.
 
 ```sh
-swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest \
-  --filter 'DiscoveryRegistrationSpec|DiscoveryComparisonTests/hostAdapterBaseline' \
-  --event-stream-output-path /tmp/rundown-discovery-registration.jsonl
+SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1 \
+  swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE --disable-xctest \
+  --filter DiscoveryRegistration --event-stream-output-path /tmp/rundown-discovery-units.jsonl
 swift test -Xswiftc -DRUNDOWN_DISCOVERY_PROTOTYPE list --skip-build --disable-xctest
 ```
 
-The listing contained `RundownSwiftTestingTests.DiscoveryRegistrationSpec/examples()` and `RundownSwiftTestingTests.DiscoveryComparisonTests/hostAdapterBaseline()`. The filtered run passed both tests and the event stream identified the generated test at the `DiscoveryRegistrationSpec` declaration. A build with the flag omitted listed only the conventional host baseline of those two tests.
+For the Xcode comparison, build `Rundown-Package` for testing with `OTHER_SWIFT_FLAGS='$(inherited) -DRUNDOWN_DISCOVERY_PROTOTYPE'`. Use the resulting `.xctestrun` with `xcodebuild test-without-building -enumerate-tests`, then run the discovery suites into a result bundle. `xcresulttool get test-results tests` reports each argument's `nodeIdentifierURL`, which can be passed to `xcodebuild test-without-building -only-testing:<url>`.
 
 ## Original scratch probe
 

@@ -16,6 +16,7 @@ public struct DiscoverySpecMacro: MemberMacro {
           let filePath = context.location(of: spec.name, at: .afterLeadingTrivia, filePathMode: .filePath) else {
       throw MacroExpansionErrorMessage("@Spec requires a source location for discovery")
     }
+    let unit = node.arguments?.as(LabeledExprListSyntax.self)?.first?.expression ?? ".topLevel"
 
     return [
       """
@@ -26,12 +27,13 @@ public struct DiscoverySpecMacro: MemberMacro {
         { outValue, type, _, _ in
           RundownSwiftTesting.SpecRegistration.store(
             \(spec.name.trimmed).self,
+            unit: \(unit),
             sourceLocation: .init(fileID: \(fileID.file), filePath: \(filePath.file),
                                   line: \(fileID.line), column: \(fileID.column)),
             into: outValue, asTypeAt: type
           )
         },
-        0, 0
+        0b10, 0
       )
       """,
     ]

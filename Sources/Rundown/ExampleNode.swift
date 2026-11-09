@@ -117,7 +117,7 @@ package struct ExampleNode: Sendable {
     hooks(kind).filter(\.isSelected)
   }
 
-  var isGroup: Bool { kind == .group }
+  package var isGroup: Bool { kind == .group }
   var isExample: Bool { kind == .example }
   package var isAroundEachHook: Bool { kind == .hook(.aroundEach) }
 
@@ -148,6 +148,20 @@ package struct ExampleNode: Sendable {
 extension ExampleNode: TestElement {
   package var description: String { name }
 }
+
+#if RUNDOWN_DISCOVERY_PROTOTYPE && os(macOS) && compiler(>=6.4)
+extension ExampleNode {
+  package var indexedSelectedChildren: [(offset: Int, element: ExampleNode)] {
+    children.enumerated().filter { $0.element.isSelected }
+  }
+
+  package func retainingOnly(_ child: Self) -> Self {
+    var node = self
+    node.children = [child]
+    return node
+  }
+}
+#endif
 
 // MARK: - Building
 
