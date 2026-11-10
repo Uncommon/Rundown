@@ -712,11 +712,9 @@ The work should be considered successful if all of these hold:
 
 ## Open Questions
 
-- Is host-test Swift Testing integration already "good enough" once reporting and trait bridging improve?
-- Is leaf-native discovery worth the required plan-model refactor?
-- Should focus remain a purely local development feature, or should it participate in Swift Testing discovery?
-- Should a future discovery bridge use macros, generated code, or runtime-discoverable test content?
-- Is a package split worth doing early, or only once the Swift Testing adapter is real?
+- **What should opt-in `@Spec` expose and support?** The prototype is package-scoped and requires Darwin and Swift 6.4 or later. Decide what authoring API to expose, which toolchains and platforms to support, and whether to accept the prototype's underscored Swift Testing APIs and handwritten Mach-O records or require a stable registration API. [Registration and compatibility results](SwiftTestingSpecDiscoveryResearch.md#compatibility-and-cost)
+- **How should top-level cases preserve Rundown's scheduling and hook behavior?** The prototype lets Swift Testing schedule top-level siblings, and `@Suite(.serialized)` restored declaration order in the probe. Decide how to preserve Rundown's default serial order and where `.concurrent` allows overlap. Verify root hook lifetimes, setup failure reporting, and cancellation-aware teardown in full runs and single-case reruns. [Scheduling results](SwiftTestingSpecDiscoveryResearch.md#scheduling-and-isolation) · [Hook lifetimes](SwiftTestingSpecDiscoveryResearch.md#hook-lifetimes)
+- **Which rerun workflows should `@Spec` support?** Xcode reran individual cases in a top-level suite, while the tested nested suite had function-level filtering and its case selectors failed. SwiftPM filtering selected the generated function, and changing tree positions can change case IDs. Define the supported rerun workflows and document when case IDs can change. [Filtering and case identities](SwiftTestingSpecDiscoveryResearch.md#discovery-units-and-identities)
 
 ## Recommendation
 
