@@ -16,16 +16,16 @@ public struct DiscoverySpecMacro: MemberMacro {
           let filePath = context.location(of: spec.name, at: .afterLeadingTrivia, filePathMode: .filePath) else {
       throw MacroExpansionErrorMessage("@Spec requires a source location for discovery")
     }
-    let unit = node.arguments?.as(LabeledExprListSyntax.self)?.first?.expression ?? ".topLevel"
+    let unit = node.arguments?.as(LabeledExprListSyntax.self)?.first?.expression
 
     func record(_ name: String, context: Int, store: String, arguments: String = "") -> DeclSyntax {
       """
       @used
       @section("__DATA_CONST,__swift5_tests")
-      private static let \(raw: name): RundownSwiftTesting.SpecRegistration.Record = (
+      private static let \(raw: name): RundownSwiftTesting._SpecRegistration.Record = (
         0x74657374, 0,
         { outValue, type, _, _ in
-          RundownSwiftTesting.SpecRegistration.\(raw: store)(
+          RundownSwiftTesting._SpecRegistration.\(raw: store)(
             \(spec.name.trimmed).self,
             \(raw: arguments)
             sourceLocation: .init(fileID: \(fileID.file), filePath: \(filePath.file),
@@ -38,7 +38,8 @@ public struct DiscoverySpecMacro: MemberMacro {
       """
     }
 
-    let test = record("__rundownSpecRecord", context: 2, store: "store", arguments: "unit: \(unit.trimmed),")
+    let arguments = unit.map { "unit: \($0.trimmed)," } ?? ""
+    let test = record("__rundownSpecRecord", context: 2, store: "store", arguments: arguments)
     // A native @Suite already emits a record for this suite ID.
     if spec.attributes.contains(where: { $0.as(AttributeSyntax.self)?.unqualifiedName == "Suite" }) {
       return [test]

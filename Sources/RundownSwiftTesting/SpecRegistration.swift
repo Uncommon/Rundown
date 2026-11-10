@@ -3,33 +3,53 @@ import os
 import Rundown
 import Testing
 
+/// Registers one Swift Testing case for each selected top-level child of a spec.
+///
+/// Apply this experimental macro to a non-generic struct with a computed
+/// `spec` property and a parameterless initializer. The macro supplies the
+/// result builder and `Spec` conformance.
 @attached(member, names: named(__rundownSpecRecord), named(__rundownSuiteRecord))
 @attached(extension, conformances: Spec)
 @attached(memberAttribute)
-package macro Spec(_ unit: SpecDiscoveryUnit = .topLevel)
+public macro Spec()
+  = #externalMacro(module: "RundownMacros", type: "DiscoverySpecMacro")
+
+@attached(member, names: named(__rundownSpecRecord), named(__rundownSuiteRecord))
+@attached(extension, conformances: Spec)
+@attached(memberAttribute)
+package macro Spec(_ unit: SpecDiscoveryUnit)
   = #externalMacro(module: "RundownMacros", type: "DiscoverySpecMacro")
 
 package enum SpecDiscoveryUnit: Sendable {
   case topLevel, leaves
 }
 
-package protocol Spec: SendableMetatype {
+/// The conformance synthesized by `@Spec`.
+public protocol Spec: SendableMetatype {
   init()
 
   @ExampleBuilder<AsyncCall>
   var spec: ExampleGroup<AsyncCall> { get }
 }
 
-package enum SpecRegistration {
+/// Registration entry points used by expansions of `@Spec`.
+public enum _SpecRegistration {
   // This Mach-O record always has an accessor. The nonoptional C function
   // pointer has the same layout and lets Swift emit the closure in @section.
-  package typealias Accessor = @convention(c) (
+  public typealias Accessor = @convention(c) (
     UnsafeMutableRawPointer, UnsafeRawPointer, UnsafeRawPointer?, UInt
   ) -> CBool
 
-  package typealias Record = (
+  public typealias Record = (
     kind: UInt32, reserved1: UInt32, accessor: Accessor, context: UInt, reserved2: UInt
   )
+
+  public static func store<S: Spec>(
+    _ spec: S.Type, sourceLocation: SourceLocation,
+    into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
+  ) -> CBool {
+    store(spec, unit: .topLevel, sourceLocation: sourceLocation, into: outValue, asTypeAt: type)
+  }
 
   package static func store<S: Spec>(
     _ spec: S.Type, unit: SpecDiscoveryUnit, sourceLocation: SourceLocation,
@@ -56,7 +76,7 @@ package enum SpecRegistration {
     }, into: outValue, asTypeAt: type)
   }
 
-  package static func storeSuite<S: Spec>(
+  public static func storeSuite<S: Spec>(
     _ spec: S.Type, sourceLocation: SourceLocation,
     into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
   ) -> CBool {

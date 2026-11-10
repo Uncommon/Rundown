@@ -66,7 +66,7 @@ The ordinary trace shows root `beforeAll` and `afterAll` once each. Root `around
 
 ## Prototype registration
 
-The package-scoped `@Spec` macro and `Spec` protocol are available in `RundownSwiftTesting` on Apple platforms with Swift 6.4 or later. Applying the macro opts a type into discovery. The initial prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. [Adapter implementation](../Sources/RundownSwiftTesting/SpecRegistration.swift) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
+Phase 4 introduced the package-scoped `@Spec` prototype on Apple platforms with Swift 6.4 or later. The initial prototype was verified with Xcode 27.2 (27B52), Swift 6.4.2, and Swift Testing 2403 on Apple Silicon. Phase 5 made the zero-argument macro public for top-level discovery and kept the leaf overload package-scoped. [API and support boundary](SwiftTestingIntegration.md#opt-in-api-and-support-boundary) · [Registered fixture](../Tests/RundownSwiftTestingTests/DiscoveryRegistrationSpec.swift)
 
 Apply `@Spec` to a struct that provides the computed `spec` property. The macro adds the `Spec` conformance, applies the result builder to a DSL getter, and emits the registration record. A getter can also return a prebuilt group explicitly.
 

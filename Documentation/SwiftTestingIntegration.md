@@ -698,6 +698,20 @@ Phase 4 compared top-level and leaf cases with the existing host adapter and rec
 
 Phase 5 keeps the host adapter as the supported baseline and develops opt-in top-level cases for Xcode reruns. Leaf discovery is deferred pending coordination of shared intermediate hooks and scheduling. [Phase 5 handoff](CompletedPhases.md#phase-5-handoff) · [Roadmap](Roadmap.md#phase-5--opt-in-top-level-swift-testing-discovery)
 
+#### Opt-in API and support boundary
+
+The optional `RundownSwiftTesting` product exposes the experimental, zero-argument `@Spec` macro on Darwin with Swift 6.4 or later. Apply it to a non-generic struct with a parameterless initializer and a computed `var spec: ExampleGroup<AsyncCall>`. The macro supplies the builder and `Spec` conformance. Each selected top-level child becomes one case. The overload that accepts `.leaves` stays package-scoped.
+
+The macro expansion uses the public underscored `_SpecRegistration` bridge, which keeps the handwritten Mach-O records and calls to Swift Testing's underscored registration helpers behind the adapter boundary. The documented authoring API is `@Spec` and the computed getter. Run the external build, discovery, and group rerun check before adding a toolchain to the verified set. [Registration code](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+The [external fixture](../Tests/ExternalSpecFixture/Tests/ExternalSpecFixtureTests/CheckoutSpec.swift) depends only on the `RundownSwiftTesting` product. With Xcode 27.2 and Swift 6.4.2 on macOS arm64, SwiftPM ran both cases and Xcode enumerated the generated function. Xcode's full run passed both cases, and the saved-card argument URL reran only that group. An external compile probe rejected `@Spec(.leaves)`.
+
+```sh
+swift test --package-path Tests/ExternalSpecFixture
+```
+
+For the Xcode check, build `ExternalSpecFixture-Package` for testing on macOS and use the resulting `.xctestrun`. Run the fixture, extract the saved-card case's `nodeIdentifierURL` with `xcresulttool get test-results tests`, and pass it to `xcodebuild test-without-building -only-testing:<url>`. The earlier platform checks cover the in-package fixtures. [Runner and platform evidence](SwiftTestingSpecDiscoveryResearch.md#runtime-checks-without-the-macos-guard)
+
 ## Acceptance Criteria
 
 The work should be considered successful if all of these hold:
