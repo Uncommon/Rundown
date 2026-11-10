@@ -160,9 +160,17 @@ On Swift 6.4.2 with Swift Testing 2403, temporary fixtures compared the host ada
 | Children inside a top-level case | Ordinary siblings stayed serial. A `.concurrent` subgroup still overlapped under both `@Suite(.serialized)` and `--no-parallel`. |
 | Leaf cases | With `--parallel`, two leaves from an ordinary serial group overlapped. Under `@Suite(.serialized)`, two leaves from a `.concurrent` group ran in declaration order. |
 
-`--no-parallel` also put the default top-level and leaf cases in declaration order. The generated function registers no scheduling trait, so outer cases follow the native runner's configuration. A top-level case preserves Rundown's scheduling within its subtree. A flat leaf list shares one native scheduling policy across groups with potentially different Rundown traits. The explicit `@Suite(.serialized)` probe had no root group hooks.
+`--no-parallel` also put the default top-level and leaf cases in declaration order. In Phase 4, the generated function applied no scheduling policy of its own. A top-level case preserved Rundown's scheduling within its subtree. A flat leaf list shared one native scheduling policy across groups with potentially different Rundown traits. The explicit `@Suite(.serialized)` probe had no root group hooks.
 
 The host main-actor fixture checked the builder, hooks, and example after suspension with `MainActor.preconditionIsolated()`. The concurrent async main-actor host test caught `ConcurrentDisallowedError` before the group's own hooks and verified that a valid sibling and the root teardown still ran. A compile probe for an `@Spec` with an `ExampleGroup<AsyncMainCall>` getter failed because both the generated builder and the `Spec` requirement use `AsyncCall`. The host adapter remains the entry point for main-actor group semantics. [Main-actor fixture](../Tests/RundownSwiftTestingTests/DiscoveryComparisonTests.swift) · [Concurrent main-actor check](../Tests/RundownSwiftTestingTests/MainActorSpecTests.swift) · [Registration](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+### Top-level scheduling policy
+
+Phase 5 applies Swift Testing's `.serialized` scope around the cases of a top-level spec whose root has ordinary serial scheduling. The adapter reads the root after planning builds it. Returning a root group with `.concurrent`, for example `return describe("Checkout", .concurrent) { … }`, lets Swift Testing use the surrounding runner's parallelization policy. A native `@Suite(.serialized)` or `--no-parallel` still serializes those outer cases. Rundown schedules children within each case and honors a nested group's `.concurrent` trait there. The experimental leaf mode retains native outer scheduling. [Scheduling scope](../Sources/RundownSwiftTesting/SpecRegistration.swift)
+
+SwiftPM event streams verified that ordinary top-level cases completed in declaration order with `--parallel`. Two cases of an explicitly concurrent root reached a rendezvous before either finished. They ran serially under `--no-parallel` and under an explicit native `@Suite(.serialized)`. Children of a nested `.concurrent` group still reached their rendezvous with native parallelism disabled.
+
+The hook fixture checks the complete trace, including root setup and teardown and the each-hooks around each selected child. It passed in a full SwiftPM run and in Xcode's full adapter run. Rerunning only `Nested [0]` in Xcode kept one root setup and teardown and ran only that child's hooks and examples. Setup failure recorded one issue before any cases started, and setup cancellation skipped the cases and reached teardown with a cancelled task. [Hook fixture](../Tests/RundownSwiftTestingTests/DiscoveryHookLifetimeTests.swift)
 
 ## Reporting and reruns
 

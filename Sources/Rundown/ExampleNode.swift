@@ -123,7 +123,7 @@ package struct ExampleNode: Sendable {
 
   var isExcluded: Bool { traits.contains { $0 is ExcludedTrait } }
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }
-  var isConcurrent: Bool { traits.contains { $0 is ConcurrentTrait } }
+  package var isConcurrent: Bool { traits.contains { $0 is ConcurrentTrait } }
 
   /// Whether this node or any descendant is focused. Excluded descendants
   /// count, the same as `TestExample.isDeepFocused` for a group.

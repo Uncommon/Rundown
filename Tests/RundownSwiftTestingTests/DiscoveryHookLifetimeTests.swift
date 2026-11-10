@@ -19,7 +19,10 @@ struct DiscoveryHookLifetimeSpec {
     context("Nested") {
       beforeAll { record("nested beforeAll") }
       beforeEach { record("nested beforeEach") }
-      it("First") { record("first") }
+      it("First") {
+        await Task.yield()
+        record("first")
+      }
       it("Second") { record("second") }
       afterEach { record("nested afterEach") }
       afterAll { record("nested afterAll") }
@@ -30,19 +33,15 @@ struct DiscoveryHookLifetimeSpec {
       record("root afterAll")
       let events = trace.withLock { $0 }
       print("discovery hook trace: \(events.joined(separator: " | "))")
-      let nested = events.filter { $0.hasPrefix("nested ") || $0 == "first" || $0 == "second" }
       let nestedTrace = ["nested beforeAll", "nested beforeEach", "first", "nested afterEach",
                          "nested beforeEach", "second", "nested afterEach", "nested afterAll"]
-      let nestedRuns = nested.count / nestedTrace.count
-      #expect(nested == Array(repeating: nestedTrace, count: nestedRuns).flatMap { $0 })
-      let caseCount = nestedRuns + events.filter { $0 == "tail" }.count
-      #expect(caseCount > 0)
-      #expect(events.first == "root beforeAll")
-      #expect(events.last == "root afterAll")
-      for event in ["root aroundEach enter", "root beforeEach", "root afterEach", "root aroundEach exit"] {
-        #expect(events.filter { $0 == event }.count == caseCount)
+      let children = Array(repeating: nestedTrace, count: events.filter { $0 == "first" }.count)
+        + Array(repeating: ["tail"], count: events.filter { $0 == "tail" }.count)
+      let wrappedChildren = children.flatMap {
+        ["root aroundEach enter", "root beforeEach"] + $0 + ["root afterEach", "root aroundEach exit"]
       }
-      #expect(events.filter { $0 == "root afterAll" }.count == 1)
+      #expect(!children.isEmpty)
+      #expect(events == ["root beforeAll"] + wrappedChildren + ["root afterAll"])
     }
   }
 

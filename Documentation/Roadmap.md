@@ -8,7 +8,7 @@ Keep `@Test` with `spec` as the supported baseline. Develop opt-in discovery for
 
 - [x] **Choose the discovery granularity.** Pursue top-level cases and retain the leaf prototype for future research. [Phase 5 handoff](CompletedPhases.md#phase-5-handoff)
 - [x] **Define the opt-in API and support boundary.** Public, experimental `@Spec` keeps the computed getter shape and requires Swift 6.4 on Darwin. A separate client package verified discovery and a single group rerun. [API and support boundary](SwiftTestingIntegration.md#opt-in-api-and-support-boundary)
-- [ ] **Settle scheduling and hook behavior.** Define how native case scheduling preserves Rundown's default serial order and where `.concurrent` permits overlap. Verify that full runs and case reruns preserve root hook lifetimes, setup failure reporting, and cancellation-aware teardown.
+- [x] **Settle scheduling and hook behavior.** Top-level cases run serially unless the root is `.concurrent` and the runner allows parallelism. Full runs and a single-case Xcode rerun verified root hook lifetimes. Setup failure reporting and cancellation-aware teardown passed. [Scheduling and hook checks](SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
 - [ ] **Verify filtering and compatibility.** Rerun a selected top-level case in Xcode and check that its failures retain the full Rundown path. Record SwiftPM's function-level filter, nested-suite selector behavior, and positional case IDs. Run the host adapter, plain-runner, and XCTest suites alongside the discovery checks.
 - [ ] **Document the opt-in workflow.** Show when to use `@Spec` or a host test and how to rerun a discovered group in Xcode. Document the supported runners, isolation requirements, and cancellation behavior.
 

@@ -8,6 +8,9 @@ import Testing
 /// Apply this experimental macro to a non-generic struct with a computed
 /// `spec` property and a parameterless initializer. The macro supplies the
 /// result builder and `Spec` conformance.
+///
+/// Top-level cases run in declaration order by default. Return a root group
+/// with `.concurrent` to allow Swift Testing to schedule them in parallel.
 @attached(member, names: named(__rundownSpecRecord), named(__rundownSuiteRecord))
 @attached(extension, conformances: Spec)
 @attached(memberAttribute)
@@ -56,7 +59,7 @@ public enum _SpecRegistration {
     into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
   ) -> CBool {
     Test.__store({
-      let scope = DiscoveryRootScope()
+      let scope = DiscoveryRootScope(unit: unit)
       return Test.__function(
         named: "examples(unit:)", in: spec, xcTestCompatibleSelector: nil, traits: [scope],
         arguments: {
@@ -92,6 +95,11 @@ public enum _SpecRegistration {
 
 private final class DiscoveryRootScope: TestTrait, TestScoping {
   let root = OSAllocatedUnfairLock<ExampleNode?>(initialState: nil)
+  private let unit: SpecDiscoveryUnit
+
+  init(unit: SpecDiscoveryUnit) {
+    self.unit = unit
+  }
 
   func scopeProvider(for test: Test, testCase: Test.Case?) -> DiscoveryRootScope? {
     // Xcode's XCTest bridge requires issues to be attributed to a function.
@@ -105,7 +113,15 @@ private final class DiscoveryRootScope: TestTrait, TestScoping {
     }
     try await withRundownAssertionPaths {
       let reporter = SwiftTestingReporter(allowsConcurrency: true, cancelsTaskOnSkip: true)
-      try await root.runDiscoveryRootHooks(with: reporter, function)
+      try await root.runDiscoveryRootHooks(with: reporter) {
+        // Top-level cases are the root's selected siblings. Apply their
+        // scheduling policy here, after planning has built the root.
+        if unit == .topLevel && !root.isConcurrent {
+          try await ParallelizationTrait.serialized.provideScope(for: test, testCase: testCase, performing: function)
+        } else {
+          try await function()
+        }
+      }
     }
   }
 }
