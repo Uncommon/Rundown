@@ -101,7 +101,7 @@ Rundown reports errors thrown by examples and hooks with their full paths. With 
 
 #### Discovery and filtering
 
-Swift Testing discovers, filters, and schedules the enclosing `@Test`. Individual Rundown examples and hooks have no separate entries in the test navigator or `swift test --filter`. Within a spec, use Rundown's `.focused` and `.excluded` traits to select examples. Rundown runs `.concurrent` groups serially in synchronous specs and uses task groups in asynchronous specs.
+With a host test, Swift Testing discovers, filters, and schedules the enclosing `@Test` as a unit. Within a spec, use Rundown's `.focused` and `.excluded` traits to select examples. Rundown runs `.concurrent` groups serially in synchronous specs and uses task groups in asynchronous specs. To rerun an individual top-level group in Xcode, see [opt-in discovery](#opt-in-discovery-with-spec).
 
 Use [`MainActorSwiftTestingSuite`](#mainactor-tests) when hooks or examples need the main actor.
 
@@ -166,6 +166,52 @@ struct CartTests: SwiftTestingSuite {
 The annotation is a workaround for Swift Testing's async issue-scoping API. It lets Swift Testing install the handler before the synchronous test runs. A mixed suite can use the same annotation for its sync tests, and each async assertion still gets a single path comment. Assertions outside a running spec keep their normal Swift Testing output. A public synchronous scope would let Rundown install the handler automatically. [Proposal notes](Documentation/SwiftTestingScopedIssueHandlingProposal.md)
 
 On Swift 6.0 and 6.1, native assertions use Swift Testing's standard output. The adapter reports thrown errors with their Rundown paths on all supported toolchains.
+
+#### Opt-in discovery with `@Spec`
+
+Use the experimental `@Spec` macro when you want to rerun a top-level group or standalone example in Xcode. It is available through `RundownSwiftTesting` on Darwin with Swift 6.4 or later. Use a host `@Test` when you want to run the whole spec as one test or need a synchronous or main-actor spec. The client-package workflow below was verified on macOS with Xcode 27.2 and Swift 6.4.2. [Toolchain and platform checks](Documentation/SwiftTestingSpecDiscoveryResearch.md#runtime-checks-without-the-macos-guard)
+
+Apply `@Spec` to a non-generic struct with a parameterless initializer and a computed `spec` property. The macro adds the builder and conformance.
+
+```swift
+import RundownSwiftTesting
+import Testing
+
+@Spec
+struct CheckoutSpec {
+  var spec: ExampleGroup<AsyncCall> {
+    context("Saved card") {
+      it("adds the item prices") {
+        #expect([19, 23].reduce(0, +) == 42)
+      }
+      it("applies the discount") {
+        let total = [19, 23].reduce(0, +)
+        #expect(total - 7 == 35)
+      }
+    }
+    it("starts a guest cart at zero") {
+      let prices: [Int] = []
+      #expect(prices.reduce(0, +) == 0)
+    }
+  }
+}
+```
+
+This registers `CheckoutSpec/examples(unit:)` with two cases. `Saved card [0]` runs both examples in the group, and `starts a guest cart at zero [1]` runs the standalone example. Rundown resolves focus and exclusion before creating cases. Failures carry the full Rundown path within their case.
+
+**Rerun one group in Xcode.** Build for testing and run the spec with `-resultBundlePath Checkout.xcresult`. Set `run_file` to the build's `.xctestrun` path and `destination` to the destination used for the original run. Use the first command to find the `Saved card [0]` arguments row, then set `case_url` to its `nodeIdentifierURL` before running the second command.
+
+```sh
+xcrun xcresulttool get test-results tests --path Checkout.xcresult
+xcodebuild test-without-building -xctestrun "$run_file" -destination "$destination" \
+  "-only-testing:$case_url"
+```
+
+Use a fresh case URL after changing the order or position of examples. In Xcode 27.2, a spec nested inside another Swift suite could be rerun by its function selector, while its individual case selectors failed. SwiftPM filters the generated function, so `swift test --filter 'CheckoutSpec/examples'` runs both cases. [Filtering and rerun results](Documentation/SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
+
+Root `beforeAll` and `afterAll` run once around the selected cases, including a single-group rerun. Cases run in declaration order by default. Return a root group with `.concurrent` to allow overlap when Swift Testing enables parallelism. Rundown still schedules the examples within each group. [Scheduling and hooks](Documentation/SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
+
+`Test.cancel` inside a case cancels that case. If root `beforeAll` cancels, the cases are skipped and root teardown runs with a cancelled task. Root setup cancellation emits no native Swift Testing cancellation event. [Hook lifetime checks](Documentation/SwiftTestingSpecDiscoveryResearch.md#hook-lifetimes)
 
 ## Running tests
 

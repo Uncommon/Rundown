@@ -1,26 +1,16 @@
-# Deeper Swift Testing Integration Ideas
+# Swift Testing Integration Design
 
 ## Purpose
 
-This document outlines implementation options for making Rundown feel more native in Swift Testing while preserving the current XCTest experience and keeping existing XCTest/XCUITest-compatible consumers working.
-
-The intent is not to pick a final design immediately. The goal is to make the tradeoffs explicit enough that the next implementation step can be chosen deliberately.
+This document describes how Rundown integrates with Swift Testing and what remains open for leaf-level execution. The README covers adoption, and the phase archive records the implementation history. [Swift Testing usage](../README.md#swift-testing) · [Completed phases](CompletedPhases.md) · [Roadmap](Roadmap.md)
 
 ## Current State
 
-Rundown already has three important properties that are worth preserving:
-
-- The core DSL is framework-neutral: `describe`, `context`, `it`, hooks, traits, and `spec()` do not require a specific test framework.
-- XCTest-specific behavior is already isolated in `Sources/Rundown/ExampleData+XCTest.swift`.
-- Main actor support is already expressed in framework-neutral API surface via `MainActorSuite`.
-
-Today, the integration split looks like this:
-
-- `Rundown.TestCase` improves XCTest failures by prefixing issues with the full example path.
-- XCTest behavior is a reporter on the shared traversal (`XCTestReporter`): each node runs as an `XCTContext` activity to show nested structure in the test log, errors are recorded as issues, and `XCTSkip` is classified as a skip. This is synchronous and main-actor only.
+- The framework-neutral DSL includes `describe`, `context`, `it`, hooks, traits, `spec()`, and the `MainActorSuite` protocol.
+- `Rundown.TestCase` adds the full example path to XCTest issues. Its synchronous main-actor `spec()` overloads use `XCTestReporter` to show nested `XCTContext` activities, record errors as issues, and handle `XCTSkip`.
 - A built spec can be viewed as a tree of `ExampleNode`s (`ExampleNode.swift`), which does not depend on the call type. All specs are run by one traversal over that tree (`NodeTraversal.swift`), which takes a `Reporter` (`Reporter.swift`). The plain runners use `PlainReporter`.
 - The optional `RundownSwiftTesting` product supplies `SwiftTestingSuite` and `MainActorSwiftTestingSuite`. Their `spec()` methods use `SwiftTestingReporter` inside a Swift Testing `@Test`. The core `Rundown` target remains independent of `Testing`.
-- Rundown traits are currently neutral library concepts and are not coupled to Swift Testing traits.
+- The same product supplies experimental `@Spec` discovery for top-level groups and standalone examples. [Discovery bridge](#option-c-discovery-bridge)
 
 ## Hard Constraints
 
@@ -56,73 +46,18 @@ Swift Testing sees more than one outer host test. Ideally, individual Rundown ex
 
 Rundown no longer just "runs inside" Swift Testing. Instead, Swift Testing becomes the scheduler and reporter for Rundown examples, and Rundown contributes structure, hooks, and semantics.
 
-The recommended implementation order is Level 1 -> Level 2 -> Level 3. Level 4 should only happen if the return on complexity is clear.
+## Planning and execution
 
-## Recommended Architectural Direction
-
-The cleanest long-term direction is:
-
-- Keep the public authoring DSL shared across frameworks.
-- Keep the execution core framework-neutral.
-- Add optional framework adapters for richer behavior.
-
-That implies an architecture closer to this:
-
-- `RundownCore`
-  - builder
-  - example tree / plan model
-  - runner
-  - neutral traits
-  - main actor abstractions
-- `RundownXCTest`
-  - `Rundown.TestCase`
-  - `XCTContext.runActivity()` support
-  - `XCTSkip` handling
-  - XCTest issue formatting
-- `RundownSwiftTesting`
-  - Swift Testing reporter
-  - trait bridge
-  - optional discovery bridge
-
-This does not necessarily mean public products must be renamed immediately. Internally splitting responsibilities is more important than immediately changing package-facing names.
-
-## Key Internal Refactor: Separate Planning From Execution
-
-If Rundown is going to integrate more deeply with Swift Testing, the most useful internal refactor is to introduce an explicit intermediate representation for a built spec.
-
-Call it `ExamplePlan`, `ExampleTree`, or `ExecutionPlan`.
-
-That plan should represent:
-
-- groups
-- leaf examples
-- hook stacks
-- traits
-- actor isolation
-- sync vs async execution mode
-- source descriptions / display names
-
-Today, the DSL mostly builds directly into execution-oriented structures. That is sufficient for "run this whole thing now", but it limits integration options. A distinct plan model would unlock several things:
-
-- an XCTest renderer that turns plan nodes into `XCTActivity` nesting
-- a Swift Testing renderer that records richer path information
-- future leaf-native discovery for Swift Testing
-- better trait routing without framework-specific logic leaking into the builder
-
-Without this separation, deeper integration will tend to accumulate framework-specific branches inside `ExampleRunner`.
-
-### Status
-
-This is done, as `ExampleNode` and the traversal in `NodeTraversal.swift`. It differs from the sketch above in a few ways that matter for later phases:
+`ExampleNode` represents a built spec. `NodeTraversal.swift` executes it through the reporter for the chosen runner. The same tree supports XCTest activities, Swift Testing path reporting, and projection into discovered cases.
 
 - A node holds metadata *and* the closures to run, each in the call type it was written with (`sync`, `async`, `syncMain` or `asyncMain`). A tree without closures could not be traversed on its own, and the sync XCTest runner cannot run on type-erased async closures.
 - Each-hooks stay attached to the group that declares them and wrap its child nodes, groups included. They are not flattened onto leaves (see "Hook Replay Order" under Option B).
 - Focus and exclude are resolved when the tree is built, as `isSelected` on each node. Excluded nodes stay in the tree, so it still reflects the structure of the spec.
-- Same-package adapters can obtain an `ExampleNode` from `ExampleGroup.node` for any of the four call types and run it with a reporter. Tree construction, traversal helpers and stored closures are internal to `Rundown`.
+- Same-package adapters can obtain an `ExampleNode` from `ExampleGroup.node` for any of the four call types and run it with a reporter. Discovery also uses the package-level selected-child projection and root hook scope. Rundown owns tree construction and the stored closures.
 
 ## Option A: Host-Test Swift Testing Adapter
 
-This is the implemented adapter. See the [README](../README.md#swift-testing) for setup and usage.
+The host-test adapter is the supported baseline. [Setup and usage](../README.md#swift-testing)
 
 ### Model
 
@@ -267,7 +202,7 @@ To check cancellation output on the Swift 6.4 toolchain, run `swift test --filte
 
 ## Option B: Leaf-Native Swift Testing Execution
 
-This is the ambitious path.
+Leaf-level discovery remains experimental. The prototype exposes each example as a case, and shared intermediate hook lifetimes and scheduling are open design problems. [Phase 5 decision](CompletedPhases.md#decision-for-phase-5)
 
 ### Model
 
@@ -279,13 +214,11 @@ Each leaf `it(...)` becomes a Swift Testing test case, while Rundown continues t
 - traits
 - actor-isolation rules
 
-### What This Buys
+### Goals
 
-- individual examples become discoverable
-- test filtering can target actual leaf examples
-- trait application can become more native
-- reporting becomes much closer to Swift Testing's preferred shape
-- Swift Testing can control more of parallelization and scheduling
+- Attribute issues to individual examples and allow direct reruns where the runner supports case selectors.
+- Apply traits at matching Swift Testing boundaries.
+- Let Swift Testing schedule more of the work while preserving Rundown's group semantics.
 
 ### What Makes It Hard
 
@@ -296,11 +229,9 @@ Each leaf `it(...)` becomes a Swift Testing test case, while Rundown continues t
 - main actor and non-main actor examples need a coherent representation
 - focus / exclude semantics need careful mapping
 
-This option is attractive only after a separate plan model exists. Otherwise it will make `ExampleRunner` much more complex.
-
 ### Required Internal Representation
 
-Leaf-native execution cannot be built directly on the node tree as it is. It needs a flattened view of the leaves, and the flattening has to keep each hook attached to the group it belongs to, because group-scoped hooks wrap whole child nodes, not leaves.
+A leaf plan can be projected from the node tree. The projection has to keep each hook attached to its declaring group because group-scoped hooks wrap whole child nodes.
 
 That view should look roughly like:
 
@@ -440,101 +371,27 @@ Without those tests, the risk of subtle semantic drift is high.
 
 ## Option C: Discovery Bridge
 
-There are two broad ways to improve Swift Testing discovery:
+The experimental `@Spec` macro registers a Swift Testing function with one case per selected top-level group or standalone example. Swift Testing evaluates the spec getter during planning, so cases can come from loops, conditionals, and helper-built groups. Each group case runs its subtree through Rundown's traversal. Xcode can rerun an individual case in a top-level Swift suite, and SwiftPM filters by generated function. [Opt-in discovery guide](../README.md#opt-in-discovery-with-spec) · [Discovery results](SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
 
-- keep user-authored `@Test` functions and improve only runtime behavior
-- add a Rundown-specific discovery bridge that emits native Swift Testing-visible tests
+### Opt-in API and support boundary
 
-The second option should be considered only after deciding whether leaf-native discovery is a real goal.
+The optional `RundownSwiftTesting` product exposes the experimental, zero-argument `@Spec` macro on Darwin with Swift 6.4 or later. Apply it to a non-generic struct with a parameterless initializer and a computed `var spec: ExampleGroup<AsyncCall>`. The macro supplies the builder and `Spec` conformance. Each selected top-level child becomes one case. The overload that accepts `.leaves` stays package-scoped.
 
-Possible forms:
+The macro expansion uses the public underscored `_SpecRegistration` bridge, which keeps the handwritten Mach-O records and calls to Swift Testing's underscored registration helpers behind the adapter boundary. The documented authoring API is `@Spec` and the computed getter. Run the external build, discovery, and group rerun check before adding a toolchain to the verified set. [Registration code](../Sources/RundownSwiftTesting/SpecRegistration.swift)
 
-- an optional macro in a separate target
-- a discovery helper module that turns a Rundown plan into Swift Testing-visible test content
-- a code-generation or plugin-based bridge outside the core runtime
+The [external fixture](../Tests/ExternalSpecFixture/Tests/ExternalSpecFixtureTests/CheckoutSpec.swift) depends only on the `RundownSwiftTesting` product. With Xcode 27.2 and Swift 6.4.2 on macOS arm64, SwiftPM ran both cases and Xcode enumerated the generated function. Xcode's full run passed both cases, and the saved-card argument URL reran only that group. An external compile probe rejected `@Spec(.leaves)`.
 
-The key point is that this should be optional and should not contaminate the core `Rundown` target with a hard `Testing` dependency.
+```sh
+swift test --package-path Tests/ExternalSpecFixture
+```
 
-### Discovery Bridge Goals
+For the Xcode check, build `ExternalSpecFixture-Package` for testing on macOS and use the resulting `.xctestrun`. Run the fixture, extract the saved-card case's `nodeIdentifierURL` with `xcresulttool get test-results tests`, and pass it to `xcodebuild test-without-building -only-testing:<url>`. The earlier platform checks cover the in-package fixtures. [Runner and platform evidence](SwiftTestingSpecDiscoveryResearch.md#runtime-checks-without-the-macos-guard)
 
-Option C should only exist to solve one of two concrete problems:
+### Other discovery approaches
 
-- make Rundown leaves discoverable without manually writing a Swift Testing `@Test` wrapper for each host spec
-- make leaf-native Option B practical without hand-written boilerplate
-
-If it does not solve one of those problems, it is probably unnecessary.
-
-### Candidate Implementation Paths
-
-#### 1. Macro-based discovery
-
-An adapter macro could generate Swift Testing entrypoints for a static Rundown spec declaration.
-
-This is appealing because it looks ergonomic, but Rundown's builder model makes it a poor default choice:
-
-- specs may contain loops
-- specs may contain conditionals
-- specs may call helper functions that return examples
-- some interesting structure is only knowable after evaluating Swift code, not by inspecting syntax
-
-That means syntax-only expansion is only reliable for a subset of specs.
-
-Macro-based discovery is therefore best treated as:
-
-- optional
-- limited to static specs
-- never the only path to deeper integration
-
-#### 2. Runtime-discoverable test content
-
-If Swift Testing's discovery model allows third-party test content to be emitted from a helper module, that is a much better fit for Rundown than syntax-only macro expansion.
-
-Why it fits better:
-
-- Rundown can build the actual plan first
-- loops and helper-generated examples are already resolved
-- trait inheritance and leaf naming can use the real execution model
-- the same plan can feed both host-test and leaf-native execution strategies
-
-This would likely be the best long-term discovery bridge if the surrounding Swift Testing APIs are stable enough.
-
-#### 3. Generated source via build tooling
-
-A build tool plugin or standalone generator could:
-
-- evaluate or inspect a static description of the Rundown suite
-- emit Swift source containing `@Test` wrappers
-- add that generated source to the test target
-
-This is more operationally complex than runtime discovery but has one advantage: the output is ordinary Swift test code that can be inspected during debugging.
-
-This path is attractive only if runtime discovery is not feasible and macro-based discovery proves too limited.
-
-### Recommendation For Option C
-
-Treat discovery as a separate experiment with its own success criteria.
-
-Implementation order should be:
-
-1. host-test adapter first
-2. plan model second
-3. discovery prototype third
-
-Do not commit the architecture to macros or generated code before testing whether a runtime-discovery bridge is viable.
-
-### Validation Cases For Option C
-
-Any discovery bridge must be validated against specs that include:
-
-- nested groups
-- loops
-- conditionals
-- helper-built subtrees
-- mixed sync / async examples
-- main actor suites
-- traits inherited from outer groups
-
-If a discovery mechanism cannot represent those cases correctly, it is not a general Rundown solution.
+- **Syntax-based expansion.** A macro that inspects the DSL can only emit cases for structure it can see in the source. The current macro emits registration records and lets the runtime plan determine the cases.
+- **Runtime registration.** A supported Swift Testing API for registering tests built from a plan could replace the underscored calls in the current adapter. [Upstream proposal idea](SwiftTestingSpecDiscoveryResearch.md#possible-upstream-proposal)
+- **Generated source.** A build tool could emit ordinary `@Test` wrappers from a static description. This adds a generation step and gives users generated Swift code they can inspect.
 
 ## Trait Bridging Design
 
@@ -590,17 +447,17 @@ The CLI listed the three probe functions, including the disabled host. The event
 
 The declared traits and mutable `Test.traits` are present in Swift 6.0. Custom `TestScoping` arrived in Swift 6.1. Swift 6.2 added `ConditionTrait.evaluate()`, `IssueHandlingTrait`, and the public scoping implementation on `ParallelizationTrait`. These are API availability checks from the published sources. The runtime and CLI observations above were verified on Swift 6.4.2. [Swift 6.0 `Test` source](https://github.com/swiftlang/swift-testing/blob/swift-6.0-RELEASE/Sources/Testing/Test.swift) · [Swift 6.1 release notes](https://www.swift.org/blog/swift-6.1-released/) · [ST-0010](https://github.com/swiftlang/swift-evolution/blob/main/proposals/testing/0010-evaluate-condition.md) · [ST-0011](https://github.com/swiftlang/swift-evolution/blob/main/proposals/testing/0011-issue-handling-traits.md) · [Swift 6.2 parallelization source](https://github.com/swiftlang/swift-testing/blob/swift-6.2-RELEASE/Sources/Testing/Traits/ParallelizationTrait.swift)
 
-### Phase 3 trait decisions
+### Trait behavior by entry point
 
-All three built-ins are execution-only in host-test mode. `RundownSwiftTesting` builds the tree after Swift Testing has selected the host test and delegates selection and scheduling to the shared traversal. Phase 3 defers a bridge API until discovery exposes a matching Swift Testing scope. [Host-test probe](#swift-testing-metadata-timing-probe)
+In host-test mode, `RundownSwiftTesting` builds the tree after Swift Testing selects the host test and delegates selection and scheduling to the shared traversal. Top-level discovery uses the resolved tree to register cases and applies native scheduling at the root boundary. [Host-test probe](#swift-testing-metadata-timing-probe)
 
-| Rundown trait | Host-test decision | Candidate for native discovery |
+| Rundown trait | Host test | Top-level discovery |
 |---|---|---|
-| `.excluded` | Omit the example, child group, or hook locally. A spec with all children excluded returns without running its hooks, and the host can continue. Use native `.disabled` when the whole host test or suite should be skipped. | Omit excluded nodes and their subtrees from generated test content. This preserves temporary omission. Use native `.disabled` for a discoverable test intended to appear as skipped. |
-| `.focused` | Resolve focus within the spec using Rundown's branch selection. The documented focus-inside-exclusion behavior is the baseline for the separate cleanup. | Focus stays a development-time execution control by default. If Phase 4 tests an opt-in discovery mode for focused examples, derive its selection from the resolved tree and keep the IDs of the tests it includes. |
-| `.concurrent` | Rundown schedules the group's children. Native `.serialized` on a parameterized host test controls its Swift Testing cases. Rundown runs sync groups serially under the sync adapter, uses task groups in async specs, and rejects concurrent async main-actor groups before their hooks. | Consider native scheduling only at a boundary that represents a group's selected siblings. Test `.serialized` for boundaries that need sequential execution and allow Swift Testing parallelism where the Rundown group permits it. Verify hook lifetimes and main-actor isolation at that boundary. |
+| `.excluded` | Omit the example, child group, or hook locally. A spec with all children excluded returns without running its hooks, and the host can continue. Use native `.disabled` when the whole host test or suite should be skipped. | Excluded top-level children have no cases. The traversal omits excluded nodes within each case. |
+| `.focused` | Resolve focus within the spec using Rundown's branch selection. The documented focus-inside-exclusion behavior is the baseline for the separate cleanup. | Register cases for selected top-level children. Their positional IDs use the original child indices. |
+| `.concurrent` | Rundown schedules the group's children. Native `.serialized` on a parameterized host test controls its Swift Testing cases. Rundown runs sync groups serially under the sync adapter, uses task groups in async specs, and rejects concurrent async main-actor groups before their hooks. | Serialize top-level cases by default. A concurrent root allows native parallel scheduling when the runner permits it. Rundown schedules children within each case. |
 
-If the discovery prototype exposes a top-level group as a single case, Rundown still owns its internal hooks and child scheduling. Apply discovery choices to the nodes or cases the prototype actually emits. [View-shaped `Spec` research notes](SwiftTestingSpecDiscoveryResearch.md)
+The discovered root's setup and teardown run once around the selected cases. Discovered specs use `AsyncCall`, and the host adapter supports main-actor groups. [Discovery selection](SwiftTestingSpecDiscoveryResearch.md#selection-at-the-discovery-boundary) · [Scheduling and hooks](SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
 
 ## Reporting Adapter Design
 
@@ -610,7 +467,7 @@ The XCTest adapter is a reporter, `XCTestReporter`:
 - it enriches issues with full example paths
 - it handles skips in a framework-aware way
 
-Swift Testing needs an equivalent concept even if the rendering mechanism is different.
+The host adapter and discovered cases both use `SwiftTestingReporter`.
 
 ### The Reporter Protocol
 
@@ -642,75 +499,16 @@ The reporter is `Sendable` because concurrent groups call it from several tasks 
 ### Swift Testing Reporter Behavior
 
 - Record thrown errors with the full Rundown path as an issue comment.
-- Stop new setup and examples on cancellation. Swift Testing reports the reason supplied by the caller.
-- Keep the hierarchy in path comments within the host test's results.
+- Stop new setup and examples on cancellation. A cancelled discovery root unwinds before cases start and has no native cancellation event. [Hook lifetimes](SwiftTestingSpecDiscoveryResearch.md#hook-lifetimes)
+- Add Rundown paths to issues in host-test and discovered-case results.
 
 ## Main Actor and Isolation Strategy
 
-`MainActorSuite` already shows the right direction: actor isolation should be part of the framework-neutral model, not a framework-specific special case.
+`MainActorSuite` defines main-actor isolation for the DSL, and `ExampleNode.isolation` carries it into the traversal. `Rundown.TestCase` conforms to `MainActorSuite`. Under Swift Testing, `MainActorSwiftTestingSuite` builds and runs main-actor specs inside a host test.
 
-Deeper Swift Testing integration should preserve that.
+## Packaging
 
-### Recommended Rules
-
-- actor isolation is carried in the plan (`ExampleNode.isolation`)
-- adapters choose the correct execution path based on that isolation
-- main-actor examples do not participate in any execution mode that conflicts with serialized main-actor execution
-
-In practical terms:
-
-- keep `MainActorSuite`
-- keep `Rundown.TestCase` conforming to it
-- use `MainActorSwiftTestingSuite` to build and run main-actor plans under Swift Testing
-
-## Packaging Strategy
-
-The packaging strategy matters as much as the API strategy because compatibility with existing XCTest-oriented targets is a requirement.
-
-### Recommended Packaging Direction
-
-Short term:
-
-- keep the existing `Rundown` target as the default entrypoint
-- do not add `Testing` as a dependency of that target
-- add a separate optional adapter target for Swift Testing-specific integration if needed
-
-Medium term:
-
-- extract an internal core target if the adapter logic starts to crowd the current target
-- keep XCTest support additive and source-compatible
-
-### Avoid
-
-- making the main `Rundown` product depend directly on `Testing`
-- changing core trait protocols to inherit from Swift Testing protocols
-- mixing Swift Testing-specific execution behavior into the builder in a way that makes XCTest behavior harder to reason about
-
-## Phased Plan
-
-The [completed phases](CompletedPhases.md) record the shared node traversal, the Swift Testing host-test adapter, the trait decisions, and the discovery experiment.
-
-### Phase 4: Discovery Experiment
-
-Phase 4 compared top-level and leaf cases with the existing host adapter and recorded the hook, trait, filtering, and reporting behavior of each mode. [Phase 4 results](CompletedPhases.md#phase-4--swift-testing-discovery-experiment) · [Discovery research](SwiftTestingSpecDiscoveryResearch.md)
-
-### Phase 5 — Opt-in top-level discovery
-
-Phase 5 keeps the host adapter as the supported baseline and develops opt-in top-level cases for Xcode reruns. Leaf discovery is deferred pending coordination of shared intermediate hooks and scheduling. [Phase 5 handoff](CompletedPhases.md#phase-5-handoff) · [Roadmap](Roadmap.md#phase-5--opt-in-top-level-swift-testing-discovery)
-
-#### Opt-in API and support boundary
-
-The optional `RundownSwiftTesting` product exposes the experimental, zero-argument `@Spec` macro on Darwin with Swift 6.4 or later. Apply it to a non-generic struct with a parameterless initializer and a computed `var spec: ExampleGroup<AsyncCall>`. The macro supplies the builder and `Spec` conformance. Each selected top-level child becomes one case. The overload that accepts `.leaves` stays package-scoped.
-
-The macro expansion uses the public underscored `_SpecRegistration` bridge, which keeps the handwritten Mach-O records and calls to Swift Testing's underscored registration helpers behind the adapter boundary. The documented authoring API is `@Spec` and the computed getter. Run the external build, discovery, and group rerun check before adding a toolchain to the verified set. [Registration code](../Sources/RundownSwiftTesting/SpecRegistration.swift)
-
-The [external fixture](../Tests/ExternalSpecFixture/Tests/ExternalSpecFixtureTests/CheckoutSpec.swift) depends only on the `RundownSwiftTesting` product. With Xcode 27.2 and Swift 6.4.2 on macOS arm64, SwiftPM ran both cases and Xcode enumerated the generated function. Xcode's full run passed both cases, and the saved-card argument URL reran only that group. An external compile probe rejected `@Spec(.leaves)`.
-
-```sh
-swift test --package-path Tests/ExternalSpecFixture
-```
-
-For the Xcode check, build `ExternalSpecFixture-Package` for testing on macOS and use the resulting `.xctestrun`. Run the fixture, extract the saved-card case's `nodeIdentifierURL` with `xcresulttool get test-results tests`, and pass it to `xcodebuild test-without-building -only-testing:<url>`. The earlier platform checks cover the in-package fixtures. [Runner and platform evidence](SwiftTestingSpecDiscoveryResearch.md#runtime-checks-without-the-macos-guard)
+`Rundown` contains the DSL, shared traversal, plain runners, and XCTest support. The optional `RundownSwiftTesting` product depends on it and contains the Swift Testing reporter, host entry points, and registration bridge. The builder and core trait protocols remain framework-neutral. A separate internal core target is an option if the adapters need a stronger package boundary. [Package manifest](../Package.swift)
 
 ## Acceptance Criteria
 
@@ -724,23 +522,10 @@ The work should be considered successful if all of these hold:
 - main-actor behavior remains explicit and reliable
 - no built-in trait loses its existing meaning under XCTest
 
-## Open Questions
+## Open questions
 
-- **What should opt-in `@Spec` expose and support?** The prototype is package-scoped and requires Darwin and Swift 6.4 or later. Decide what authoring API to expose, which toolchains and platforms to support, and whether to accept the prototype's underscored Swift Testing APIs and handwritten Mach-O records or require a stable registration API. [Registration and compatibility results](SwiftTestingSpecDiscoveryResearch.md#compatibility-and-cost)
-- **How should top-level cases preserve Rundown's scheduling and hook behavior?** The prototype lets Swift Testing schedule top-level siblings, and `@Suite(.serialized)` restored declaration order in the probe. Decide how to preserve Rundown's default serial order and where `.concurrent` allows overlap. Verify root hook lifetimes, setup failure reporting, and cancellation-aware teardown in full runs and single-case reruns. [Scheduling results](SwiftTestingSpecDiscoveryResearch.md#scheduling-and-isolation) · [Hook lifetimes](SwiftTestingSpecDiscoveryResearch.md#hook-lifetimes)
-- **Which rerun workflows should `@Spec` support?** Xcode reran individual cases in a top-level suite, while the tested nested suite had function-level filtering and its case selectors failed. SwiftPM filtering selected the generated function, and changing tree positions can change case IDs. Define the supported rerun workflows and document when case IDs can change. [Filtering and case identities](SwiftTestingSpecDiscoveryResearch.md#discovery-units-and-identities)
-
-## Recommendation
-
-The most defensible path is:
-
-1. Keep the DSL shared.
-2. Keep the core target free of `Testing`.
-3. Introduce a plan model and reporter abstraction (done).
-4. Add an optional Swift Testing adapter target with host-test integration first.
-5. Treat leaf-native discovery as an experiment, not the baseline plan.
-
-That path preserves existing XCTest compatibility, keeps XCUITest-oriented consumers safe, and still creates room for much deeper Swift Testing integration later.
+- How can independently selected leaves share intermediate group hooks and preserve sibling scheduling? [Leaf execution design](#option-b-leaf-native-swift-testing-execution)
+- What supported Swift Testing API could replace the adapter's underscored registration calls? [Upstream proposal idea](SwiftTestingSpecDiscoveryResearch.md#possible-upstream-proposal)
 
 ## External References
 

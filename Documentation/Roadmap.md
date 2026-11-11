@@ -2,16 +2,6 @@
 
 Open work and design notes from the 2026-10-12 review of the library. Implementation records live in [Completed Phases](CompletedPhases.md).
 
-## Phase 5 — Opt-in top-level Swift Testing discovery
-
-Keep `@Test` with `spec` as the supported baseline. Develop opt-in discovery for rerunning a top-level group or standalone example in Xcode. Leaf discovery is deferred while the prototype replays shared group hooks for each leaf. [Phase 5 decision](CompletedPhases.md#decision-for-phase-5)
-
-- [x] **Choose the discovery granularity.** Pursue top-level cases and retain the leaf prototype for future research. [Phase 5 handoff](CompletedPhases.md#phase-5-handoff)
-- [x] **Define the opt-in API and support boundary.** Public, experimental `@Spec` keeps the computed getter shape and requires Swift 6.4 on Darwin. A separate client package verified discovery and a single group rerun. [API and support boundary](SwiftTestingIntegration.md#opt-in-api-and-support-boundary)
-- [x] **Settle scheduling and hook behavior.** Top-level cases run serially unless the root is `.concurrent` and the runner allows parallelism. Full runs and a single-case Xcode rerun verified root hook lifetimes. Setup failure reporting and cancellation-aware teardown passed. [Scheduling and hook checks](SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
-- [ ] **Verify filtering and compatibility.** Rerun a selected top-level case in Xcode and check that its failures retain the full Rundown path. Record SwiftPM's function-level filter, nested-suite selector behavior, and positional case IDs. Run the host adapter, plain-runner, and XCTest suites alongside the discovery checks.
-- [ ] **Document the opt-in workflow.** Show when to use `@Spec` or a host test and how to rerun a discovered group in Xcode. Document the supported runners, isolation requirements, and cancellation behavior.
-
 ## Error and skip rules
 
 The table describes failures and XCTest's local skips. `ReporterTests`, `MessageXCTests` and `MultiRunTests` cover these rules.

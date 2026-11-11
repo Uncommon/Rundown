@@ -4,7 +4,7 @@ The prototype represented each spec as a type with one computed property, modele
 
 The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratch protocol and macro in `RundownMacros`, and hand-written test content records. It ran with Xcode's Swift 6.4 toolchain. After the scratch code was removed, all 124 tests passed.
 
-## Findings
+## Initial findings
 
 - *The protocol shape compiles.* `protocol Spec { init(); @ExampleBuilder<AsyncCall> var spec: ExampleGroup<AsyncCall> { get } }`. The builder attribute on the requirement is inherited by the witnesses, so `var spec: ExampleGroup<AsyncCall> { describe… it… hooks… for-loops }` type-checks like the closure of `spec { }`, with no `some` and no erasure, because the builder already returns a concrete group. The root is `spec.named(String(describing: Self.self)).node`, and `node.run(with:)` runs it unchanged. A `@MainActor protocol MainActorSpec: MainActorSuite` with `@ExampleBuilder<AsyncMainCall>` compiled too, and its hook and example ran main-actor isolated (checked by hand, not through the macro).
 - *Tests can be registered without `@Test` or `@Suite`.* A global or static `@section("__DATA_CONST,__swift5_tests") @used let record: Testing.__TestContentRecord = (0x74657374, 0, { out, type, hint, reserved in Test.__store(generator, into: out, asTypeAt: type) }, 0, 0)` was discovered and ran. `@section` and `@used` need no feature flag in 6.4. The generator builds its `Test` with the public but underscored `Test.__function(named:in:…)` and `Test.__type(_:traits:sourceBounds:)`; the record format is documented in swift-testing's `Documentation/ABI/TestContent.md`. Those helpers are marked "used to implement the macros, do not call directly", and the installed signatures differ from the source tree: 6.4 takes `sourceBounds: __SourceBounds` (built with `__SourceBounds(__uncheckedLowerBound:upperBound:)`), and older `sourceLocation:` forms exist only as internal `@abi` shims. The ABI document also says to define your own copy of the record tuple type, not to use `__TestContentRecord`, which the scratch macro did.
@@ -14,15 +14,13 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - *Examples can be dynamic, as test cases.* `__function(…arguments:…)` evaluates its closure when the plan is built, so the leaves of `Self().spec.node` become cases, including those from `for` loops. Each case is labelled by a `CustomTestStringConvertible` argument, here the full path ("FeatureSpec, logged in, throws"), and an issue is attributed to its case. A thrown error recorded by the reporter carried the path as a comment as well; a failed `#expect` did not (see below). `swift test list` shows only `Type/examples`, and `--filter` matches test IDs, not cases (`--filter "loop example"` ran nothing).
 - *Nested `@Spec` types are nested suites.* With the macro on both, `OuterSpec { @Spec struct InnerSpec }` listed as `OuterSpec/examples` and `OuterSpec/InnerSpec/examples`, and ran as nested suites. This is the only nesting available, and it follows the source declaration, not the `describe` structure.
 - *One case per leaf repeats group hooks.* Each case ran its own copy of every enclosing hook: with 7 leaves, the root `beforeAll` ran 7 times, concurrently, and the `logged in` group's `beforeAll` and `afterAll` ran 3 times each. This is the Option B problem, shown.
-- *One case per top-level child preserves the traversal's hook order when the root hooks wrap the cases.* The original probe used a suite trait to run root `beforeAll` and `afterAll` once. Each case kept the root's each-hooks and one child, so the nested group's hooks still ran around the whole group. The current prototype uses the [generated function's scope](#hook-lifetimes).
+- *One case per top-level child preserves the traversal's hook order when the root hooks wrap the cases.* The original probe used a suite trait to run root `beforeAll` and `afterAll` once. Each case kept the root's each-hooks and one child, so the nested group's hooks still ran around the whole group. The adapter uses the [generated function's scope](#hook-lifetimes).
 - *Cases run in parallel.* The cases of one test ran concurrently, so sibling elements overlap where the traversal runs them one after another.
 
-## Further probes
+## Remaining probes
 
 - Try the protocol-conformance discovery listed in the 6.4 interface (`__TestContentRecordContainer` and `@_alwaysEmitConformanceMetadata`). It needs an accessor that knows `Self`, which a `@convention(c)` accessor cannot capture.
-- Check the section names Swift Testing's macros emit for ELF, COFF, and Wasm.
-- Check how Xcode displays cases and nested suites.
-- Check a failing or skipping root `beforeAll`. The scratch trait left the cases runnable.
+- Verify the documented test-content sections on ELF, COFF, and Wasm. The Rundown prototype has been checked on Mach-O. [Swift Testing record format](https://github.com/swiftlang/swift-testing/blob/main/Documentation/ABI/TestContent.md)
 
 ## Implications
 
@@ -30,10 +28,10 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - Leaves as cases (Option B) needs a lifecycle coordinator. A top-level case keeps its subtree intact and uses the existing traversal for everything below the root. The root's `beforeAll` and `afterAll` wrap the selected cases once. The case label names the top-level child.
 - Nested suites are real only for nested types. A `describe` stays a path in the case label. If real suites per group are wanted, each would need to be a declared type, and the outer each-hooks would then wrap a suite, which is the unsolved part of Option B.
 - Failed `#expect`s inside a nested group are attributed to the top-level child's case. A Rundown path comment can identify the leaf within that case.
-- `Self()` is made for the plan, for the suite scope and for each case, so state kept in stored properties is not shared between a `beforeAll` and the examples.
-- Native `.serialized` on the suite restores serial case order. Rundown still schedules children inside each top-level case. [Scheduling and isolation results](#scheduling-and-isolation)
+- The current registration builds the tree once during planning and shares its captured fixture state across cases and root hooks. [Plan and fixture lifetime](#plan-and-fixture-lifetime)
+- Ordinary top-level cases run serially. A concurrent root lets Swift Testing schedule its cases, and Rundown schedules children within each case. [Top-level scheduling policy](#top-level-scheduling-policy)
 - The probe depends on underscored APIs whose signatures already differed between the source tree and the toolchain. That approach would need checks against each supported toolchain. See the [possible upstream proposal](#possible-upstream-proposal).
-- `Spec` types would be opt-in alongside the existing `@Test` and `spec` entry points. If the experiment goes ahead, update `SwiftTestingIntegration.md` with what it established about Option C.
+- Public experimental `@Spec` opts a type into top-level discovery alongside the host adapter. [Opt-in discovery guide](../README.md#opt-in-discovery-with-spec)
 
 ## Host-test baseline
 
@@ -129,7 +127,7 @@ swift test --disable-xctest --no-parallel \
 
 ## Selection at the discovery boundary
 
-The prototype already projects cases from `ExampleNode.indexedSelectedChildren`. Both case modes use the selection Rundown resolves for the host adapter, and case IDs use child positions from before filtering. The ordinary `.focused` trait therefore controls selection in the opt-in `@Spec` experiment. [Selection fixture](../Tests/RundownSwiftTestingTests/DiscoverySelectionTests.swift) · [Phase 3 trait decisions](SwiftTestingIntegration.md#phase-3-trait-decisions)
+The prototype already projects cases from `ExampleNode.indexedSelectedChildren`. Both case modes use the selection Rundown resolves for the host adapter, and case IDs use child positions from before filtering. The ordinary `.focused` trait therefore controls selection in the opt-in `@Spec` experiment. [Selection fixture](../Tests/RundownSwiftTestingTests/DiscoverySelectionTests.swift) · [Trait behavior by entry point](SwiftTestingIntegration.md#trait-behavior-by-entry-point)
 
 | Fixture | Focus enabled | Focus disabled |
 |---|---|---|
@@ -193,6 +191,18 @@ The native assertion issues kept their original messages and gained a `Rundown p
 | Leaf cases | The issues belonged to `Repeated discovery label [0.1]`, `Required assertion [0.2]`, and `Thrown error [0.3]` respectively. The same-label leaf at `[0.0]` passed. | The failed duplicate's `nodeIdentifierURL` reran only `[0.1]` and reproduced just the failed `#expect`. |
 
 SwiftPM's experimental event fields (`SWT_EXPERIMENTAL_EVENT_STREAM_FIELDS_ENABLED=1`) exposed the argument labels and IDs. Filtering by the generated leaf function reran all five cases and reproduced all three issues. Filters for the required assertion's label, position, and argument hash each matched zero tests. Xcode case reruns used `test-without-building -only-testing:<nodeIdentifierURL>` with the URLs from the detailed test tree. This probe used top-level Swift types for both discovery modes. The [discovery units probe](#discovery-units-and-identities) records the separate limitation for a case inside a nested Swift suite.
+
+### Phase 5 filtering and compatibility
+
+A temporary copy of the external client fixture used public `@Spec` with the final top-level scheduling policy. The probe ran on macOS arm64 with Xcode 27.2, Swift 6.4.2, and Swift Testing 2403. The tree contained `Saved card [0]`, an excluded sibling at index 1, and `Guest checkout [2]`. [External fixture](../Tests/ExternalSpecFixture/Tests/ExternalSpecFixtureTests/CheckoutSpec.swift)
+
+| Check | Result |
+|---|---|
+| Xcode failed group rerun | The full run failed `Saved card [0]` and passed the guest case. The failed group's `nodeIdentifierURL` reran only that group and reproduced the same three issues. The failed `#expect`, failed `#require`, and thrown error each carried the path through `FilteringProbeSpec, Saved card, Returning customer` to the leaf. Both assertions kept their original source lines. The thrown error pointed to `SwiftTestingReporter`. |
+| SwiftPM filtering | Filtering by the generated function ran both cases. The saved-card label, position, and argument hash each matched zero tests. The nested spec's function filter also ran both of its cases. |
+| Xcode nested suite | A public top-level-case `@Spec` nested inside a native `@Suite` ran both cases with a target-relative function selector. The full argument URL reported that there were no test bundles available. The target-relative selector with `?args=` exited successfully with zero tests. |
+| Positional identity | Case IDs matched across unchanged runs, and the saved-card argument hash matched between SwiftPM and Xcode. Inserting an excluded sibling before the two cases shifted their positions to `[1]` and `[3]` and changed both IDs, even though the selected groups were the same. |
+| Existing suites | All 158 macOS runtime tests passed, including the host adapter, plain runner, XCTest, and discovery tests. A separate build of the invalid-sequences fixture matched all 20 expected diagnostics. |
 
 ## Compatibility and cost
 

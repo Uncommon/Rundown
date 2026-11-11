@@ -4,7 +4,7 @@ Implementation notes and findings from completed phases of the Swift Testing int
 
 ## Phase 1 — Node model and shared traversal
 
-Rundown introduced the `ExampleNode` tree and a shared traversal in `NodeTraversal.swift`. The traversal delegates framework behavior to `Reporter`, with `PlainReporter` and `XCTestReporter` as the original implementations. XCTest skips in `afterEach`, `afterAll`, and `aroundEach` became local to their hook so the rest of the run could proceed. `ActivityStructureXCTests`, `MessageXCTests`, and `MultiRunTests` cover XCTest compatibility. See the [node model design](SwiftTestingIntegration.md#status) and [error and skip rules](Roadmap.md#error-and-skip-rules).
+Rundown introduced the `ExampleNode` tree and a shared traversal in `NodeTraversal.swift`. The traversal delegates framework behavior to `Reporter`, with `PlainReporter` and `XCTestReporter` as the original implementations. XCTest skips in `afterEach`, `afterAll`, and `aroundEach` became local to their hook so the rest of the run could proceed. `ActivityStructureXCTests`, `MessageXCTests`, and `MultiRunTests` cover XCTest compatibility. See the [node model design](SwiftTestingIntegration.md#planning-and-execution) and [error and skip rules](Roadmap.md#error-and-skip-rules).
 
 ## Phase 2 — Swift Testing host-test adapter
 
@@ -55,7 +55,7 @@ Phase 3 mapped where `.excluded`, `.focused`, and `.concurrent` take effect in t
 
 The host-test probe on Swift 6.4.2 showed that declared Swift Testing traits apply at the host level. Changing a copy of `Test.current` affected that copy, while a runtime issue handler could wrap one `spec` call and report through the existing host. [Metadata timing probe](SwiftTestingIntegration.md#swift-testing-metadata-timing-probe)
 
-All three built-ins stay local to Rundown execution in host tests. `.excluded` omits nodes, `.focused` selects branches, and `.concurrent` schedules a group's children through the reporter's concurrency gate. The bridge API is deferred until discovery exposes a matching scope. Phase 4 tested which of these rules carry over to discovered cases. The focus and exclusion behavior change remains a separate cleanup item. [Trait decisions](SwiftTestingIntegration.md#phase-3-trait-decisions) · [Cleanup backlog](Roadmap.md#cleanup)
+All three built-ins stay local to Rundown execution in host tests. `.excluded` omits nodes, `.focused` selects branches, and `.concurrent` schedules a group's children through the reporter's concurrency gate. The bridge API is deferred until discovery exposes a matching scope. Phase 4 tested which of these rules carry over to discovered cases. The focus and exclusion behavior change remains a separate cleanup item. [Trait behavior by entry point](SwiftTestingIntegration.md#trait-behavior-by-entry-point) · [Cleanup backlog](Roadmap.md#cleanup)
 
 All 146 runtime tests passed, including nested selection, excluded hooks, concurrency, failure paths, and cancellation. Running the README example verified that an all-excluded spec skips setup and its host continues to a second spec. The sandbox blocked the compile-failure fixture's nested build, and a direct build produced all 20 expected diagnostics. [README example](../README.md#rundown-and-swift-testing-traits)
 
@@ -83,4 +83,12 @@ Each mode reported one issue per failure. `#expect` and `#require` kept their so
 
 #### Decision for Phase 5
 
-Keep the host adapter as the supported baseline and pursue opt-in top-level discovery for Xcode group reruns. Individual leaf reruns remain the longer-term goal. The leaf mode stays in the package as a prototype while shared intermediate hooks and sibling scheduling across leaf cases remain unresolved. [Phase 5 roadmap](Roadmap.md#phase-5--opt-in-top-level-swift-testing-discovery)
+Keep the host adapter as the supported baseline and pursue opt-in top-level discovery for Xcode group reruns. Individual leaf reruns remain the longer-term goal. The leaf mode stays in the package as a prototype while shared intermediate hooks and sibling scheduling across leaf cases remain unresolved. [Phase 5 results](#phase-5--opt-in-top-level-swift-testing-discovery)
+
+## Phase 5 — Opt-in top-level Swift Testing discovery
+
+- **Discovery granularity.** Phase 5 delivered opt-in top-level cases and kept the leaf prototype for future research. [Phase 5 handoff](#phase-5-handoff)
+- **Opt-in API and support boundary.** Public, experimental `@Spec` keeps the computed getter shape and requires Swift 6.4 on Darwin. A separate client package verified discovery and a single group rerun. [API and support boundary](SwiftTestingIntegration.md#opt-in-api-and-support-boundary)
+- **Scheduling and hooks.** Top-level cases run serially unless the root is `.concurrent` and the runner allows parallelism. Full runs and a single-case Xcode rerun verified root hook lifetimes. Setup failure reporting and cancellation-aware teardown passed. [Scheduling and hook checks](SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
+- **Filtering and compatibility.** Xcode reran one failed group from a client package with all three failure paths intact. SwiftPM filtered by function, nested Xcode argument selectors failed, and an inserted excluded sibling shifted the case IDs. The host adapter, plain-runner, and XCTest suites passed. [Filtering and compatibility checks](SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
+- **Opt-in workflow.** The README shows when to use `@Spec` or a host test, how to rerun a group in Xcode, and the filtering, isolation, and cancellation boundaries. The example passed in an external package and the Xcode rerun selected only the documented group. [Opt-in discovery guide](../README.md#opt-in-discovery-with-spec)
