@@ -1,150 +1,19 @@
-## Rundown
+# Rundown
 
-Rundown is a structured testing framework for XCTest and Swift Testing, based on the pattern used in testing libraries such as RSpec, where tests are organized into steps:
+Rundown helps you organize Swift tests by behavior. Using an RSpec-style DSL, you can give a feature a name, group examples by the conditions they run under, and share setup steps in a logical hierarchy. Rundown is compatible with both [Swift Testing](#in-swift-testing) and [XCTest](#in-xctest), using the native assertions from each.
 
-```swift
-describe("this app feature") {
-  context("in one context") {
-    it("does one thing") {
-      // perform tests
-    }
-  }
-  context("in another context") {
-    beforeAll {
-      // set up the context
-    }
-    it("does another thing") {
-      // perform tests
-    }
-    afterAll {
-      // clean up
-    }
-  }
-}
-```
+## Get started
 
-A Swift result builder is used to assemble the steps into an object that can be executed in a unit test. The result builder also ensures proper ordering of elements:
+Rundown requires Swift 6.0 or later. The package targets macOS 15, iOS 17, tvOS 17, watchOS 10, and Mac Catalyst 17 or later.
 
-* `beforeAll`
-* `aroundEach`
-* `beforeEach`
-* `describe`/`context`/`it`
-* `afterEach`
-* `afterAll`
+Add `https://github.com/Uncommon/Rundown.git` as a package dependency in Xcode or in your `Package.swift`. Use the `main` branch to get the current version. Then add the product for your test framework to your test target.
 
-Mis-ordered elements produce a compile-time error.
+- For Swift Testing, add `RundownSwiftTesting`.
+- For XCTest, add `Rundown`.
 
-## Hooks and contexts
+### In Swift Testing
 
-The `beforeEach`, `afterEach` and `aroundEach` hooks apply to the elements of the group they are declared in, and a nested `describe` or `context` counts as one element. They run once around the whole nested group, not around each example inside it. This is what lets a context group examples together under hooks of its own. To run something for every example in a context, declare it inside that context. Setup that several contexts need can come from a function that returns the hook.
-
-## Loops and conditionals
-
-`for` loops, `if`/`else`, `switch`, `if let` and `if #available` can generate examples and contexts, anywhere in a group:
-
-```swift
-describe("a feature") {
-  beforeEach { /* ... */ }
-  for input in inputs {
-    it("handles \(input)") { /* ... */ }
-  }
-  if #available(macOS 14, *) {
-    it("uses the new API") { /* ... */ }
-  }
-}
-```
-
-Each branch has to end with an example or context. An `if` without an `else` can't end with an `afterEach` or `afterAll`; put those after it. Hooks inside a loop or conditional belong to the whole enclosing group, wherever the loop or conditional appears.
-
-## Focusing and excluding
-
-The `.focused` trait limits a run to the focused elements (plus the hooks of their groups), and the `.excluded` trait leaves elements out. Both are for use while developing. There are shortcuts that add the trait: `fIt`, `fDescribe` and `fContext` to focus, and `xIt`, `xDescribe` and `xContext` to exclude.
-
-## Finding the current example
-
-While a spec runs, `ExampleRunner.current` is its runner, and its `path` is the descriptions of the elements being run, from the outermost group to the example or hook itself. Its `description` is the same thing as one string, such as `Spec, in a context, does a thing`. Code inside an example can use it to name a log entry or an attachment.
-
-## Test framework support
-
-The goal is for this library to be equally useful in either XCTest or Swift Testing.
-
-XCTest support has the following features:
-
-* Each test element is run using `XCTContext.runActivity()` so that the test structure is evident in the logs (unless the test is `async`).
-* Using `XCTContext.runActivity()` with `async` tests is currently not supported. It is a `@MainActor` function, and thus doesn't work well with concurrency. 
-* A subclass of `XCTestCase`, named `Rundown.TestCase`, is provided so that test failures include the full name of the test element, including enclosing `describe` and `context` elements.
-* `XCTSkip` is handled, skipping the remaining steps at that level in the hierarchy.
-
-### Swift Testing
-
-Add the `RundownSwiftTesting` product to your test target's dependencies. Import `Testing` and `RundownSwiftTesting`, and make your test type conform to `SwiftTestingSuite`. Use `try await spec` in an async test or `try spec` in a synchronous test. You can name the spec explicitly or omit the name to derive it from the test function.
-
-```swift
-import RundownSwiftTesting
-import Testing
-
-struct CheckoutTests: SwiftTestingSuite {
-  @Test func showsTotal() async throws {
-    try await spec("Checkout") {
-      context("with two items") {
-        it("adds the prices") {
-          let total = [19, 23].reduce(0, +)
-          #expect(total == 42)
-        }
-      }
-    }
-  }
-}
-```
-
-Rundown reports errors thrown by examples and hooks with their full paths. With Swift 6.2 or later, async `spec` also adds a comment such as `Rundown path: Checkout, with two items, adds the prices` to failed `#expect` and `#require` assertions. The issue keeps the assertion's source location and any comments you supplied.
-
-#### Discovery and filtering
-
-With a host test, Swift Testing discovers, filters, and schedules the enclosing `@Test` as a unit. Within a spec, use Rundown's `.focused` and `.excluded` traits to select examples. Rundown runs `.concurrent` groups serially in synchronous specs and uses task groups in asynchronous specs. To rerun an individual top-level group in Xcode, see [opt-in discovery](#opt-in-discovery-with-spec).
-
-Use [`MainActorSwiftTestingSuite`](#mainactor-tests) when hooks or examples need the main actor.
-
-#### Rundown and Swift Testing traits
-
-Traits on `@Suite` and `@Test` apply to Swift Testing's suite and test. In this example, `.serialized` applies to the suite and `.tags(.checkout)` labels the host test. The `.excluded` trait applies to a Rundown example. Because it is the only example in the first spec, that spec returns without running its setup hook. The same host test then runs the cached-price spec.
-
-```swift
-import RundownSwiftTesting
-import Testing
-
-extension Tag {
-  @Tag static var checkout: Self
-}
-
-@Suite(.serialized)
-struct CheckoutTraitTests: SwiftTestingSuite {
-  @Test(.tags(.checkout))
-  func checksPrices() async throws {
-    try await spec("Live prices") {
-      beforeAll { Issue.record("Live-price setup ran") }
-      it("reads the live feed", .excluded) {
-        Issue.record("Live-price example ran")
-      }
-    }
-
-    try await confirmation("Cached prices were checked") { checked in
-      try await spec("Cached prices") {
-        it("adds prices") {
-          #expect([19, 23].reduce(0, +) == 42)
-          checked()
-        }
-      }
-    }
-  }
-}
-```
-
-Use native `.disabled` on `@Test` or `@Suite` to skip the whole host test or suite.
-
-#### Assertion paths in synchronous specs
-
-Apply `@Suite(.rundownPaths)` once above a `SwiftTestingSuite` or `MainActorSwiftTestingSuite` type to get the same assertion paths when its tests use synchronous `try spec { … }`.
+Conform your test type to `SwiftTestingSuite` and call `try spec` inside a regular `@Test` function. On Swift 6.2 or later, add `@Suite(.rundownPaths)` to include the full example path on failed assertions.
 
 ```swift
 import RundownSwiftTesting
@@ -152,26 +21,113 @@ import Testing
 
 @Suite(.rundownPaths)
 struct CartTests: SwiftTestingSuite {
-  @Test func totalsItems() throws {
-    try spec("Cart") {
-      it("adds the prices") {
-        let total = [19, 23].reduce(0, +)
-        #expect(total == 42)
+  @Test func calculatesTotal() throws {
+    try spec("Cart total") {
+      context("when the cart is empty") {
+        it("is zero") {
+          #expect(Cart().total == 0)
+        }
+      }
+
+      context("when the cart has items") {
+        it("adds the prices") {
+          #expect(Cart(prices: [19, 23]).total == 42)
+        }
+      }
+    }
+  }
+}
+
+private struct Cart {
+  var prices: [Int] = []
+  var total: Int { prices.reduce(0, +) }
+}
+```
+
+Run your tests as usual in Xcode or with `swift test`. Swift Testing sees one test per `@Test` function, and Rundown runs the examples inside it. With `.rundownPaths`, a failed assertion includes a comment like `Rundown path: Cart total, when the cart has items, adds the prices` alongside its original source location.
+
+- `spec` names and runs the outer group inside your test function. You can omit its name to use the function name.
+- `context` groups examples that share a condition. `describe` works the same way and often names a feature or operation. You can nest either group.
+- `it` names one example and runs the assertions in its body. Read it with the group names to see what the test checks.
+
+### In XCTest
+
+For best results, subclass `Rundown.TestCase` to enable full paths in failure messages, and use synchronous tests to enable nested activity logging. Test functions should be `@MainActor`.
+
+A full path would be, for example, "Cart total, with two items, adds the prices" for the first test in the example below.
+
+Async tests are supported by calling `try await spec {}`, but test results will not display as nested results in Xcode. This feature relies on `XCTContext.runActivity()` which is not `async` compatible.
+
+```swift
+import Rundown
+import XCTest
+
+final class CartXCTests: Rundown.TestCase {
+  @MainActor private var prices: [Int] = []
+
+  @MainActor
+  func testCartTotal() throws {
+    try spec("Cart total") {
+      context("with two items") {
+        beforeEach {
+          self.prices = [19, 23]
+        }
+
+        it("adds the prices") {
+          XCTAssertEqual(self.prices.reduce(0, +), 42)
+        }
+
+        it("updates after removing an item") {
+          self.prices.removeLast()
+          XCTAssertEqual(self.prices.reduce(0, +), 19)
+        }
       }
     }
   }
 }
 ```
 
-The annotation is a workaround for Swift Testing's async issue-scoping API. It lets Swift Testing install the handler before the synchronous test runs. A mixed suite can use the same annotation for its sync tests, and each async assertion still gets a single path comment. Assertions outside a running spec keep their normal Swift Testing output. A public synchronous scope would let Rundown install the handler automatically. [Proposal notes](Documentation/SwiftTestingScopedIssueHandlingProposal.md)
+## Share setup and cleanup
 
-On Swift 6.0 and 6.1, native assertions use Swift Testing's standard output. The adapter reports thrown errors with their Rundown paths on all supported toolchains.
+Setup and cleanup blocks are called *hooks*. In the XCTest example, `beforeEach` gives both examples a fresh set of prices. Put hooks in the group whose examples need them.
 
-#### Opt-in discovery with `@Spec`
+| Hook | When it runs |
+| --- | --- |
+| `beforeAll` | Once before the group’s children run. |
+| `aroundEach` | Wraps each child and its per-child hooks. Your code calls the supplied callback to run them, which lets you use APIs such as `TaskLocal.withValue`. |
+| `beforeEach` | Before each direct child. |
+| `afterEach` | After each direct child. |
+| `afterAll` | Once after the group’s children finish. |
 
-Use the experimental `@Spec` macro when you want to rerun a top-level group or standalone example in Xcode. It is available through `RundownSwiftTesting` on Darwin with Swift 6.4 or later. Use a host `@Test` when you want to run the whole spec as one test or need a synchronous or main-actor spec. The client-package workflow below was verified on macOS with Xcode 27.2 and Swift 6.4.2. [Toolchain and platform checks](Documentation/SwiftTestingSpecDiscoveryResearch.md#runtime-checks-without-the-macos-guard)
+A nested group counts as one direct child. The parent’s per-child hooks wrap that group as a whole. Put a `beforeEach` inside the nested group when every example there needs its own setup.
 
-Apply `@Spec` to a non-generic struct with a parameterless initializer and a computed `spec` property. The macro adds the builder and conformance.
+Place setup hooks before the examples and cleanup hooks after them, in the order shown above. The ordering is checked at compile time. Use `for` loops to generate examples from input values and conditionals to include groups or examples when they apply.
+
+## Rundown and Swift Testing traits
+
+A trait is an option you attach to an example or group.
+
+If any examples or groups are marked with the `.focused` trait, Rundown limits the run to those examples and groups, including the enclosing groups and their hooks. Inside each selected group, Rundown applies the same rule. If nothing inside is focused, its children run as usual.
+
+Write `it("adds the prices", .focused) { … }` to focus an example, or use `.excluded` to leave it out. Both traits also work on `context` and `describe`. If a group has no selected children, its setup is skipped. In Swift Testing, use `.disabled` on `@Test` or `@Suite` to skip the whole test or suite.
+
+Swift Testing discovers and filters the enclosing `@Test`. To narrow a SwiftPM run, use `swift test --filter` with the name of the test or suite. Rundown selects and schedules the examples inside each spec.
+
+Groups run their children in order by default. Mark a group `.concurrent` to allow its children to overlap in an async Swift Testing spec. Use independent fixtures for children that run concurrently. The synchronous Swift Testing adapter and XCTest activity runner run children serially.
+
+## Other Swift Testing entry points
+
+### Assertion paths in synchronous specs
+
+The `.rundownPaths` suite trait adds paths to failed `#expect` and `#require` assertions in synchronous specs. If your examples need `await`, use `try await spec { … }` in an async `@Test`. On Swift 6.2 or later, async specs add assertion paths automatically. Rundown reports thrown errors with their paths in both synchronous and asynchronous specs.
+
+### Main-actor tests
+
+Conform to `MainActorSwiftTestingSuite` when your examples or hooks use main-actor APIs. Declare the conformance with the type so Swift infers its isolation. Use `try spec {}` in synchronous tests or `try await spec {}` in async tests. Async main-actor groups require serial execution. To define helpers that return main-actor test elements like `context` or `describe`, make them members of a type or protocol that conforms to `MainActorSuite`.
+
+### Optional `@Spec` macro
+
+The experimental `@Spec` macro gives Swift Testing one case per selected top-level group or standalone example, following the pattern of SwiftUI's `View`. Use it when you want to rerun one of those groups in Xcode. It requires an Apple platform and Swift 6.4 or later.
 
 ```swift
 import RundownSwiftTesting
@@ -180,15 +136,12 @@ import Testing
 @Spec
 struct CheckoutSpec {
   var spec: ExampleGroup<AsyncCall> {
-    context("Saved card") {
-      it("adds the item prices") {
+    context("with two items") {
+      it("adds the prices") {
         #expect([19, 23].reduce(0, +) == 42)
       }
-      it("applies the discount") {
-        let total = [19, 23].reduce(0, +)
-        #expect(total - 7 == 35)
-      }
     }
+
     it("starts a guest cart at zero") {
       let prices: [Int] = []
       #expect(prices.reduce(0, +) == 0)
@@ -197,113 +150,15 @@ struct CheckoutSpec {
 }
 ```
 
-This registers `CheckoutSpec/examples(unit:)` with two cases. `Saved card [0]` runs both examples in the group, and `starts a guest cart at zero [1]` runs the standalone example. Rundown resolves focus and exclusion before creating cases. Failures carry the full Rundown path within their case.
+Use a non-generic struct with a parameterless initializer and a computed `spec` property of type `ExampleGroup<AsyncCall>`. The macro adds the builder and conformance. Swift Testing reads the property while planning the cases, then runs those cases asynchronously. Inside the `it` and hook bodies, you can use synchronous code as shown above or call async APIs with `await`. Rundown adds assertion paths automatically. For a spec whose hooks and examples all need the main actor, conform to `MainActorSwiftTestingSuite`.
 
-**Rerun one group in Xcode.** Build for testing and run the spec with `-resultBundlePath Checkout.xcresult`. Set `run_file` to the build's `.xctestrun` path and `destination` to the destination used for the original run. Use the first command to find the `Saved card [0]` arguments row, then set `case_url` to its `nodeIdentifierURL` before running the second command.
+This example registers two cases. SwiftPM’s `swift test --filter 'CheckoutSpec/examples'` runs both.
 
-```sh
-xcrun xcresulttool get test-results tests --path Checkout.xcresult
-xcodebuild test-without-building -xctestrun "$run_file" -destination "$destination" \
-  "-only-testing:$case_url"
-```
+To rerun one case with `xcodebuild`, build for testing and run the spec with `-resultBundlePath`. Use `xcrun xcresulttool get test-results tests --path <bundle>` to find the case’s `nodeIdentifierURL`. Pass that URL to `xcodebuild test-without-building` with `-only-testing`, using the same `.xctestrun` file and destination as the original run. Get a fresh case URL after reordering examples. This workflow was verified for specs declared at file scope on macOS with Xcode 27.2 and Swift 6.4.2.
 
-Use a fresh case URL after changing the order or position of examples. In Xcode 27.2, a spec nested inside another Swift suite could be rerun by its function selector, while its individual case selectors failed. SwiftPM filters the generated function, so `swift test --filter 'CheckoutSpec/examples'` runs both cases. [Filtering and rerun results](Documentation/SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
+## More details
 
-Root `beforeAll` and `afterAll` run once around the selected cases, including a single-group rerun. Cases run in declaration order by default. Return a root group with `.concurrent` to allow overlap when Swift Testing enables parallelism. Rundown still schedules the examples within each group. [Scheduling and hooks](Documentation/SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
-
-`Test.cancel` inside a case cancels that case. If root `beforeAll` cancels, the cases are skipped and root teardown runs with a cancelled task. Root setup cancellation emits no native Swift Testing cancellation event. [Hook lifetime checks](Documentation/SwiftTestingSpecDiscoveryResearch.md#hook-lifetimes)
-
-## Running tests
-
-The main direct way to run tests looks like this:
-
-``` swift
-func testSomething() {
-  try spec {
-    it("works") {
-      // ···
-    }
-  }
-}
-```
-
-The `spec()` function creates an outer `describe` element, using either the name of the calling function or a provided string, and then executes it. This is a global function.
-
-There is also an `async` version of `spec()`, so if your test function is `async` then just call `await spec { ··· }`, and then you can use `await` inside your test elements.
-
-When working with `XCTest`, there is also `spec()` as a method of `XCTestCase` - or more precisely, a method of the subclass `Rundown.TestCase`. This subclass should always be used so that issues can be logged with the full test element description, and this version of `spec()` uses an `XCTActivity` for each test element (for non-`async` tests). An `XCTestCase` subclass should also be marked with `@MainActor` because test steps are tracked with `XCTContext.runActivity()`, which is `@MainActor`. Async tests don't use `XCTContext.runActivity()` because it is not async compatible.
-
-## Errors and skips
-
-An error never skips teardown or the remaining elements. Everything that can still run does, and then the first error is rethrown. (The XCTest runner instead records each error as an issue, with the full name of the element that threw it, so it can report more than one.)
-
-* If `beforeAll` throws, the elements of the group are skipped, but its `afterAll` hooks still run.
-* If `beforeEach` throws, that element is skipped, but its `afterEach` hooks still run.
-* If an example or an `afterEach` hook throws, the group carries on with its next element.
-* Every `afterEach` and `afterAll` hook runs, even if one before it threw.
-
-`XCTSkip` is different: it means that something does not apply, so there is nothing to undo. A skip in `beforeAll` skips the whole group, including `afterAll`. A skip in `beforeEach` skips that element, including its `afterEach` hooks. A skip in an example still runs the `afterEach` hooks. A skip in an `afterEach`, `afterAll` or `aroundEach` hook is logged and ignored: the rest of the run carries on.
-
-Under Swift Testing, `try Test.cancel("reason")` (Swift 6.3 or later) cancels the host test or its current parameterized case. Rundown stops starting setup hooks and examples, then invokes teardown for groups and elements it already entered. Examples already running concurrently may finish. Teardown runs in the existing task, so cancellation-aware calls within it can still throw. A `CancellationError` caught in a cancelled task also stops the spec.
-
-Swift Testing displays the comment supplied to `Test.cancel`. To include the hook or example path, read `ExampleRunner.current?.description` inside it and include that value in the comment.
-
-## MainActor tests
-
-For Swift Testing, conform to `MainActorSwiftTestingSuite`. Declare the conformance in the same file as the suite type so Swift infers `@MainActor` for the suite. Its `spec` builders, hooks, and examples run on the main actor. Use `try spec { … }` in a synchronous test or `try await spec { … }` in an asynchronous test.
-
-Sync specs run `.concurrent` groups serially. Async specs reject `.concurrent` on main-actor groups before running their hooks.
-
-```swift
-import RundownSwiftTesting
-import Testing
-
-struct ScreenTests: MainActorSwiftTestingSuite {
-  @Test func showsTitle() async throws {
-    try await spec("Screen") {
-      it("shows the home title") {
-        #expect(screenTitle() == "Home")
-      }
-    }
-  }
-
-  private func screenTitle() -> String { "Home" }
-}
-```
-
-For XCTest, `Rundown.TestCase` already conforms to `Rundown.MainActorSuite`.
-
-The main actor versions of `describe`, `it` and the rest are members of `MainActorSuite`. That means if you have a helper function that builds a group for a `@MainActor` spec, it has to be a member of such a type as well. A free function would get the ordinary versions instead, which don't produce a `@MainActor` group, and the compiler will report an error.
-
-For helpers shared between test classes, extend a protocol that inherits from `MainActorSuite`:
-
-```swift
-protocol SearchGroups: MainActorSuite {}
-
-extension SearchGroups {
-  @ExampleBuilder<SyncMainCall>
-  func searchGroup() -> ExampleGroup<SyncMainCall> {
-    beforeAll { setUpSearch() }
-    context("by summary") {
-      it("finds items") { /* ... */ }
-    }
-  }
-}
-
-final class SearchTests: Rundown.TestCase, SearchGroups {
-  func testSearch() throws {
-    try spec {
-      searchGroup()
-    }
-  }
-}
-```
-
-A small type that conforms to `MainActorSuite` works as a namespace for groups that don't belong to any test class.
-
-## Goals and plans
-
-* Compatibility with XCTest and Swift Testing, with an API that looks the same in either case
-* Flexibility to use it or not for any given test (hence there is no custom test discovery; this may change in the future, especially if framework support improves)
-* Minimal boilerplate at the use site
-* Ease of use during development, such as running (or skipping) specific elements
+- Use `ExampleRunner.current?.description` inside a hook or example to include its full path in a log entry or attachment.
+- If setup fails, Rundown skips the affected work and still runs the corresponding cleanup hooks. A `beforeAll` failure skips the group’s children, while a `beforeEach` failure skips the child it was preparing.
+- In a Swift Testing host test, `try Test.cancel("reason")` (Swift 6.3 or later) stops new setup and examples. Cleanup still runs for groups and examples already entered.
+- Rundown is available under the [MIT license](LICENSE).

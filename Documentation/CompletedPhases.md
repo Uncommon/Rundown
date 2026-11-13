@@ -8,7 +8,7 @@ Rundown introduced the `ExampleNode` tree and a shared traversal in `NodeTravers
 
 ## Phase 2 — Swift Testing host-test adapter
 
-Phase 2 delivered [Option A](SwiftTestingIntegration.md#option-a-host-test-swift-testing-adapter). A normal `@Test` calls `spec`, and Rundown executes the whole spec inside that host test. Swift Testing discovery and filtering operate at the host-test level. [The README](../README.md#swift-testing) shows how to adopt the adapter and filter tests.
+Phase 2 delivered [Option A](SwiftTestingIntegration.md#option-a-host-test-swift-testing-adapter). A normal `@Test` calls `spec`, and Rundown executes the whole spec inside that host test. Swift Testing discovery and filtering operate at the host-test level. [The README](../README.md#in-swift-testing) shows how to adopt the adapter and filter tests.
 
 ### Toolchain probes
 
@@ -57,7 +57,7 @@ The host-test probe on Swift 6.4.2 showed that declared Swift Testing traits app
 
 All three built-ins stay local to Rundown execution in host tests. `.excluded` omits nodes, `.focused` selects branches, and `.concurrent` schedules a group's children through the reporter's concurrency gate. The bridge API is deferred until discovery exposes a matching scope. Phase 4 tested which of these rules carry over to discovered cases. The focus and exclusion behavior change remains a separate cleanup item. [Trait behavior by entry point](SwiftTestingIntegration.md#trait-behavior-by-entry-point) · [Cleanup backlog](Roadmap.md#cleanup)
 
-All 146 runtime tests passed, including nested selection, excluded hooks, concurrency, failure paths, and cancellation. Running the README example verified that an all-excluded spec skips setup and its host continues to a second spec. The sandbox blocked the compile-failure fixture's nested build, and a direct build produced all 20 expected diagnostics. [README example](../README.md#rundown-and-swift-testing-traits)
+All 146 runtime tests passed, including nested selection, excluded hooks, concurrency, failure paths, and cancellation. The original README example verified that an all-excluded spec skips setup and its host continues to a second spec. The sandbox blocked the compile-failure fixture's nested build, and a direct build produced all 20 expected diagnostics. [Current trait usage](../README.md#rundown-and-swift-testing-traits)
 
 ## Phase 4 — Swift Testing discovery experiment
 
@@ -91,4 +91,4 @@ Keep the host adapter as the supported baseline and pursue opt-in top-level disc
 - **Opt-in API and support boundary.** Public, experimental `@Spec` keeps the computed getter shape and requires Swift 6.4 on Darwin. A separate client package verified discovery and a single group rerun. [API and support boundary](SwiftTestingIntegration.md#opt-in-api-and-support-boundary)
 - **Scheduling and hooks.** Top-level cases run serially unless the root is `.concurrent` and the runner allows parallelism. Full runs and a single-case Xcode rerun verified root hook lifetimes. Setup failure reporting and cancellation-aware teardown passed. [Scheduling and hook checks](SwiftTestingSpecDiscoveryResearch.md#top-level-scheduling-policy)
 - **Filtering and compatibility.** Xcode reran one failed group from a client package with all three failure paths intact. SwiftPM filtered by function, nested Xcode argument selectors failed, and an inserted excluded sibling shifted the case IDs. The host adapter, plain-runner, and XCTest suites passed. [Filtering and compatibility checks](SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
-- **Opt-in workflow.** The README shows when to use `@Spec` or a host test, how to rerun a group in Xcode, and the filtering, isolation, and cancellation boundaries. The example passed in an external package and the Xcode rerun selected only the documented group. [Opt-in discovery guide](../README.md#opt-in-discovery-with-spec)
+- **Opt-in workflow.** The README shows when to use `@Spec` or a host test, how to rerun a group in Xcode, and the filtering, isolation, and cancellation boundaries. The original example passed in an external package, and the Xcode rerun selected only the documented group. [Opt-in discovery guide](../README.md#optional-spec-macro)

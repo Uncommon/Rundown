@@ -31,7 +31,7 @@ The probe used the Swift Testing source in `~/Developer/swift-testing`, a scratc
 - The current registration builds the tree once during planning and shares its captured fixture state across cases and root hooks. [Plan and fixture lifetime](#plan-and-fixture-lifetime)
 - Ordinary top-level cases run serially. A concurrent root lets Swift Testing schedule its cases, and Rundown schedules children within each case. [Top-level scheduling policy](#top-level-scheduling-policy)
 - The probe depends on underscored APIs whose signatures already differed between the source tree and the toolchain. That approach would need checks against each supported toolchain. See the [possible upstream proposal](#possible-upstream-proposal).
-- Public experimental `@Spec` opts a type into top-level discovery alongside the host adapter. [Opt-in discovery guide](../README.md#opt-in-discovery-with-spec)
+- Public experimental `@Spec` opts a type into top-level discovery alongside the host adapter. [Opt-in discovery guide](../README.md#optional-spec-macro)
 
 ## Host-test baseline
 

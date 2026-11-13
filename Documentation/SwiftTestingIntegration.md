@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document describes how Rundown integrates with Swift Testing and what remains open for leaf-level execution. The README covers adoption, and the phase archive records the implementation history. [Swift Testing usage](../README.md#swift-testing) · [Completed phases](CompletedPhases.md) · [Roadmap](Roadmap.md)
+This document describes how Rundown integrates with Swift Testing and what remains open for leaf-level execution. The README covers adoption, and the phase archive records the implementation history. [Swift Testing usage](../README.md#in-swift-testing) · [Completed phases](CompletedPhases.md) · [Roadmap](Roadmap.md)
 
 ## Current State
 
@@ -57,7 +57,7 @@ Rundown no longer just "runs inside" Swift Testing. Instead, Swift Testing becom
 
 ## Option A: Host-Test Swift Testing Adapter
 
-The host-test adapter is the supported baseline. [Setup and usage](../README.md#swift-testing)
+The host-test adapter is the supported baseline. [Setup and usage](../README.md#in-swift-testing)
 
 ### Model
 
@@ -371,7 +371,7 @@ Without those tests, the risk of subtle semantic drift is high.
 
 ## Option C: Discovery Bridge
 
-The experimental `@Spec` macro registers a Swift Testing function with one case per selected top-level group or standalone example. Swift Testing evaluates the spec getter during planning, so cases can come from loops, conditionals, and helper-built groups. Each group case runs its subtree through Rundown's traversal. Xcode can rerun an individual case in a top-level Swift suite, and SwiftPM filters by generated function. [Opt-in discovery guide](../README.md#opt-in-discovery-with-spec) · [Discovery results](SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
+The experimental `@Spec` macro registers a Swift Testing function with one case per selected top-level group or standalone example. Swift Testing evaluates the spec getter during planning, so cases can come from loops, conditionals, and helper-built groups. Each group case runs its subtree through Rundown's traversal. Xcode can rerun an individual case in a top-level Swift suite, and SwiftPM filters by generated function. [Opt-in discovery guide](../README.md#optional-spec-macro) · [Discovery results](SwiftTestingSpecDiscoveryResearch.md#phase-5-filtering-and-compatibility)
 
 ### Opt-in API and support boundary
 
