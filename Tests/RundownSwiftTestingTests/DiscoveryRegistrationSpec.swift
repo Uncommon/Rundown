@@ -6,12 +6,12 @@ import Testing
 struct DiscoveryRegistrationSpec {
   @Spec(.leaves)
   struct Leaves {
-    var spec: ExampleGroup<AsyncCall> {
+    var spec: SpecBody {
       return DiscoveryRegistrationSpec().spec
     }
   }
 
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     context("Registered group") {
       for _ in 0..<2 {
         it("Repeated item") {
@@ -29,7 +29,7 @@ struct DiscoveryRegistrationSpec {
 
 @Spec(.leaves)
 struct DiscoveryRegistrationLeafSpec {
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     return DiscoveryRegistrationSpec().spec
   }
 }

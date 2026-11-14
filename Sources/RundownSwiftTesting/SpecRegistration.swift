@@ -6,8 +6,8 @@ import Testing
 /// Registers one Swift Testing case for each selected top-level child of a spec.
 ///
 /// Apply this experimental macro to a non-generic struct with a computed
-/// `spec` property and a parameterless initializer. The macro supplies the
-/// result builder and `Spec` conformance.
+/// `spec` property of type `SpecBody` and a parameterless initializer.
+/// The macro supplies the result builder and `Spec` conformance.
 ///
 /// Top-level cases run in declaration order by default. Return a root group
 /// with `.concurrent` to allow Swift Testing to schedule them in parallel.
@@ -27,12 +27,15 @@ package enum SpecDiscoveryUnit: Sendable {
   case topLevel, leaves
 }
 
+/// The root example group returned by an `@Spec` declaration's `spec` property.
+public typealias SpecBody = ExampleGroup<AsyncCall>
+
 /// The conformance synthesized by `@Spec`.
 public protocol Spec: SendableMetatype {
   init()
 
   @ExampleBuilder<AsyncCall>
-  var spec: ExampleGroup<AsyncCall> { get }
+  var spec: SpecBody { get }
 }
 
 /// Registration entry points used by expansions of `@Spec`.

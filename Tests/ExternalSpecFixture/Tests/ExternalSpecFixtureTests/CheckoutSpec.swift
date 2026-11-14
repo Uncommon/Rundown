@@ -6,7 +6,7 @@ import Testing
 struct CheckoutSpec {
   private let setupCount = OSAllocatedUnfairLock(initialState: 0)
 
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     beforeAll { setupCount.withLock { $0 += 1 } }
     context("Saved card") {
       it("Authorizes payment") {

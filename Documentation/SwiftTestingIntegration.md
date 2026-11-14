@@ -375,7 +375,7 @@ The experimental `@Spec` macro registers a Swift Testing function with one case 
 
 ### Opt-in API and support boundary
 
-The optional `RundownSwiftTesting` product exposes the experimental, zero-argument `@Spec` macro on Darwin with Swift 6.4 or later. Apply it to a non-generic struct with a parameterless initializer and a computed `var spec: ExampleGroup<AsyncCall>`. The macro supplies the builder and `Spec` conformance. Each selected top-level child becomes one case. The overload that accepts `.leaves` stays package-scoped.
+The optional `RundownSwiftTesting` product exposes the experimental, zero-argument `@Spec` macro on Darwin with Swift 6.4 or later. Apply it to a non-generic struct with a parameterless initializer and a computed `var spec: SpecBody`. The macro supplies the builder and `Spec` conformance. Each selected top-level child becomes one case. The overload that accepts `.leaves` stays package-scoped.
 
 The macro expansion uses the public underscored `_SpecRegistration` bridge, which keeps the handwritten Mach-O records and calls to Swift Testing's underscored registration helpers behind the adapter boundary. The documented authoring API is `@Spec` and the computed getter. Run the external build, discovery, and group rerun check before adding a toolchain to the verified set. [Registration code](../Sources/RundownSwiftTesting/SpecRegistration.swift)
 

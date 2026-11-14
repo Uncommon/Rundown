@@ -59,12 +59,12 @@ private struct DiscoverySelectionFixture: Sendable {
 
 @Spec
 struct DiscoverySelectionSpec {
-  var spec: ExampleGroup<AsyncCall> { return DiscoverySelectionFixture().build() }
+  var spec: SpecBody { return DiscoverySelectionFixture().build() }
 }
 
 @Spec(.leaves)
 struct DiscoverySelectionLeafSpec {
-  var spec: ExampleGroup<AsyncCall> { return DiscoverySelectionFixture().build() }
+  var spec: SpecBody { return DiscoverySelectionFixture().build() }
 }
 
 struct DiscoverySelectionTests: SwiftTestingSuite {

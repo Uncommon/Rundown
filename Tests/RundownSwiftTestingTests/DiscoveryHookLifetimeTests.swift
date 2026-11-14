@@ -8,7 +8,7 @@ struct DiscoveryHookLifetimeSpec {
   @TaskLocal private static var insideEach = false
   private let trace = OSAllocatedUnfairLock(initialState: [String]())
 
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     beforeAll { record("root beforeAll") }
     aroundEach { run in
       record("root aroundEach enter")
@@ -96,7 +96,7 @@ private struct ExpectDiscoveryHookIssue: SuiteTrait, TestScoping {
 struct DiscoveryHookFailureTests {
   @Spec
   struct FailingSetup {
-    var spec: ExampleGroup<AsyncCall> { return interruptedSetup(cancel: false) }
+    var spec: SpecBody { return interruptedSetup(cancel: false) }
   }
 }
 
@@ -106,7 +106,7 @@ struct DiscoveryHookFailureTests {
 })
 @Spec
 struct DiscoveryHookTeardownSpec {
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     it("First") {}
     it("Second") {}
     afterAll("close") {
@@ -117,12 +117,12 @@ struct DiscoveryHookTeardownSpec {
 
 @Spec
 struct DiscoveryHookCancellationSpec {
-  var spec: ExampleGroup<AsyncCall> { return interruptedSetup(cancel: true) }
+  var spec: SpecBody { return interruptedSetup(cancel: true) }
 }
 
 @Spec
 struct DiscoveryHookEmptySpec {
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     beforeAll { Issue.record("Ran setup for an empty spec") }
     xIt("Excluded") { Issue.record("Ran an excluded case") }
     afterAll { Issue.record("Ran teardown for an empty spec") }

@@ -135,7 +135,7 @@ import Testing
 
 @Spec
 struct CheckoutSpec {
-  var spec: ExampleGroup<AsyncCall> {
+  var spec: SpecBody {
     context("with two items") {
       it("adds the prices") {
         #expect([19, 23].reduce(0, +) == 42)
@@ -150,7 +150,7 @@ struct CheckoutSpec {
 }
 ```
 
-Use a non-generic struct with a parameterless initializer and a computed `spec` property of type `ExampleGroup<AsyncCall>`. The macro adds the builder and conformance. Swift Testing reads the property while planning the cases, then runs those cases asynchronously. Inside the `it` and hook bodies, you can use synchronous code as shown above or call async APIs with `await`. Rundown adds assertion paths automatically. For a spec whose hooks and examples all need the main actor, conform to `MainActorSwiftTestingSuite`.
+Use a non-generic struct with a parameterless initializer and a computed `spec` property of type `SpecBody`. The macro adds the builder and conformance. Swift Testing reads the property while planning the cases, then runs those cases asynchronously. Inside the `it` and hook bodies, you can use synchronous code as shown above or call async APIs with `await`. Rundown adds assertion paths automatically. For a spec whose hooks and examples all need the main actor, conform to `MainActorSwiftTestingSuite`.
 
 This example registers two cases. SwiftPM’s `swift test --filter 'CheckoutSpec/examples'` runs both.
 
