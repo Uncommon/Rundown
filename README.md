@@ -127,7 +127,7 @@ Conform to `MainActorSwiftTestingSuite` when your examples or hooks use main-act
 
 ### Optional `@Spec` macro
 
-The experimental `@Spec` macro gives Swift Testing one case per selected top-level group or standalone example, following the pattern of SwiftUI's `View`. Use it when you want to rerun one of those groups in Xcode. It requires an Apple platform and Swift 6.4 or later.
+The experimental `@Spec` macro gives Swift Testing one case per selected top-level group or standalone example, following the pattern of SwiftUI's `View`. It requires an Apple platform and Swift 6.4 or later.
 
 ```swift
 import RundownSwiftTesting
@@ -153,6 +153,8 @@ struct CheckoutSpec {
 Use a non-generic struct with a parameterless initializer and a computed `spec` property of type `SpecBody`. The macro adds the builder and conformance. Swift Testing reads the property while planning the cases, then runs those cases asynchronously. Inside the `it` and hook bodies, you can use synchronous code as shown above or call async APIs with `await`. Rundown adds assertion paths automatically. For a spec whose hooks and examples all need the main actor, conform to `MainActorSwiftTestingSuite`.
 
 This example registers two cases. SwiftPM’s `swift test --filter 'CheckoutSpec/examples'` runs both.
+
+In Xcode, `@Spec` tests do not appear in the test navigator sidebar, but they are included when you run the whole test target, and their results do show in the log.
 
 To rerun one case with `xcodebuild`, build for testing and run the spec with `-resultBundlePath`. Use `xcrun xcresulttool get test-results tests --path <bundle>` to find the case’s `nodeIdentifierURL`. Pass that URL to `xcodebuild test-without-building` with `-only-testing`, using the same `.xctestrun` file and destination as the original run. Get a fresh case URL after reordering examples. This workflow was verified for specs declared at file scope on macOS with Xcode 27.2 and Swift 6.4.2.
 
