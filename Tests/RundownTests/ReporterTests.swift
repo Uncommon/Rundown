@@ -57,6 +57,22 @@ final class RecordingReporter: Reporter, @unchecked Sendable {
 }
 
 final class ReporterTests: XCTestCase {
+  func testXCTestReporterDoesNotSuppressUnmarkedOrUnrelatedErrors() {
+    let reporter = XCTestReporter(test: self)
+    let errors: [any Error] = [
+      TestError(id: 1),
+      NSError(domain: XCTestErrorDomain, code: 105),
+      NSError(domain: XCTestErrorDomain, code: 105,
+              userInfo: ["XCTestErrorUserInfoKeyShouldIgnore": false]),
+      NSError(domain: "OtherErrors", code: 105,
+              userInfo: ["XCTestErrorUserInfoKeyShouldIgnore": true]),
+    ]
+    for error in errors {
+      XCTAssertEqual(reporter.classify(error), .failure, "\(error)")
+    }
+    XCTAssertEqual(reporter.classify(XCTSkip("skip")), .skip)
+  }
+
   func run(_ group: ExampleGroup<SyncCall>,
            reporter: RecordingReporter = .init()) throws -> RecordingReporter {
     try group.node.run(with: reporter)

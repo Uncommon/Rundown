@@ -81,6 +81,8 @@ extension ExampleRunner {
   /// Errors are recorded as issues, with the full path of the element that
   /// threw, and the run carries on: an error in a hook or an example does not
   /// skip teardown or the remaining elements.
+  /// Errors marked by XCTest as already reported, such as a failed
+  /// `XCTUnwrap`, stop the element without recording another issue.
   ///
   /// - If a `BeforeAll` hook fails, the elements of the group are skipped but
   ///   its `AfterAll` hooks still run.
@@ -146,7 +148,23 @@ struct XCTestReporter: Reporter, @unchecked Sendable {
   }
 
   func classify(_ error: any Error) -> ErrorKind {
-    error is XCTSkip ? .skip : .failure
+    switch error {
+      case is XCTSkip:
+        return .skip
+      case let error where isAlreadyReportedByXCTest(error):
+        return .alreadyReported
+      default:
+        return .failure
+    }
+  }
+
+  private func isAlreadyReportedByXCTest(_ error: any Error) -> Bool {
+    // XCTUnwrap records its assertion before throwing. XCTest uses this
+    // internal user-info key to avoid reporting the thrown error again.
+    // Check the domain too so unrelated errors are still reported.
+    let error = error as NSError
+    return error.domain == XCTestErrorDomain
+      && (error.userInfo["XCTestErrorUserInfoKeyShouldIgnore"] as? Bool == true)
   }
 
   /// Records an error as an issue on the test, with the full path of the
