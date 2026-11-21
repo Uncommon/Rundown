@@ -103,6 +103,62 @@ A nested group counts as one direct child. The parent’s per-child hooks wrap t
 
 Place setup hooks before the examples and cleanup hooks after them, in the order shown above. The ordering is checked at compile time. Use `for` loops to generate examples from input values and conditionals to include groups or examples when they apply.
 
+## Pass a fixture into each example
+
+A `Fixture` functions as a factory providing each example its own instance of a value or test object. Thus the examples cannot accidentally affect each other by changing the value.
+
+```swift
+import RundownSwiftTesting
+import Testing
+
+final class Counter {
+  var value = 0
+
+  func increment() {
+    value += 1
+  }
+}
+
+struct CounterTests: SwiftTestingSuite {
+  @Test func incrementsCounter() throws {
+    let counter = Fixture { Counter() }
+
+    try spec("Counter") {
+      it("increments its value", using: counter) { counter in
+        counter.increment()
+        #expect(counter.value == 1)
+      }
+      it("supports repeated increments", using: counter) { counter in
+        counter.increment()
+        counter.increment()
+        #expect(counter.value == 2)
+      }
+    }
+  }
+}
+```
+
+Both examples modify their counter, but each starts at zero.
+
+The factory is invoked once per example execution, including reruns, and is not invoked for examples that do not run.
+
+Supply optional cleanup with a second trailing closure:
+
+```swift
+let directory = Fixture {
+  let url = FileManager.default.temporaryDirectory
+    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+  try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+  return url
+} cleanup: { url in
+  try FileManager.default.removeItem(at: url)
+}
+```
+
+In the above example, creating and deleting the temporary directory could also be done with `beforeEach`/`afterEach`, but the fixture gives a way to pass the URL to an example without having to store it in an optional variable from an outer scope. Fixtures are invoked after `beforeEach` and cleaned up before `afterEach`. 
+
+Different types of fixture must be used depending on whether the test is `async` or `@MainActor`: `Fixture<Value>`, `AsyncFixture<Value>`, `MainActorFixture<Value>` or `AsyncMainActorFixture<Value>`.
+
 ## Rundown and Swift Testing traits
 
 A trait is an option you attach to an example or group.

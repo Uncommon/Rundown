@@ -177,3 +177,31 @@ func mainActorHookThenContext() -> ExampleGroup<SyncMainCall> { // expected-erro
 func mainActorExample() -> ExampleGroup<SyncMainCall> { // expected-error {{Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function}}
   it("ex") { }
 }
+
+@MainActor
+private final class UIFixtureValue {
+  var count = 0
+}
+
+// A nonisolated fixture cannot construct a main-actor value.
+func nonisolatedFixtureFactory() {
+  _ = Fixture { mainThing() } // expected-error {{call to main actor-isolated global function 'mainThing()' in a synchronous nonisolated context}}
+}
+
+// A cleanup callback must preserve the value's isolation too.
+func nonisolatedFixtureCleanup() {
+  _ = Fixture<UIFixtureValue> { fatalError() } cleanup: { value in
+    value.count += 1 // expected-error {{main actor-isolated property 'count' can not be mutated from a Sendable closure}}
+  }
+}
+
+// Async factories cannot silently make a synchronous spec asynchronous.
+@ExampleBuilder<SyncCall>
+func asyncFixtureInSyncSpec() -> ExampleGroup<SyncCall> { // expected-error {{no exact matches in call to static method 'buildPartialBlock'}}
+  it("uses an asynchronous fixture", using: AsyncFixture { 42 }) { _ in }
+}
+
+// Main-actor descriptors require the main-actor DSL, rather than a runtime hop.
+func mainActorFixtureInNonisolatedExample() {
+  _ = it("uses a main-actor fixture", using: MainActorFixture { 42 }) { _ in } // expected-error {{cannot convert value of type 'MainActorFixture<Int>' to expected argument type 'Fixture<Value>'}}
+}

@@ -186,7 +186,9 @@ extension ExampleNode {
     await withPath {
       await reporter.scope(for: self) {
         do {
-          try await callBody()
+          try await FixtureExecution.$shouldStop.withValue({ reporter.shouldStop }) {
+            try await callBody()
+          }
         }
         catch {
           outcome = outcomeOf(error, reporter)
@@ -197,6 +199,9 @@ extension ExampleNode {
   }
 
   private func outcomeOf(_ error: any Error, _ reporter: any Reporter) -> Outcome {
+    if let errors = error as? FixtureErrors {
+      return outcomeOfFixtureErrors(errors, reporter)
+    }
     let kind = reporter.classify(error)
     if kind == .alreadyReported {
       return .failed(nil)
@@ -208,6 +213,36 @@ extension ExampleNode {
       return .skipped
     }
     return .failed(decision == .propagate ? error : nil)
+  }
+
+  private func outcomeOfFixtureErrors(_ errors: FixtureErrors, _ reporter: any Reporter) -> Outcome {
+    var failed = false
+    var skipped = false
+    var firstError: (any Error)?
+    for failure in errors.failures {
+      let outcome: Outcome
+      if let phase = failure.phase {
+        // This reporting node isn't part of the tree and has no executable
+        // body. The example remains the unit of selection and scheduling.
+        let phaseNode = ExampleNode(kind: .example, name: phase.description,
+                                    traits: [], isolation: isolation, execution: execution,
+                                    body: nil, around: nil, children: [], hooks: [:])
+        outcome = ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [phase]) {
+          phaseNode.outcomeOf(failure.error, reporter)
+        }
+      } else {
+        outcome = outcomeOf(failure.error, reporter)
+      }
+      switch outcome {
+        case .completed: break
+        case .skipped: skipped = true
+        case .failed(let error):
+          failed = true
+          firstError = firstError ?? error
+      }
+    }
+    if failed { return .failed(firstError) }
+    return skipped ? .skipped : .completed
   }
 
   /// Nests the `aroundEach` hooks, outermost first, around `inner`.
