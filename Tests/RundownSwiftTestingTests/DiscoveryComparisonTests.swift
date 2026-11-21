@@ -35,7 +35,8 @@ struct DiscoveryComparisonFixture: Sendable {
             record("async example \(value)")
             #expect(Bool(false), "Discovery fixture expectation")
           }
-        } else {
+        }
+        else {
           let example: It<SyncCall> = it("Repeated discovery label") {
             record("sync example \(value)")
           }

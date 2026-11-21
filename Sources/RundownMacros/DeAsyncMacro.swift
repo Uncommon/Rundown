@@ -13,9 +13,7 @@ private class AwaitStripper: SyntaxRewriter {
     
     // Recurse on that expression in case it has nested awaits
     // (e.g., "myFunc(await otherFunc())")
-    let rewrittenInnerExpression = self.rewrite(innerExpression).as(
-      ExprSyntax.self
-    )!
+    let rewrittenInnerExpression = self.rewrite(innerExpression).as(ExprSyntax.self)!
     
     // Return *just* the rewritten inner expression.
     // This effectively removes the 'await' keyword.
@@ -71,7 +69,8 @@ public struct DeAsyncMacro: PeerMacro {
   /// Parses an argument representing an array of types like `[TypeA.self, TypeB.self]`
   /// and returns an array of strings containing the type names: `["TypeA", "TypeB"]`.
   static func parseTypeNames(_ argument: LabeledExprSyntax) -> [String] {
-    guard let arrayExpr = argument.expression.as(ArrayExprSyntax.self) else {
+    guard let arrayExpr = argument.expression.as(ArrayExprSyntax.self)
+    else {
       return []
     }
     
@@ -79,7 +78,8 @@ public struct DeAsyncMacro: PeerMacro {
     for element in arrayExpr.elements {
       guard let memberAccess = element.expression.as(MemberAccessExprSyntax.self),
             let baseIdent = memberAccess.base?.as(DeclReferenceExprSyntax.self),
-            !baseIdent.baseName.text.isEmpty else {
+            !baseIdent.baseName.text.isEmpty
+      else {
         return []
       }
       typeNames.append(baseIdent.baseName.text)
@@ -102,7 +102,8 @@ public struct DeAsyncMacro: PeerMacro {
   
   /// Returns the value of the 'stripSendable' argument if present, or false otherwise.
   static func stripSendableParameterValue(_ node: AttributeSyntax) -> StripSendable {
-    guard let arguments = node.arguments else {
+    guard let arguments = node.arguments
+    else {
       return .none
     }
     for child in arguments.children(viewMode: .all) {
@@ -111,7 +112,8 @@ public struct DeAsyncMacro: PeerMacro {
         if let memberAccess = labeledExpr.expression.as(MemberAccessExprSyntax.self),
            let stripSendable = StripSendable(rawValue: memberAccess.declName.description) {
           return stripSendable
-        } else {
+        }
+        else {
           return .none
         }
       }
@@ -142,11 +144,9 @@ public struct DeAsyncMacro: PeerMacro {
     attributes.filter { return $0.trimmedDescription != name }
   }
 
-  public static func expansion(
-    of node: AttributeSyntax,
-    providingPeersOf declaration: some DeclSyntaxProtocol,
-    in context: some MacroExpansionContext
-  ) throws -> [DeclSyntax] {
+  public static func expansion(of node: AttributeSyntax,
+                               providingPeersOf declaration: some DeclSyntaxProtocol,
+                               in context: some MacroExpansionContext) throws -> [DeclSyntax] {
     guard var funcDecl = declaration.as(FunctionDeclSyntax.self)
     else {
       throw MacroError.message("@DeAsync can only be applied to functions.")
@@ -187,10 +187,9 @@ public struct DeAsyncMacro: PeerMacro {
       typeChangeRewriter.rewrite($0).as(GenericWhereClauseSyntax.self)!
     }
     
-    guard let body = funcDecl.body else {
-      throw MacroError.message(
-        "@DeAsync cannot be applied to a function with no body (e.g., a protocol requirement)."
-      )
+    guard let body = funcDecl.body
+    else {
+      throw MacroError.message("@DeAsync cannot be applied to a function with no body (e.g., a protocol requirement).")
     }
     
     let newBody = awaitStripper.rewrite(body).as(CodeBlockSyntax.self)!
@@ -201,7 +200,8 @@ public struct DeAsyncMacro: PeerMacro {
       .map(String.init) ?? "AddSyncPeer"
     
     let newAttributes = funcDecl.attributes.filter {
-      guard case .attribute(let attr) = $0 else { return true }
+      guard case .attribute(let attr) = $0
+      else { return true }
       let attrBaseName = attr.attributeName.trimmedDescription
         .split(separator: ".").last
         .map(String.init)

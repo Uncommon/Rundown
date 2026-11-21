@@ -26,11 +26,9 @@ enum FixtureExecution {
 }
 
 @DeAsyncRD
-func runFixture<Value>(
-  make: @Sendable () async throws -> Value,
-  cleanup: @Sendable (Value) async throws -> Void,
-  execute: @Sendable (Value) async throws -> Void
-) async throws {
+func runFixture<Value>(make: @Sendable () async throws -> Value,
+                       cleanup: @Sendable (Value) async throws -> Void,
+                       execute: @Sendable (Value) async throws -> Void) async throws {
   let value: Value
   do {
     value = try await ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [FixturePhase.setup]) {
@@ -59,11 +57,9 @@ func runFixture<Value>(
 // from the factory must not send a non-Sendable AppKit value across actors.
 @DeAsyncRD
 @MainActor
-func runMainActorFixture<Value>(
-  make: @Sendable @MainActor () async throws -> Value,
-  cleanup: @Sendable @MainActor (Value) async throws -> Void,
-  execute: @Sendable @MainActor (Value) async throws -> Void
-) async throws {
+func runMainActorFixture<Value>(make: @Sendable @MainActor () async throws -> Value,
+                                cleanup: @Sendable @MainActor (Value) async throws -> Void,
+                                execute: @Sendable @MainActor (Value) async throws -> Void) async throws {
   let value: Value
   do {
     value = try await ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [FixturePhase.setup]) {

@@ -19,11 +19,9 @@ private func runSyncOnMainActor(_ group: ExampleGroup<SyncMainCall>) throws {
 final class NodeTraversalConcurrencyTests: XCTestCase {
   /// Runs the same description as a sync group and as an async group, through
   /// the matching version of the traversal.
-  func bothFlavors(
-    sync: () -> ExampleGroup<SyncCall>,
-    async: () -> ExampleGroup<AsyncCall>,
-    check: (String) -> Void
-  ) async throws {
+  func bothFlavors(sync: () -> ExampleGroup<SyncCall>,
+                   async: () -> ExampleGroup<AsyncCall>,
+                   check: (String) -> Void) async throws {
     check("sync")
     do { try runSync(sync()) } catch { XCTFail("sync: \(error)") }
     check("async")
@@ -83,20 +81,19 @@ final class NodeTraversalConcurrencyTests: XCTestCase {
       }
     }
 
-    try await bothFlavors(
-      sync: {
-        describe("overlap", .concurrent) {
-          it("one") { rendezvous("sync one") }
-          it("two") { rendezvous("sync two") }
-        }
-      },
-      async: {
-        describe("overlap", .concurrent) {
-          it("one") { rendezvous("async one") }
-          it("two") { rendezvous("async two") }
-        }
-      },
-      check: { _ in started.wrappedValue = 0 })
+    try await bothFlavors(sync: {
+                            describe("overlap", .concurrent) {
+                              it("one") { rendezvous("sync one") }
+                              it("two") { rendezvous("sync two") }
+                            }
+                          },
+                          async: {
+                            describe("overlap", .concurrent) {
+                              it("one") { rendezvous("async one") }
+                              it("two") { rendezvous("async two") }
+                            }
+                          },
+                          check: { _ in started.wrappedValue = 0 })
 
     XCTAssertEqual(timedOut.wrappedValue, [])
   }

@@ -4,8 +4,7 @@ import Testing
 func withRundownAssertionPaths(_ body: @Sendable () async throws -> Void) async throws {
 #if compiler(>=6.2)
   if let test = Test.current {
-    try await IssueHandlingTrait.rundownPaths.provideScope(
-      for: test, testCase: Test.Case.current, performing: body)
+    try await IssueHandlingTrait.rundownPaths.provideScope(for: test, testCase: Test.Case.current, performing: body)
     return
   }
 #endif
@@ -25,11 +24,13 @@ public extension Testing.Trait where Self == IssueHandlingTrait {
   static var rundownPaths: Self {
     .compactMapIssues { issue in
       guard case .expectationFailed = issue.kind,
-            let path = ExampleRunner.current?.description, !path.isEmpty else { return issue }
+            let path = ExampleRunner.current?.description, !path.isEmpty
+      else { return issue }
 
       let comment = "Rundown path: \(path)"
       // The suite and spec scopes may both see the same issue.
-      guard !issue.comments.contains(where: { $0.rawValue == comment }) else { return issue }
+      guard !issue.comments.contains(where: { $0.rawValue == comment })
+      else { return issue }
 
       var issue = issue
       issue.comments.append(Comment(rawValue: comment))

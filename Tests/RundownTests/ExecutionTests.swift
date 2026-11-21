@@ -272,9 +272,9 @@ final class ExecutionTests: Rundown.TestCase {
     }.run()
     
     XCTAssertEqual(result.wrappedValue,
-      ["beforeAll",
-       "around start",
-       "beforeEach", "it", "afterEach",
-       "around end"])
+                   ["beforeAll",
+                    "around start",
+                    "beforeEach", "it", "afterEach",
+                    "around end"])
   }
 }

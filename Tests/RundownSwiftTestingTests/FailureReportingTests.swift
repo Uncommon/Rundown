@@ -40,7 +40,8 @@ struct FailureReportingTests: SwiftTestingSuite {
       }
     } matching: { issue in
       guard issue.error is HookFailure, let path = issue.comments.first?.rawValue,
-            issue.comments.count == 1 else { return false }
+            issue.comments.count == 1
+      else { return false }
       paths.withLock { $0.append(path) }
       return true
     }
@@ -82,11 +83,15 @@ struct FailureReportingTests: SwiftTestingSuite {
         it("runs after workers finish") { trace.withLock { $0.append("sibling") } }
       }
     } matching: { issue in
-      guard let path = issue.comments.first?.rawValue, issue.comments.count == 1 else { return false }
+      guard let path = issue.comments.first?.rawValue, issue.comments.count == 1
+      else { return false }
       if path == "Concurrent failures, workers, throws cancellation in an active task" {
-        guard issue.error is CancellationError else { return false }
-      } else {
-        guard issue.error is HookFailure else { return false }
+        guard issue.error is CancellationError
+        else { return false }
+      }
+      else {
+        guard issue.error is HookFailure
+        else { return false }
       }
       paths.withLock { $0.append(path) }
       return true

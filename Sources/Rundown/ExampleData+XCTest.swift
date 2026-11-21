@@ -17,13 +17,12 @@ open class TestCase: XCTestCase, MainActorSuite {
     }
     let description = runner.description
 
-    let newIssue = XCTIssue(
-      type: issue.type,
-      compactDescription: "\(description) \(issue.compactDescription)",
-      detailedDescription: issue.description,
-      sourceCodeContext: issue.sourceCodeContext,
-      associatedError: issue.associatedError,
-      attachments: issue.attachments)
+    let newIssue = XCTIssue(type: issue.type,
+                            compactDescription: "\(description) \(issue.compactDescription)",
+                            detailedDescription: issue.description,
+                            sourceCodeContext: issue.sourceCodeContext,
+                            associatedError: issue.associatedError,
+                            attachments: issue.attachments)
 
     super.record(newIssue)
   }

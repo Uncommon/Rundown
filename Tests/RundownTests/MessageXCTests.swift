@@ -31,7 +31,8 @@ final class MessageXCTests: Rundown.TestCase {
     let options = XCTExpectedFailure.Options()
     options.issueMatcher = { issue in
       guard issue.type == .assertionFailure,
-            issue.compactDescription.hasPrefix("Unwrap, fails ") else { return false }
+            issue.compactDescription.hasPrefix("Unwrap, fails ")
+      else { return false }
       issues.wrappedValue.append(issue)
       return true
     }

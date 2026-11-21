@@ -91,9 +91,7 @@ public struct ExampleBuilder<Call: CallType> {
     expression
   }
 
-  public static func buildExpression<Phase: HookPhase, C: CallType>(
-    _ expression: TestHook<Phase, C>
-  ) -> TestHook<Phase, C> {
+  public static func buildExpression<Phase: HookPhase, C: CallType>(_ expression: TestHook<Phase, C>) -> TestHook<Phase, C> {
     expression
   }
 
@@ -102,9 +100,8 @@ public struct ExampleBuilder<Call: CallType> {
   }
 
   // Hooks of the same sync type can repeat
-  public static func buildPartialBlock<Phase: AccumulatorPhase, C: CallType>(
-      accumulated: Accumulator<Phase>,
-      next: TestHook<Phase, C>) -> Accumulator<Phase> {
+  public static func buildPartialBlock<Phase: AccumulatorPhase, C: CallType>(accumulated: Accumulator<Phase>,
+                                                                             next: TestHook<Phase, C>) -> Accumulator<Phase> {
     accumulated.adding(next)
   }
 
@@ -119,30 +116,26 @@ public struct ExampleBuilder<Call: CallType> {
   }
   
   // AroundEach can repeat
-  public static func buildPartialBlock(
-      accumulated: Accumulator<AroundEachPhase>,
-      next: AroundEach<Call>) -> Accumulator<AroundEachPhase> {
+  public static func buildPartialBlock(accumulated: Accumulator<AroundEachPhase>,
+                                       next: AroundEach<Call>) -> Accumulator<AroundEachPhase> {
     accumulated.adding(next)
   }
 
   // AroundEach can follow BeforeAll
-  public static func buildPartialBlock(
-      accumulated: Accumulator<BeforeAllPhase>,
-      next: AroundEach<Call>) -> Accumulator<AroundEachPhase> {
+  public static func buildPartialBlock(accumulated: Accumulator<BeforeAllPhase>,
+                                       next: AroundEach<Call>) -> Accumulator<AroundEachPhase> {
     accumulated.transitioned(with: next)
   }
 
   // BeforeEach can follow BeforeAll
-  public static func buildPartialBlock<C: CallType>(
-      accumulated: Accumulator<BeforeAllPhase>,
-      next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
+  public static func buildPartialBlock<C: CallType>(accumulated: Accumulator<BeforeAllPhase>,
+                                                    next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
     accumulated.transitioned(with: next)
   }
 
   // BeforeEach can follow AroundEach
-  public static func buildPartialBlock<C: CallType>(
-      accumulated: Accumulator<AroundEachPhase>,
-      next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
+  public static func buildPartialBlock<C: CallType>(accumulated: Accumulator<AroundEachPhase>,
+                                                    next: TestHook<BeforeEachPhase, C>) -> Accumulator<BeforeEachPhase> {
     accumulated.transitioned(with: next)
   }
 
@@ -150,30 +143,26 @@ public struct ExampleBuilder<Call: CallType> {
   public static func buildPartialBlock(first: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     .init().adding(first)
   }
-  public static func buildPartialBlock(
-      accumulated: Accumulator<ExamplePhase>,
-      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock(accumulated: Accumulator<ExamplePhase>,
+                                       next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     accumulated.adding(next)
   }
 
   // Examples can follow BeforeEach/BeforeAll
-  public static func buildPartialBlock<Phase: BeforePhase>(
-      accumulated: Accumulator<Phase>,
-      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock<Phase: BeforePhase>(accumulated: Accumulator<Phase>,
+                                                           next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
 
   // After hooks can follow examples
-  public static func buildPartialBlock<Phase: AfterPhase>(
-      accumulated: Accumulator<ExamplePhase>,
-      next: TestHook<Phase, Call>) -> Accumulator<Phase> {
+  public static func buildPartialBlock<Phase: AfterPhase>(accumulated: Accumulator<ExamplePhase>,
+                                                          next: TestHook<Phase, Call>) -> Accumulator<Phase> {
     accumulated.transitioned(with: next)
   }
 
   // AfterAll follows AfterEach
-  public static func buildPartialBlock(
-      accumulated: Accumulator<AfterEachPhase>,
-      next: TestHook<AfterAllPhase, Call>) -> Accumulator<AfterAllPhase> {
+  public static func buildPartialBlock(accumulated: Accumulator<AfterEachPhase>,
+                                       next: TestHook<AfterAllPhase, Call>) -> Accumulator<AfterAllPhase> {
     accumulated.transitioned(with: next)
   }
 
@@ -218,9 +207,8 @@ public struct ExampleBuilder<Call: CallType> {
   }
 
   // A loop or conditional can follow before-hooks...
-  public static func buildPartialBlock<Phase: BeforePhase>(
-      accumulated: Accumulator<Phase>,
-      next: Accumulator<ExamplePhase>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock<Phase: BeforePhase>(accumulated: Accumulator<Phase>,
+                                                           next: Accumulator<ExamplePhase>) -> Accumulator<ExamplePhase> {
     var result = Accumulator<ExamplePhase>(other: accumulated)
 
     result.add(next)
@@ -228,9 +216,8 @@ public struct ExampleBuilder<Call: CallType> {
   }
 
   // ...or examples, or another loop or conditional.
-  public static func buildPartialBlock(
-      accumulated: Accumulator<ExamplePhase>,
-      next: Accumulator<ExamplePhase>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock(accumulated: Accumulator<ExamplePhase>,
+                                       next: Accumulator<ExamplePhase>) -> Accumulator<ExamplePhase> {
     if next.containsBeforeHooks {
       builderLogger.error("BeforeAll, AroundEach and BeforeEach inside a loop or conditional that follows examples apply to the whole group, including those examples")
     }
@@ -264,50 +251,42 @@ public struct ExampleBuilder<Call: CallType> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "AfterEach and AfterAll must come after examples")
-  public static func buildPartialBlock<Phase: AfterPhase>(
-      first: TestHook<Phase, Call>) -> Accumulator<Phase> {
+  public static func buildPartialBlock<Phase: AfterPhase>(first: TestHook<Phase, Call>) -> Accumulator<Phase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "AfterEach and AfterAll must come after examples")
-  public static func buildPartialBlock<Phase: BeforePhase, After: AfterPhase>(
-      accumulated: Accumulator<Phase>,
-      next: TestHook<After, Call>) -> Accumulator<Phase> {
+  public static func buildPartialBlock<Phase: BeforePhase, After: AfterPhase>(accumulated: Accumulator<Phase>,
+                                                                              next: TestHook<After, Call>) -> Accumulator<Phase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Examples cannot appear after AfterEach or AfterAll")
-  public static func buildPartialBlock<Phase: AfterPhase>(
-      accumulated: Accumulator<Phase>,
-      next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock<Phase: AfterPhase>(accumulated: Accumulator<Phase>,
+                                                          next: any TestExample<Call>) -> Accumulator<ExamplePhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "BeforeAll must precede BeforeEach")
-  public static func buildPartialBlock<C: CallType>(
-      accumulated: Accumulator<BeforeEachPhase>,
-      next: TestHook<BeforeAllPhase, C>) -> Accumulator<BeforeEachPhase> {
+  public static func buildPartialBlock<C: CallType>(accumulated: Accumulator<BeforeEachPhase>,
+                                                    next: TestHook<BeforeAllPhase, C>) -> Accumulator<BeforeEachPhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "BeforeAll cannot appear after examples")
-  public static func buildPartialBlock<C: CallType>(
-      accumulated: Accumulator<ExamplePhase>,
-      next: TestHook<BeforeAllPhase, C>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock<C: CallType>(accumulated: Accumulator<ExamplePhase>,
+                                                    next: TestHook<BeforeAllPhase, C>) -> Accumulator<ExamplePhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "BeforeEach cannot appear after examples")
-  public static func buildPartialBlock<C: CallType>(
-      accumulated: Accumulator<ExamplePhase>,
-      next: TestHook<BeforeEachPhase, C>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock<C: CallType>(accumulated: Accumulator<ExamplePhase>,
+                                                    next: TestHook<BeforeEachPhase, C>) -> Accumulator<ExamplePhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "AfterEach must precede AfterAll")
-  public static func buildPartialBlock<C: CallType>(
-      accumulated: Accumulator<AfterAllPhase>,
-      next: TestHook<AfterEachPhase, C>) -> Accumulator<AfterAllPhase> {
+  public static func buildPartialBlock<C: CallType>(accumulated: Accumulator<AfterAllPhase>,
+                                                    next: TestHook<AfterEachPhase, C>) -> Accumulator<AfterAllPhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "AroundEach cannot appear after examples")
-  public static func buildPartialBlock(
-    accumulated: Accumulator<ExamplePhase>,
-    next: AroundEach<Call>) -> Accumulator<ExamplePhase> {
+  public static func buildPartialBlock(accumulated: Accumulator<ExamplePhase>,
+                                       next: AroundEach<Call>) -> Accumulator<ExamplePhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Loop must end in example or 'after' element")
@@ -360,23 +339,20 @@ public extension ExampleBuilder where Call: AsyncConvertibleCallType {
   }
 
   // Hook repeat
-  static func buildPartialBlock<Phase: AccumulatorPhase>(
-    accumulated: Accumulator<Phase>,
-    next: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
+  static func buildPartialBlock<Phase: AccumulatorPhase>(accumulated: Accumulator<Phase>,
+                                                         next: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
     accumulated.adding(TestHook<Phase, Call>(fromSync: next))
   }
 
   // BeforeEach can follow BeforeAll
-  static func buildPartialBlock(
-      accumulated: Accumulator<BeforeAllPhase>,
-      next: TestHook<BeforeEachPhase, Call.SyncVersion>) -> Accumulator<BeforeEachPhase> {
+  static func buildPartialBlock(accumulated: Accumulator<BeforeAllPhase>,
+                                next: TestHook<BeforeEachPhase, Call.SyncVersion>) -> Accumulator<BeforeEachPhase> {
     accumulated.transitioned(with: TestHook<BeforeEachPhase, Call>(fromSync: next))
   }
 
   // BeforeEach can follow AroundEach
-  static func buildPartialBlock(
-      accumulated: Accumulator<AroundEachPhase>,
-      next: TestHook<BeforeEachPhase, Call.SyncVersion>) -> Accumulator<BeforeEachPhase> {
+  static func buildPartialBlock(accumulated: Accumulator<AroundEachPhase>,
+                                next: TestHook<BeforeEachPhase, Call.SyncVersion>) -> Accumulator<BeforeEachPhase> {
     accumulated.transitioned(with: TestHook<BeforeEachPhase, Call>(fromSync: next))
   }
 
@@ -386,49 +362,42 @@ public extension ExampleBuilder where Call: AsyncConvertibleCallType {
   }
 
   // Examples follow examples
-  static func buildPartialBlock(
-    accumulated: Accumulator<ExamplePhase>,
-    next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
+  static func buildPartialBlock(accumulated: Accumulator<ExamplePhase>,
+                                next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
       accumulated.adding(next)
   }
 
   // Examples follow Before hooks
-  static func buildPartialBlock<Phase: BeforePhase>(
-    accumulated: Accumulator<Phase>,
-    next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
+  static func buildPartialBlock<Phase: BeforePhase>(accumulated: Accumulator<Phase>,
+                                                    next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
     accumulated.transitioned(with: next)
   }
 
   // AfterEach/AfterAll follows examples
-  static func buildPartialBlock<Phase: AfterPhase>(
-      accumulated: Accumulator<ExamplePhase>,
-      next: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
+  static func buildPartialBlock<Phase: AfterPhase>(accumulated: Accumulator<ExamplePhase>,
+                                                   next: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
     accumulated.transitioned(with: TestHook<Phase, Call>(fromSync: next))
   }
 
   // AfterAll follows AfterEach
-  static func buildPartialBlock(
-      accumulated: Accumulator<AfterEachPhase>,
-      next: TestHook<AfterAllPhase, Call.SyncVersion>) -> Accumulator<AfterAllPhase> {
+  static func buildPartialBlock(accumulated: Accumulator<AfterEachPhase>,
+                                next: TestHook<AfterAllPhase, Call.SyncVersion>) -> Accumulator<AfterAllPhase> {
     accumulated.transitioned(with: TestHook<AfterAllPhase, Call>(fromSync: next))
   }
 
   @available(*, unavailable, message: "AfterEach and AfterAll must come after examples")
-  static func buildPartialBlock<Phase: AfterPhase>(
-      first: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
+  static func buildPartialBlock<Phase: AfterPhase>(first: TestHook<Phase, Call.SyncVersion>) -> Accumulator<Phase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "AfterEach and AfterAll must come after examples")
-  static func buildPartialBlock<Phase: BeforePhase, After: AfterPhase>(
-      accumulated: Accumulator<Phase>,
-      next: TestHook<After, Call.SyncVersion>) -> Accumulator<Phase> {
+  static func buildPartialBlock<Phase: BeforePhase, After: AfterPhase>(accumulated: Accumulator<Phase>,
+                                                                       next: TestHook<After, Call.SyncVersion>) -> Accumulator<Phase> {
     fatalError("unavailable")
   }
 
   @available(*, unavailable, message: "Examples cannot appear after AfterEach or AfterAll")
-  static func buildPartialBlock<Phase: AfterPhase>(
-      accumulated: Accumulator<Phase>,
-      next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
+  static func buildPartialBlock<Phase: AfterPhase>(accumulated: Accumulator<Phase>,
+                                                   next: any TestExample<Call.SyncVersion>) -> Accumulator<ExamplePhase> {
     fatalError("unavailable")
   }
 
@@ -451,9 +420,8 @@ public extension ExampleBuilder where Call == SyncMainCall {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
-  static func buildPartialBlock<Phase: AccumulatorPhase>(
-      accumulated: Accumulator<Phase>,
-      next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
+  static func buildPartialBlock<Phase: AccumulatorPhase>(accumulated: Accumulator<Phase>,
+                                                         next: any TestExample<SyncCall>) -> Accumulator<ExamplePhase> {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
@@ -461,9 +429,8 @@ public extension ExampleBuilder where Call == SyncMainCall {
     fatalError("unavailable")
   }
   @available(*, unavailable, message: "Main actor groups must be built in a type that conforms to MainActorSuite; use a method of such a type instead of a free function")
-  static func buildPartialBlock<Phase: AccumulatorPhase, Hook: HookPhase>(
-      accumulated: Accumulator<Phase>,
-      next: TestHook<Hook, SyncCall>) -> Accumulator<Hook> {
+  static func buildPartialBlock<Phase: AccumulatorPhase, Hook: HookPhase>(accumulated: Accumulator<Phase>,
+                                                                          next: TestHook<Hook, SyncCall>) -> Accumulator<Hook> {
     fatalError("unavailable")
   }
 }

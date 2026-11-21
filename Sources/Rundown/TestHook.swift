@@ -79,20 +79,20 @@ public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
 @DeAsyncRD
 @_disfavoredOverload
 public func beforeEach(_ name: String = "", _ traits: (any Trait)...,
-                      execute: @escaping AsyncCall.Callback) -> TestHook<BeforeEachPhase, AsyncCall> {
+                       execute: @escaping AsyncCall.Callback) -> TestHook<BeforeEachPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 
 @DeAsyncRD
 @_disfavoredOverload
 public func afterEach(_ name: String = "", _ traits: (any Trait)...,
-                       execute: @escaping AsyncCall.Callback) -> TestHook<AfterEachPhase, AsyncCall> {
+                      execute: @escaping AsyncCall.Callback) -> TestHook<AfterEachPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 
 @DeAsyncRD
 @_disfavoredOverload
 public func afterAll(_ name: String = "", _ traits: (any Trait)...,
-                      execute: @escaping AsyncCall.Callback) -> TestHook<AfterAllPhase, AsyncCall> {
+                     execute: @escaping AsyncCall.Callback) -> TestHook<AfterAllPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }

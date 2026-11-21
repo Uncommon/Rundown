@@ -100,8 +100,9 @@ final class InvalidSequencesFixtureTests: XCTestCase {
       if let match = line.wholeMatch(of: errorRegex) {
         // Some diagnostics append an identifier such as [#ActorIsolatedCall].
         // Compare the message independently of that toolchain-specific suffix.
-        let message = String(match.output.2).replacingOccurrences(
-          of: #" \[#[A-Za-z0-9_]+\]$"#, with: "", options: .regularExpression)
+        let message = String(match.output.2).replacingOccurrences(of: #" \[#[A-Za-z0-9_]+\]$"#,
+                                                                  with: "",
+                                                                  options: .regularExpression)
         return CompileError(line: match.output.1,
                             message: message)
       }

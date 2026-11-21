@@ -10,7 +10,8 @@ private enum FixtureAssertionProbe {
 
   static let capture = IssueHandlingTrait.compactMapIssues { issue in
     guard let issues, case .expectationFailed = issue.kind,
-          issue.comments.contains(where: { $0.rawValue == "fixture probe" }) else { return issue }
+          issue.comments.contains(where: { $0.rawValue == "fixture probe" })
+    else { return issue }
     issues.withLock { $0.append(issue) }
     return nil
   }
@@ -38,7 +39,8 @@ struct FixtureSpecTests: SwiftTestingSuite {
       }
     } matching: { issue in
       guard issue.error is FixtureSpecFailure, issue.comments.count == 1,
-            let path = issue.comments.first?.rawValue else { return false }
+            let path = issue.comments.first?.rawValue
+      else { return false }
       paths.withLock { $0.append(path) }
       return true
     }

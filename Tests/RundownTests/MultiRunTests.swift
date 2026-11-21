@@ -232,11 +232,9 @@ class MultiRunTests: XCTestCase {
       
       try runner(group)
       
-      XCTAssertEqual(
-        result.wrappedValue,
-        ["outer before", "inner before", "it", "inner after", "outer after"],
-        "\(type) failure"
-      )
+      XCTAssertEqual(result.wrappedValue,
+                     ["outer before", "inner before", "it", "inner after", "outer after"],
+                     "\(type) failure")
     }
   }
 
@@ -256,11 +254,9 @@ class MultiRunTests: XCTestCase {
       
       try runner(group)
       
-      XCTAssertEqual(
-        result.wrappedValue,
-        ["it"],
-        "\(type) failure"
-      )
+      XCTAssertEqual(result.wrappedValue,
+                     ["it"],
+                     "\(type) failure")
     }
   }
 
@@ -439,15 +435,14 @@ class MultiRunTests: XCTestCase {
 
       try await runner(group)
 
-      XCTAssertEqual(
-        log.wrappedValue,
-        // The outer hooks wrap the context once, and the sibling once
-        ["outer before",
-           "inner before", "one", "inner after",
-           "inner before", "two", "inner after",
-         "outer after",
-         "outer before", "sibling", "outer after"],
-        "\(type) failure")
+      XCTAssertEqual(log.wrappedValue,
+                     // The outer hooks wrap the context once, and the sibling once
+                     ["outer before",
+                        "inner before", "one", "inner after",
+                        "inner before", "two", "inner after",
+                      "outer after",
+                      "outer before", "sibling", "outer after"],
+                     "\(type) failure")
     }
   }
 
@@ -473,13 +468,12 @@ class MultiRunTests: XCTestCase {
 
       try runner(group)
 
-      XCTAssertEqual(
-        log.wrappedValue,
-        ["outer around>",
-           "inner around>", "one", "<inner around",
-           "inner around>", "two", "<inner around",
-         "<outer around"],
-        "\(type) failure")
+      XCTAssertEqual(log.wrappedValue,
+                     ["outer around>",
+                        "inner around>", "one", "<inner around",
+                        "inner around>", "two", "<inner around",
+                      "<outer around"],
+                     "\(type) failure")
     }
   }
 
@@ -506,10 +500,9 @@ class MultiRunTests: XCTestCase {
 
       try await runner(group)
 
-      XCTAssertEqual(
-        log.wrappedValue,
-        ["shared setup", "one", "shared setup", "two", "shared setup", "three"],
-        "\(type) failure")
+      XCTAssertEqual(log.wrappedValue,
+                     ["shared setup", "one", "shared setup", "two", "shared setup", "three"],
+                     "\(type) failure")
     }
   }
 
@@ -835,25 +828,24 @@ private extension AroundEach where Call == SyncMainCall {
 
 extension ExampleGroup where Call == SyncMainCall {
   init(fromSync other: ExampleGroup<SyncCall>) {
-    self.init(
-      description: other.description,
-      traits: other.traits,
-      beforeAll: other.beforeAllHooks.map { .init(fromSyncCall: $0) },
-      aroundEach: other.aroundEachHooks.map { .init(fromSyncCall: $0) },
-      beforeEach: other.beforeEachHooks.map { .init(fromSyncCall: $0) },
-      afterEach: other.afterEachHooks.map { .init(fromSyncCall: $0) },
-      afterAll: other.afterAllHooks.map { .init(fromSyncCall: $0) },
-      elements: other.elements.map {
-        switch $0 {
-          case let it as It<SyncCall>:
-            let block = it.block
-            return It<SyncMainCall>(it.description, it.traits,
-                                    execute: { try block() })
-          case let group as ExampleGroup<SyncCall>:
-            return ExampleGroup<SyncMainCall>(fromSync: group)
-          default:
-            preconditionFailure("unexpected element")
-        }
-      })
+    self.init(description: other.description,
+              traits: other.traits,
+              beforeAll: other.beforeAllHooks.map { .init(fromSyncCall: $0) },
+              aroundEach: other.aroundEachHooks.map { .init(fromSyncCall: $0) },
+              beforeEach: other.beforeEachHooks.map { .init(fromSyncCall: $0) },
+              afterEach: other.afterEachHooks.map { .init(fromSyncCall: $0) },
+              afterAll: other.afterAllHooks.map { .init(fromSyncCall: $0) },
+              elements: other.elements.map {
+                switch $0 {
+                  case let it as It<SyncCall>:
+                    let block = it.block
+                    return It<SyncMainCall>(it.description, it.traits,
+                                            execute: { try block() })
+                  case let group as ExampleGroup<SyncCall>:
+                    return ExampleGroup<SyncMainCall>(fromSync: group)
+                  default:
+                    preconditionFailure("unexpected element")
+                }
+              })
   }
 }

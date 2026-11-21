@@ -34,8 +34,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -61,8 +60,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -86,8 +84,7 @@ final class DeAsyncMacroTests: XCTestCase {
           try something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -111,8 +108,7 @@ final class DeAsyncMacroTests: XCTestCase {
           try block()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -136,8 +132,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -161,8 +156,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -186,8 +180,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -214,8 +207,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -239,8 +231,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
@@ -266,8 +257,7 @@ final class DeAsyncMacroTests: XCTestCase {
           something()
       }
       """,
-      macros: testMacros
-    )
+      macros: testMacros)
 #else
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif

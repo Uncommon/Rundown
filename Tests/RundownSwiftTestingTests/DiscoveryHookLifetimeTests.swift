@@ -101,7 +101,8 @@ struct DiscoveryHookFailureTests {
 }
 
 @Suite(ExpectDiscoveryHookIssue { issue in
-  guard case .expectationFailed = issue.kind else { return false }
+  guard case .expectationFailed = issue.kind
+  else { return false }
   return issue.comments.contains("Intentional discovery teardown failure")
 })
 @Spec

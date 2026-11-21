@@ -65,7 +65,8 @@ extension ExampleNode {
   /// The body of a group: its hooks and children, but not its scope.
   @DeAsyncRD
   fileprivate func traverse(_ reporter: any Reporter) async throws {
-    guard !reporter.shouldStop else { return }
+    guard !reporter.shouldStop
+    else { return }
     let selected = selectedChildren
     guard !selected.isEmpty
     else { return }
@@ -93,7 +94,8 @@ extension ExampleNode {
     var setUpSucceeded = true
 
     for hook in selectedHooks(.beforeAll) {
-      guard !reporter.shouldStop else { break }
+      guard !reporter.shouldStop
+      else { break }
       switch await hook.runLeaf(reporter) {
         case .completed:
           continue
@@ -123,12 +125,14 @@ extension ExampleNode {
 
   @DeAsyncRD
   fileprivate func runElement(_ child: ExampleNode, _ reporter: any Reporter) async throws {
-    guard !reporter.shouldStop else { return }
+    guard !reporter.shouldStop
+    else { return }
     var firstError: (any Error)?
     var setUpSuccessful = true
 
     for hook in selectedHooks(.beforeEach) {
-      guard !reporter.shouldStop else { break }
+      guard !reporter.shouldStop
+      else { break }
       switch await hook.runLeaf(reporter) {
         case .completed:
           continue
@@ -230,7 +234,8 @@ extension ExampleNode {
         outcome = ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [phase]) {
           phaseNode.outcomeOf(failure.error, reporter)
         }
-      } else {
+      }
+      else {
         outcome = outcomeOf(failure.error, reporter)
       }
       switch outcome {
@@ -254,8 +259,10 @@ extension ExampleNode {
   fileprivate func runAround(_ hooks: ArraySlice<ExampleNode>,
                              _ reporter: any Reporter,
                              inner: @Sendable () async throws -> Void) async throws {
-    guard !reporter.shouldStop else { return }
-    guard let hook = hooks.first else { return try await inner() }
+    guard !reporter.shouldStop
+    else { return }
+    guard let hook = hooks.first
+    else { return try await inner() }
 
     // The hook gets a callback that runs everything inside it. If that
     // callback throws, the error goes up through the hook's own code, which
@@ -297,7 +304,8 @@ extension ExampleNode {
 #if canImport(Darwin) && compiler(>=6.4)
 extension ExampleNode {
   package func runDiscoveryRootHooks(with reporter: any Reporter, _ cases: () async throws -> Void) async throws {
-    guard !selectedChildren.isEmpty, !reporter.shouldStop else { return }
+    guard !selectedChildren.isEmpty, !reporter.shouldStop
+    else { return }
     try await runInRootScope(reporter) {
       try await withGroupHooks(reporter) {
         // Each generated case enters its own traversal and path.

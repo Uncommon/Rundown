@@ -88,7 +88,8 @@ final class MainActorFixtureTests: Rundown.TestCase {
     options.issueMatcher = { issue in
       guard issue.type == .uncaughtException,
             issue.compactDescription.hasPrefix("UI, reports example and cleanup failures ")
-              || issue.compactDescription.hasPrefix("UI, reports example and cleanup failures, fixture cleanup ") else { return false }
+              || issue.compactDescription.hasPrefix("UI, reports example and cleanup failures, fixture cleanup ")
+      else { return false }
       issues.wrappedValue.append(issue)
       return true
     }
@@ -109,7 +110,8 @@ final class MainActorFixtureTests: Rundown.TestCase {
     let options = XCTExpectedFailure.Options()
     options.issueMatcher = { issue in
       guard issue.type == .assertionFailure,
-            issue.compactDescription.hasPrefix("UI, reports a failed setup requirement, fixture setup ") else { return false }
+            issue.compactDescription.hasPrefix("UI, reports a failed setup requirement, fixture setup ")
+      else { return false }
       issues.wrappedValue.append(issue)
       return true
     }

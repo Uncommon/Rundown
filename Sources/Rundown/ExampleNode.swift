@@ -241,28 +241,27 @@ extension ExampleGroup where Call: NodeCallType {
   }
 
   private var nodeBeforeSelection: ExampleNode {
-    ExampleNode(
-      kind: .group,
-      name: description,
-      traits: traits,
-      isolation: Call.nodeIsolation,
-      execution: Call.nodeExecution,
-      body: nil,
-      around: nil,
-      // An async group can hold sync elements as well as async ones, so this
-      // takes whatever call type the element has.
-      children: elements.map { element in
-        guard let convertible = element as? any NodeConvertible
-        else { preconditionFailure("unexpected element type") }
-        return convertible.node
-      },
-      hooks: [
-        .beforeAll: beforeAllHooks.map { $0.node(.beforeAll) },
-        .aroundEach: aroundEachHooks.map { $0.node },
-        .beforeEach: beforeEachHooks.map { $0.node(.beforeEach) },
-        .afterEach: afterEachHooks.map { $0.node(.afterEach) },
-        .afterAll: afterAllHooks.map { $0.node(.afterAll) },
-      ].filter { !$0.value.isEmpty })
+    ExampleNode(kind: .group,
+                name: description,
+                traits: traits,
+                isolation: Call.nodeIsolation,
+                execution: Call.nodeExecution,
+                body: nil,
+                around: nil,
+                // An async group can hold sync elements as well as async ones, so this
+                // takes whatever call type the element has.
+                children: elements.map { element in
+                  guard let convertible = element as? any NodeConvertible
+                  else { preconditionFailure("unexpected element type") }
+                  return convertible.node
+                },
+                hooks: [
+                  .beforeAll: beforeAllHooks.map { $0.node(.beforeAll) },
+                  .aroundEach: aroundEachHooks.map { $0.node },
+                  .beforeEach: beforeEachHooks.map { $0.node(.beforeEach) },
+                  .afterEach: afterEachHooks.map { $0.node(.afterEach) },
+                  .afterAll: afterAllHooks.map { $0.node(.afterAll) },
+                ].filter { !$0.value.isEmpty })
   }
 }
 

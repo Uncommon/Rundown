@@ -51,7 +51,8 @@ struct SwiftTestingReporter: Reporter {
         withUnsafeCurrentTask { $0?.cancel() }
       }
     }
-    guard kind == .failure else { return .record }
+    guard kind == .failure
+    else { return .record }
 
     var path = ExampleRunner.current?.path ?? []
     // An aroundEach hook wraps its child outside its own node scope.

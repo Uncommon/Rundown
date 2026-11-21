@@ -50,31 +50,25 @@ public enum _SpecRegistration {
     kind: UInt32, reserved1: UInt32, accessor: Accessor, context: UInt, reserved2: UInt
   )
 
-  public static func store<S: Spec>(
-    _ spec: S.Type, sourceLocation: SourceLocation,
-    into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
-  ) -> CBool {
+  public static func store<S: Spec>(_ spec: S.Type, sourceLocation: SourceLocation,
+                                    into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer) -> CBool {
     store(spec, unit: .topLevel, sourceLocation: sourceLocation, into: outValue, asTypeAt: type)
   }
 
-  package static func store<S: Spec>(
-    _ spec: S.Type, unit: SpecDiscoveryUnit, sourceLocation: SourceLocation,
-    into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
-  ) -> CBool {
+  package static func store<S: Spec>(_ spec: S.Type, unit: SpecDiscoveryUnit, sourceLocation: SourceLocation,
+                                     into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer) -> CBool {
     Test.__store({
       let scope = DiscoveryRootScope(unit: unit)
-      return Test.__function(
-        named: "examples(unit:)", in: spec, xcTestCompatibleSelector: nil, traits: [scope],
-        arguments: {
-          let root = S().spec.named(String(describing: spec)).node
-          let cases = DiscoveryCase.makeCases(in: root.withoutGroupHooks,
-                                              unit: unit, path: [root.description], indices: [])
-          scope.root.withLock { $0 = cases.isEmpty ? nil : root }
-          return cases
-        },
-        sourceBounds: bounds(at: sourceLocation),
-        parameters: [(firstName: "unit", secondName: nil, type: DiscoveryCase.self)]
-      ) { discoveryCase in
+      return Test.__function(named: "examples(unit:)", in: spec, xcTestCompatibleSelector: nil, traits: [scope],
+                             arguments: {
+                               let root = S().spec.named(String(describing: spec)).node
+                               let cases = DiscoveryCase.makeCases(in: root.withoutGroupHooks,
+                                                                   unit: unit, path: [root.description], indices: [])
+                               scope.root.withLock { $0 = cases.isEmpty ? nil : root }
+                               return cases
+                             },
+                             sourceBounds: bounds(at: sourceLocation),
+                             parameters: [(firstName: "unit", secondName: nil, type: DiscoveryCase.self)]) { discoveryCase in
         try await withRundownAssertionPaths {
           try await discoveryCase.root.run(with: SwiftTestingReporter(allowsConcurrency: true))
         }
@@ -82,10 +76,8 @@ public enum _SpecRegistration {
     }, into: outValue, asTypeAt: type)
   }
 
-  public static func storeSuite<S: Spec>(
-    _ spec: S.Type, sourceLocation: SourceLocation,
-    into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer
-  ) -> CBool {
+  public static func storeSuite<S: Spec>(_ spec: S.Type, sourceLocation: SourceLocation,
+                                         into outValue: UnsafeMutableRawPointer, asTypeAt type: UnsafeRawPointer) -> CBool {
     Test.__store({
       Test.__type(spec, traits: [], sourceBounds: bounds(at: sourceLocation))
     }, into: outValue, asTypeAt: type)
@@ -110,7 +102,8 @@ private final class DiscoveryRootScope: TestTrait, TestScoping {
   }
 
   func provideScope(for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void) async throws {
-    guard let root = root.withLock({ $0 }) else {
+    guard let root = root.withLock({ $0 })
+    else {
       try await function()
       return
     }
@@ -121,7 +114,8 @@ private final class DiscoveryRootScope: TestTrait, TestScoping {
         // scheduling policy here, after planning has built the root.
         if unit == .topLevel && !root.isConcurrent {
           try await ParallelizationTrait.serialized.provideScope(for: test, testCase: testCase, performing: function)
-        } else {
+        }
+        else {
           try await function()
         }
       }

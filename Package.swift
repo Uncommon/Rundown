@@ -4,57 +4,43 @@
 import PackageDescription
 import CompilerPluginSupport
 
-let package = Package(
-    name: "Rundown",
-    platforms: [.macOS(.v15), .iOS(.v17), .tvOS(.v17), .watchOS(.v10), .macCatalyst(.v17)],
-    products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "Rundown",
-            targets: ["Rundown"]
-        ),
-        .library(
-            name: "RundownSwiftTesting",
-            targets: ["RundownSwiftTesting"]
-        ),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0-latest"),
-    ],
-    targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        // Macro implementation that performs the source transformation of a macro.
-        .macro(
-            name: "RundownMacros",
-            dependencies: [
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
-            ]
-        ),
+let package = Package(name: "Rundown",
+                      platforms: [.macOS(.v15), .iOS(.v17), .tvOS(.v17), .watchOS(.v10), .macCatalyst(.v17)],
+                      products: [
+                        // Products define the executables and libraries a package produces, making them visible to other packages.
+                        .library(name: "Rundown",
+                                 targets: ["Rundown"]),
+                        .library(name: "RundownSwiftTesting",
+                                 targets: ["RundownSwiftTesting"]),
+                      ],
+                      dependencies: [
+                        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0-latest"),
+                      ],
+                      targets: [
+                        // Targets are the basic building blocks of a package, defining a module or a test suite.
+                        // Targets can depend on other targets in this package and products from dependencies.
+                        // Macro implementation that performs the source transformation of a macro.
+                        .macro(name: "RundownMacros",
+                               dependencies: [
+                                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+                               ]),
 
-        // Library that exposes a macro as part of its API, which is used in client programs.
-        .target(name: "Rundown", dependencies: ["RundownMacros"]),
+                        // Library that exposes a macro as part of its API, which is used in client programs.
+                        .target(name: "Rundown", dependencies: ["RundownMacros"]),
 
-        .target(name: "RundownSwiftTesting", dependencies: ["Rundown", "RundownMacros"]),
+                        .target(name: "RundownSwiftTesting", dependencies: ["Rundown", "RundownMacros"]),
 
-        // A test target used to develop the macro implementation.
-        .testTarget(
-            name: "RundownTests",
-            dependencies: [
-                "RundownMacros",
-                "Rundown",
-                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
-            ]
-        ),
-        .testTarget(
-            name: "RundownSwiftTestingTests",
-            dependencies: ["Rundown", "RundownSwiftTesting"]
-        ),
-        .testTarget(
-            name: "RundownCompileFailureTests",
-            dependencies: []
-        ),
-    ]
-)
+                        // A test target used to develop the macro implementation.
+                        .testTarget(name: "RundownTests",
+                                    dependencies: [
+                                      "RundownMacros",
+                                      "Rundown",
+                                      .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+                                    ]),
+                        .testTarget(name: "RundownSwiftTestingTests",
+                                    dependencies: ["Rundown", "RundownSwiftTesting"]),
+                        .testTarget(name: "RundownCompileFailureTests",
+                                    dependencies: []),
+                      ])
 
