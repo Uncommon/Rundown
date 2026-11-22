@@ -4,7 +4,7 @@ Rundown helps you organize Swift tests by behavior. Using an RSpec-style DSL, yo
 
 ## Get started
 
-Rundown requires Swift 6.0 or later. The package targets macOS 15, iOS 17, tvOS 17, watchOS 10, and Mac Catalyst 17 or later.
+Rundown requires Swift 6.2 or later and Xcode 26 or later. The package targets macOS 15, iOS 17, tvOS 17, watchOS 10, and Mac Catalyst 17 or later.
 
 Add `https://github.com/Uncommon/Rundown.git` as a package dependency in Xcode or in your `Package.swift`. Use the `main` branch to get the current version. Then add the product for your test framework to your test target.
 
@@ -13,7 +13,7 @@ Add `https://github.com/Uncommon/Rundown.git` as a package dependency in Xcode o
 
 ### In Swift Testing
 
-Conform your test type to `SwiftTestingSuite` and call `try spec` inside a regular `@Test` function. On Swift 6.2 or later, add `@Suite(.rundownPaths)` to include the full example path on failed assertions.
+Conform your test type to `SwiftTestingSuite` and call `try spec` inside a regular `@Test` function. Add `@Suite(.rundownPaths)` to include the full example path on failed assertions.
 
 ```swift
 import RundownSwiftTesting
@@ -175,7 +175,7 @@ Groups run their children in order by default. Mark a group `.concurrent` to all
 
 ### Assertion paths in synchronous specs
 
-The `.rundownPaths` suite trait adds paths to failed `#expect` and `#require` assertions in synchronous specs. If your examples need `await`, use `try await spec { … }` in an async `@Test`. On Swift 6.2 or later, async specs add assertion paths automatically. Rundown reports thrown errors with their paths in both synchronous and asynchronous specs.
+The `.rundownPaths` suite trait adds paths to failed `#expect` and `#require` assertions in synchronous specs. If your examples need `await`, use `try await spec { … }` in an async `@Test`. Async specs add assertion paths automatically. Rundown reports thrown errors with their paths in both synchronous and asynchronous specs.
 
 ### Main-actor tests
 

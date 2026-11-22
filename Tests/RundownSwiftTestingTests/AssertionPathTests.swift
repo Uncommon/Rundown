@@ -1,4 +1,3 @@
-#if compiler(>=6.2)
 import os
 import RundownSwiftTesting
 import Testing
@@ -114,4 +113,3 @@ struct SuiteAssertionPathTests: SwiftTestingSuite {
     #expect(comments == [["probe async", "Rundown path: Async spec, fails"]])
   }
 }
-#endif

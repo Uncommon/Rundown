@@ -6,8 +6,8 @@ import Rundown
 /// in the same file as the suite type.
 ///
 /// Use `try spec { ... }` in synchronous tests and `try await spec { ... }` in
-/// asynchronous tests. Async specs add assertion paths automatically on Swift
-/// 6.2 and later. Apply `@Suite(.rundownPaths)` to add them to sync specs.
+/// asynchronous tests. Async specs add assertion paths automatically.
+/// Apply `@Suite(.rundownPaths)` to add them to sync specs.
 ///
 /// Sync specs run `.concurrent` groups serially. Async specs reject
 /// `.concurrent` on main-actor groups before running their hooks.

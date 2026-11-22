@@ -4,7 +4,6 @@ import Testing
 
 private enum FixtureSpecFailure: Error { case setup, body, cleanup }
 
-#if compiler(>=6.2)
 private enum FixtureAssertionProbe {
   @TaskLocal static var issues: OSAllocatedUnfairLock<[Issue]>?
 
@@ -16,11 +15,8 @@ private enum FixtureAssertionProbe {
     return nil
   }
 }
-#endif
 
-#if compiler(>=6.2)
 @Suite(FixtureAssertionProbe.capture, .rundownPaths)
-#endif
 struct FixtureSpecTests: SwiftTestingSuite {
   @Test func recordsOriginalErrorsWithPhasePaths() throws {
     let paths = OSAllocatedUnfairLock(initialState: [String]())
@@ -50,7 +46,6 @@ struct FixtureSpecTests: SwiftTestingSuite {
     #expect(events.withLock { $0 } == ["afterEach", "afterEach", "sibling", "afterEach"])
   }
 
-#if compiler(>=6.2)
   @Test func requireFailuresAreNotDuplicatedAndCleanupStillRuns() async throws {
     let issues = OSAllocatedUnfairLock(initialState: [Issue]())
     let events = OSAllocatedUnfairLock(initialState: [String]())
@@ -81,7 +76,6 @@ struct FixtureSpecTests: SwiftTestingSuite {
     ])
     #expect(events.withLock { $0 } == ["afterEach", "afterEach", "sibling", "afterEach"])
   }
-#endif
 
 #if compiler(>=6.3)
   @Test func cancellationDuringSuccessfulSetupCleansUpWithoutStartingBody() async throws {

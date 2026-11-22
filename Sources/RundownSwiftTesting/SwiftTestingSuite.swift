@@ -5,7 +5,7 @@
 ///
 /// ### Paths on assertion failures
 ///
-/// With Swift 6.2 or later, `try await spec { ... }` automatically adds a
+/// Calling `try await spec { ... }` automatically adds a
 /// `Rundown path` comment to failed `#expect` and `#require` assertions.
 /// The issue keeps its original source location and comments.
 ///
@@ -31,8 +31,7 @@
 /// ```
 ///
 /// In a mixed suite, the annotation covers sync tests and async failures still
-/// receive a single path comment. On Swift 6.0 and 6.1, native assertions use
-/// Swift Testing's standard output and thrown errors still include Rundown paths.
+/// receive a single path comment.
 ///
 /// Synchronous specs run `.concurrent` groups serially to preserve the host test context.
 public protocol SwiftTestingSuite {}
