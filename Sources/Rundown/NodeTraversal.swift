@@ -80,7 +80,7 @@ extension ExampleNode {
 
     try await withGroupHooks(reporter) {
       let error = await forEachChild(selected, concurrently: concurrent) { child in
-        try await self.runAround(self.selectedHooks(.aroundEach)[...], reporter) {
+        try await self.runAround(self.selectedHooks(.aroundEachPeer)[...], reporter) {
           try await self.runElement(child, reporter)
         }
       }
@@ -130,7 +130,7 @@ extension ExampleNode {
     var firstError: (any Error)?
     var setUpSuccessful = true
 
-    for hook in selectedHooks(.beforeEach) {
+    for hook in selectedHooks(.beforeEachPeer) {
       guard !reporter.shouldStop
       else { break }
       switch await hook.runLeaf(reporter) {
@@ -139,7 +139,7 @@ extension ExampleNode {
         case .skipped:
           if !reporter.shouldStop { return }
         case .failed(let error):
-          // The element doesn't run, but afterEach still does
+          // The element doesn't run, but afterEachPeer still does
           firstError = error
       }
       setUpSuccessful = false
@@ -147,12 +147,12 @@ extension ExampleNode {
     }
     if setUpSuccessful && !reporter.shouldStop {
       let outcome = await child.runChild(reporter)
-      // An example that skips is swallowed, and afterEach still runs
+      // An example that skips is swallowed, and afterEachPeer still runs
       if case .failed(let error) = outcome {
         firstError = error
       }
     }
-    for hook in selectedHooks(.afterEach) {
+    for hook in selectedHooks(.afterEachPeer) {
       if case .failed(let error) = await hook.runLeaf(reporter) {
         firstError = firstError ?? error
       }
@@ -250,7 +250,7 @@ extension ExampleNode {
     return skipped ? .skipped : .completed
   }
 
-  /// Nests the `aroundEach` hooks, outermost first, around `inner`.
+  /// Nests the `aroundEachPeer` hooks, outermost first, around `inner`.
   ///
   /// A hook has no scope, but an error that it throws itself is reported. One
   /// that comes out of `inner` has been reported already, so it is only

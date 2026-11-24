@@ -1,16 +1,16 @@
 import os
 public struct ExampleGroup<Call: CallType>: TestExample {
   typealias BeforeAll = TestHook<BeforeAllPhase, Call>
-  typealias BeforeEach = TestHook<BeforeEachPhase, Call>
-  typealias AfterEach = TestHook<AfterEachPhase, Call>
+  typealias BeforeEachPeer = TestHook<BeforeEachPeerPhase, Call>
+  typealias AfterEachPeer = TestHook<AfterEachPeerPhase, Call>
   typealias AfterAll = TestHook<AfterAllPhase, Call>
 
   public let description: String
   public let traits: [any Trait]
   let beforeAllHooks: [BeforeAll]
-  let aroundEachHooks: [AroundEach<Call>]
-  let beforeEachHooks: [BeforeEach]
-  let afterEachHooks: [AfterEach]
+  let aroundEachPeerHooks: [AroundEachPeer<Call>]
+  let beforeEachPeerHooks: [BeforeEachPeer]
+  let afterEachPeerHooks: [AfterEachPeer]
   let afterAllHooks: [AfterAll]
   let elements: [any TestExample]
   
@@ -33,9 +33,9 @@ public struct ExampleGroup<Call: CallType>: TestExample {
     self.description = description
     self.traits = traits
     self.beforeAllHooks = builtGroup.beforeAllHooks
-    self.aroundEachHooks = builtGroup.aroundEachHooks
-    self.beforeEachHooks = builtGroup.beforeEachHooks
-    self.afterEachHooks = builtGroup.afterEachHooks
+    self.aroundEachPeerHooks = builtGroup.aroundEachPeerHooks
+    self.beforeEachPeerHooks = builtGroup.beforeEachPeerHooks
+    self.afterEachPeerHooks = builtGroup.afterEachPeerHooks
     self.afterAllHooks = builtGroup.afterAllHooks
     self.elements = builtGroup.elements
   }
@@ -43,17 +43,17 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   init(description: String,
        traits: [any Trait],
        beforeAll: [BeforeAll],
-       aroundEach: [AroundEach<Call>],
-       beforeEach: [BeforeEach],
-       afterEach: [AfterEach],
+       aroundEachPeer: [AroundEachPeer<Call>],
+       beforeEachPeer: [BeforeEachPeer],
+       afterEachPeer: [AfterEachPeer],
        afterAll: [AfterAll],
        elements: [any TestExample]) {
     self.description = description
     self.traits = traits
     self.beforeAllHooks = beforeAll
-    self.aroundEachHooks = aroundEach
-    self.beforeEachHooks = beforeEach
-    self.afterEachHooks = afterEach
+    self.aroundEachPeerHooks = aroundEachPeer
+    self.beforeEachPeerHooks = beforeEachPeer
+    self.afterEachPeerHooks = afterEachPeer
     self.afterAllHooks = afterAll
     self.elements = elements
   }
@@ -63,9 +63,9 @@ public struct ExampleGroup<Call: CallType>: TestExample {
     return Self.init(description: name,
                      traits: traits,
                      beforeAll: beforeAllHooks,
-                     aroundEach: aroundEachHooks,
-                     beforeEach: beforeEachHooks,
-                     afterEach: afterEachHooks,
+                     aroundEachPeer: aroundEachPeerHooks,
+                     beforeEachPeer: beforeEachPeerHooks,
+                     afterEachPeer: afterEachPeerHooks,
                      afterAll: afterAllHooks,
                      elements: elements)
   }
@@ -84,22 +84,22 @@ public struct ExampleGroup<Call: CallType>: TestExample {
 extension ExampleGroup where Call == AsyncCall {
   /// Converts a group that was built with sync elements into an async group.
   ///
-  /// - Important: `aroundEach` hooks are dropped, in the group and in any
-  /// nested groups. A sync `aroundEach` calls its callback synchronously, so it
+  /// - Important: `aroundEachPeer` hooks are dropped, in the group and in any
+  /// nested groups. A sync `aroundEachPeer` calls its callback synchronously, so it
   /// can't wrap the async callback of an async group. An error is logged when
   /// this happens, but the converted group still runs, just without those hooks.
-  /// To run a sync group that has `aroundEach` hooks, run it as a sync group.
+  /// To run a sync group that has `aroundEachPeer` hooks, run it as a sync group.
   public init(fromSync other: ExampleGroup<SyncCall>) {
     self.description = other.description
     self.traits = other.traits
     self.beforeAllHooks = other.beforeAllHooks.map { .init(fromSync: $0) }
-    if !other.aroundEachHooks.isEmpty {
+    if !other.aroundEachPeerHooks.isEmpty {
       Logger(subsystem: "Rundown", category: "ExampleGroup")
-        .error("aroundEach cannot be converted from sync to async")
+        .error("aroundEachPeer cannot be converted from sync to async")
     }
-    self.aroundEachHooks = []
-    self.beforeEachHooks = other.beforeEachHooks.map { .init(fromSync: $0) }
-    self.afterEachHooks = other.afterEachHooks.map { .init(fromSync: $0) }
+    self.aroundEachPeerHooks = []
+    self.beforeEachPeerHooks = other.beforeEachPeerHooks.map { .init(fromSync: $0) }
+    self.afterEachPeerHooks = other.afterEachPeerHooks.map { .init(fromSync: $0) }
     self.afterAllHooks = other.afterAllHooks.map { .init(fromSync: $0) }
     self.elements = other.elements.map {
       switch $0 {

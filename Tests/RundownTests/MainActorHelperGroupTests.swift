@@ -21,12 +21,12 @@ extension SharedSearchGroups {
   @ExampleBuilder<SyncMainCall>
   func searchGroup(_ log: Box<[String]>) -> ExampleGroup<SyncMainCall> {
     beforeAll { isolatedRecord(log, "beforeAll") }
-    aroundEach { callback in
+    aroundEachPeer { callback in
       isolatedRecord(log, "around>")
       try callback()
       isolatedRecord(log, "<around")
     }
-    beforeEach { isolatedRecord(log, "beforeEach") }
+    beforeEachPeer { isolatedRecord(log, "beforeEachPeer") }
     it("first") { isolatedRecord(log, "first") }
     context("nested") {
       it("second") { isolatedRecord(log, "second") }
@@ -37,7 +37,7 @@ extension SharedSearchGroups {
     if Bool.random() || true {
       it("conditional") { isolatedRecord(log, "conditional") }
     }
-    afterEach { isolatedRecord(log, "afterEach") }
+    afterEachPeer { isolatedRecord(log, "afterEachPeer") }
     afterAll { isolatedRecord(log, "afterAll") }
   }
 
@@ -51,10 +51,10 @@ extension SharedSearchGroups {
       isolatedRecord(log, "async")
     }
     context("nested") {
-      beforeEach { await Task.yield() }
+      beforeEachPeer { await Task.yield() }
       it("inner") { isolatedRecord(log, "inner") }
     }
-    afterEach { isolatedRecord(log, "afterEach") }
+    afterEachPeer { isolatedRecord(log, "afterEachPeer") }
     afterAll { isolatedRecord(log, "afterAll") }
   }
 }
@@ -74,7 +74,7 @@ final class MainActorHelperGroupTests: Rundown.TestCase, SharedSearchGroups {
   /// The log that `searchGroup` should produce
   var expectedSearchLog: [String] {
     func wrapped(_ name: String) -> [String] {
-      ["around>", "beforeEach", name, "afterEach", "<around"]
+      ["around>", "beforeEachPeer", name, "afterEachPeer", "<around"]
     }
     return ["beforeAll"]
       + ["first", "second", "loop 1", "loop 2", "conditional"].flatMap(wrapped)
@@ -101,9 +101,9 @@ final class MainActorHelperGroupTests: Rundown.TestCase, SharedSearchGroups {
     try await asyncSearchGroup(log).run()
     XCTAssertEqual(log.wrappedValue,
                    ["beforeAll",
-                    "sync", "afterEach",
-                    "async", "afterEach",
-                    "inner", "afterEach",
+                    "sync", "afterEachPeer",
+                    "async", "afterEachPeer",
+                    "inner", "afterEachPeer",
                     "afterAll"])
   }
 
@@ -119,10 +119,10 @@ final class MainActorHelperGroupTests: Rundown.TestCase, SharedSearchGroups {
     let log = Box([String]())
 
     try spec("outer") {
-      beforeEach { isolatedRecord(log, "outer beforeEach") }
+      beforeEachPeer { isolatedRecord(log, "outer beforeEachPeer") }
       searchGroup(log)
     }
-    XCTAssertEqual(log.wrappedValue.first, "outer beforeEach")
+    XCTAssertEqual(log.wrappedValue.first, "outer beforeEachPeer")
     XCTAssertEqual(log.wrappedValue.last, "afterAll")
     XCTAssertEqual(log.wrappedValue.filter { $0 == "first" }.count, 1)
   }

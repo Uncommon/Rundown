@@ -10,35 +10,35 @@ struct DiscoveryHookLifetimeSpec {
 
   var spec: SpecBody {
     beforeAll { record("root beforeAll") }
-    aroundEach { run in
-      record("root aroundEach enter")
-      defer { record("root aroundEach exit") }
+    aroundEachPeer { run in
+      record("root aroundEachPeer enter")
+      defer { record("root aroundEachPeer exit") }
       try await Self.$insideEach.withValue(true) { try await run() }
     }
-    beforeEach { record("root beforeEach") }
+    beforeEachPeer { record("root beforeEachPeer") }
     context("Nested") {
       beforeAll { record("nested beforeAll") }
-      beforeEach { record("nested beforeEach") }
+      beforeEachPeer { record("nested beforeEachPeer") }
       it("First") {
         await Task.yield()
         record("first")
       }
       it("Second") { record("second") }
-      afterEach { record("nested afterEach") }
+      afterEachPeer { record("nested afterEachPeer") }
       afterAll { record("nested afterAll") }
     }
     it("Tail") { record("tail") }
-    afterEach { record("root afterEach") }
+    afterEachPeer { record("root afterEachPeer") }
     afterAll {
       record("root afterAll")
       let events = trace.withLock { $0 }
       print("discovery hook trace: \(events.joined(separator: " | "))")
-      let nestedTrace = ["nested beforeAll", "nested beforeEach", "first", "nested afterEach",
-                         "nested beforeEach", "second", "nested afterEach", "nested afterAll"]
+      let nestedTrace = ["nested beforeAll", "nested beforeEachPeer", "first", "nested afterEachPeer",
+                         "nested beforeEachPeer", "second", "nested afterEachPeer", "nested afterAll"]
       let children = Array(repeating: nestedTrace, count: events.filter { $0 == "first" }.count)
         + Array(repeating: ["tail"], count: events.filter { $0 == "tail" }.count)
       let wrappedChildren = children.flatMap {
-        ["root aroundEach enter", "root beforeEach"] + $0 + ["root afterEach", "root aroundEach exit"]
+        ["root aroundEachPeer enter", "root beforeEachPeer"] + $0 + ["root afterEachPeer", "root aroundEachPeer exit"]
       }
       #expect(!children.isEmpty)
       #expect(events == ["root beforeAll"] + wrappedChildren + ["root afterAll"])

@@ -18,10 +18,10 @@ private struct DiscoverySelectionFixture: Sendable {
   @ExampleBuilder<AsyncCall>
   func build() -> ExampleGroup<AsyncCall> {
     beforeAll("excluded", .excluded) { Issue.record("Ran an excluded beforeAll") }
-    aroundEach(.excluded) { _ in
-      Issue.record("Ran an excluded aroundEach")
+    aroundEachPeer(.excluded) { _ in
+      Issue.record("Ran an excluded aroundEachPeer")
     }
-    beforeEach("excluded", .excluded) { Issue.record("Ran an excluded beforeEach") }
+    beforeEachPeer("excluded", .excluded) { Issue.record("Ran an excluded beforeEachPeer") }
 
     it("Unfocused root example") { record("Unfocused root example") }
     context("Nested focus") {
@@ -30,7 +30,7 @@ private struct DiscoverySelectionFixture: Sendable {
       it("Excluded focused example", focused ? [.excluded, .focused] : [.excluded]) {
         Issue.record("Ran an excluded focused example")
       }
-      afterEach("excluded", .excluded) { Issue.record("Ran an excluded nested afterEach") }
+      afterEachPeer("excluded", .excluded) { Issue.record("Ran an excluded nested afterEachPeer") }
     }
     context("Holder") {
       it("Holder example") { record("Holder example") }
@@ -44,7 +44,7 @@ private struct DiscoverySelectionFixture: Sendable {
       beforeAll { Issue.record("Set up an excluded branch") }
       it("Excluded descendant") { Issue.record("Ran inside an excluded root branch") }
     }
-    afterEach("excluded", .excluded) { Issue.record("Ran an excluded afterEach") }
+    afterEachPeer("excluded", .excluded) { Issue.record("Ran an excluded afterEachPeer") }
     afterAll("excluded", .excluded) { Issue.record("Ran an excluded afterAll") }
     afterAll {
       print("discovery selection \(ExampleRunner.current?.path.first ?? "unknown"): \(examples.sorted().joined(separator: ", "))")

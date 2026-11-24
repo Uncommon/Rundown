@@ -222,11 +222,11 @@ final class ExecutionTests: Rundown.TestCase {
     XCTAssertEqual(afterCount.wrappedValue, expected)
   }
 
-  func testAroundEachAsync() async throws {
+  func testAroundEachPeerAsync() async throws {
     let result = Box([String]())
 
     try await describe("ArounchEach") {
-      aroundEach { (callback) in
+      aroundEachPeer { (callback) in
         result.wrappedValue.append("around start")
         try await ExecutionTests.$taskLocal.withValue(true) {
           try await callback()
@@ -244,37 +244,37 @@ final class ExecutionTests: Rundown.TestCase {
                    ["around start", "it", "around end"])
   }
 
-  func testAroundEachWithHooksAsync() async throws {
+  func testAroundEachPeerWithHooksAsync() async throws {
     let result = Box([String]())
     
     try await describe("ArounchEach") {
       beforeAll {
         result.wrappedValue.append("beforeAll")
       }
-      aroundEach { (callback) in
+      aroundEachPeer { (callback) in
         result.wrappedValue.append("around start")
         try await ExecutionTests.$taskLocal.withValue(true) {
           try await callback()
         }
         result.wrappedValue.append("around end")
       }
-      beforeEach {
-        result.wrappedValue.append("beforeEach")
+      beforeEachPeer {
+        result.wrappedValue.append("beforeEachPeer")
       }
       
       it("works") {
         result.wrappedValue.append("it")
       }
       
-      afterEach {
-        result.wrappedValue.append("afterEach")
+      afterEachPeer {
+        result.wrappedValue.append("afterEachPeer")
       }
     }.run()
     
     XCTAssertEqual(result.wrappedValue,
                    ["beforeAll",
                     "around start",
-                    "beforeEach", "it", "afterEach",
+                    "beforeEachPeer", "it", "afterEachPeer",
                     "around end"])
   }
 }

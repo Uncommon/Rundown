@@ -76,17 +76,21 @@ public func beforeAll(_ name: String = "", _ traits: (any Trait)...,
   .init(name, traits, execute: execute)
 }
 
+/// Runs before each example or nested group in the same enclosing group.
+/// A nested group is prepared once, before any of its hooks or examples run.
 @DeAsyncRD
 @_disfavoredOverload
-public func beforeEach(_ name: String = "", _ traits: (any Trait)...,
-                       execute: @escaping AsyncCall.Callback) -> TestHook<BeforeEachPhase, AsyncCall> {
+public func beforeEachPeer(_ name: String = "", _ traits: (any Trait)...,
+                           execute: @escaping AsyncCall.Callback) -> TestHook<BeforeEachPeerPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 
+/// Runs after each example or nested group in the same enclosing group.
+/// A nested group is cleaned up once, after all of its hooks and examples finish.
 @DeAsyncRD
 @_disfavoredOverload
-public func afterEach(_ name: String = "", _ traits: (any Trait)...,
-                      execute: @escaping AsyncCall.Callback) -> TestHook<AfterEachPhase, AsyncCall> {
+public func afterEachPeer(_ name: String = "", _ traits: (any Trait)...,
+                          execute: @escaping AsyncCall.Callback) -> TestHook<AfterEachPeerPhase, AsyncCall> {
   .init(name, traits, execute: execute)
 }
 

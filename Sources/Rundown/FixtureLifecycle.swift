@@ -21,7 +21,7 @@ struct FixtureErrors: Error {
 
 enum FixtureExecution {
   // Matches the host's cancellation policy between fixture setup and the
-  // example, just as the traversal checks it after a beforeEach hook.
+  // example, just as the traversal checks it after a beforeEachPeer hook.
   @TaskLocal static var shouldStop: @Sendable () -> Bool = { false }
 }
 

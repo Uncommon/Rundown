@@ -54,17 +54,17 @@ struct AsyncAssertionPathTests: SwiftTestingSuite {
     try await AssertionProbe.$issues.withValue(issues) {
       try await spec("Requirements") {
         context("nested") {
-          aroundEach { run in
+          aroundEachPeer { run in
             defer { trace.withLock { $0.append("wrapper exit") } }
             try await run()
           }
-          beforeEach("fixture") {
+          beforeEachPeer("fixture") {
             await Task.yield()
             try #require(Bool(false), "probe setup", sourceLocation: assertionLocation)
           }
           it("never starts") { Issue.record("Ran an example after a failed setup requirement") }
-          afterEach("release") { try #require(Bool(false), "probe teardown") }
-          afterEach { trace.withLock { $0.append("remaining afterEach") } }
+          afterEachPeer("release") { try #require(Bool(false), "probe teardown") }
+          afterEachPeer { trace.withLock { $0.append("remaining afterEachPeer") } }
           afterAll { trace.withLock { $0.append("nested afterAll") } }
         }
         it("runs after the nested group") { trace.withLock { $0.append("sibling") } }
@@ -73,11 +73,11 @@ struct AsyncAssertionPathTests: SwiftTestingSuite {
 
     let recorded = issues.withLock { $0 }
     #expect(recorded.map { $0.comments.map(\.rawValue) } == [
-      ["probe setup", "Rundown path: Requirements, nested, before each: fixture"],
-      ["probe teardown", "Rundown path: Requirements, nested, after each: release"],
+      ["probe setup", "Rundown path: Requirements, nested, before each peer: fixture"],
+      ["probe teardown", "Rundown path: Requirements, nested, after each peer: release"],
     ])
     #expect(recorded.first?.sourceLocation == assertionLocation)
-    #expect(trace.withLock { $0 } == ["remaining afterEach", "wrapper exit", "nested afterAll", "sibling"])
+    #expect(trace.withLock { $0 } == ["remaining afterEachPeer", "wrapper exit", "nested afterAll", "sibling"])
   }
 }
 

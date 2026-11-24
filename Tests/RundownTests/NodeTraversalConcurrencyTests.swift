@@ -32,7 +32,7 @@ final class NodeTraversalConcurrencyTests: XCTestCase {
     let paths = Box([String]())
 
     try describe("Root") {
-      beforeEach { paths.note(ExampleRunner.current?.description ?? "none") }
+      beforeEachPeer { paths.note(ExampleRunner.current?.description ?? "none") }
       it("first") { paths.note(ExampleRunner.current?.description ?? "none") }
       context("nested") {
         it("inner") { paths.note(ExampleRunner.current?.description ?? "none") }
@@ -41,18 +41,18 @@ final class NodeTraversalConcurrencyTests: XCTestCase {
     }.node.run(with: PlainReporter())
 
     XCTAssertEqual(paths.wrappedValue, [
-      "Root, before each", "Root, first",
-      "Root, before each", "Root, nested, inner",
+      "Root, before each peer", "Root, first",
+      "Root, before each peer", "Root, nested, inner",
       "Root, after all",
     ])
     XCTAssertNil(ExampleRunner.current, "the runner should not outlive the run")
   }
 
-  func testAroundEachSeesTheGroupsPath() throws {
+  func testAroundEachPeerSeesTheGroupsPath() throws {
     let path = Box("")
 
     try describe("Root") {
-      aroundEach { callback in
+      aroundEachPeer { callback in
         path.wrappedValue = ExampleRunner.current?.description ?? "none"
         try callback()
       }

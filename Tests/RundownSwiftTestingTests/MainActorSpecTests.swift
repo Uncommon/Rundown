@@ -21,19 +21,19 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     try withKnownIssue {
       try spec {
         beforeAll { log.append("beforeAll") }
-        aroundEach { run in
-          log.append("aroundEach start")
+        aroundEachPeer { run in
+          log.append("aroundEachPeer start")
           try run()
-          log.append("aroundEach end")
+          log.append("aroundEachPeer end")
         }
-        beforeEach { log.append("beforeEach") }
+        beforeEachPeer { log.append("beforeEachPeer") }
         context("nested") {
           it("throws") {
             log.append("example")
             throw MainActorSpecFailure()
           }
         }
-        afterEach { log.append("afterEach") }
+        afterEachPeer { log.append("afterEachPeer") }
         afterAll { log.append("afterAll") }
       }
     } matching: { issue in
@@ -42,8 +42,8 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     }
 
     #expect(log.entries == [
-      "beforeAll", "aroundEach start", "beforeEach", "example", "afterEach",
-      "aroundEach end", "afterAll",
+      "beforeAll", "aroundEachPeer start", "beforeEachPeer", "example", "afterEachPeer",
+      "aroundEachPeer end", "afterAll",
     ])
   }
 
@@ -58,12 +58,12 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
           await Task.yield()
           log.append("beforeAll")
         }
-        aroundEach { run in
-          log.append("aroundEach start")
+        aroundEachPeer { run in
+          log.append("aroundEachPeer start")
           try await run()
-          log.append("aroundEach end")
+          log.append("aroundEachPeer end")
         }
-        beforeEach { log.append("beforeEach") }
+        beforeEachPeer { log.append("beforeEachPeer") }
         context("nested") {
           it("throws") {
             await Task.yield()
@@ -71,7 +71,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
             throw MainActorSpecFailure()
           }
         }
-        afterEach { log.append("afterEach") }
+        afterEachPeer { log.append("afterEachPeer") }
         afterAll { log.append("afterAll") }
       }
     } matching: { issue in
@@ -80,8 +80,8 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     }
 
     #expect(log.entries == [
-      "beforeAll", "aroundEach start", "beforeEach", "example", "afterEach",
-      "aroundEach end", "afterAll",
+      "beforeAll", "aroundEachPeer start", "beforeEachPeer", "example", "afterEachPeer",
+      "aroundEachPeer end", "afterAll",
     ])
   }
 
@@ -92,7 +92,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     try spec("Main actor fixtures") {
       let _ = MainActor.preconditionIsolated()
       context("serial workers", .concurrent) {
-        beforeEach { log.append("setup") }
+        beforeEachPeer { log.append("setup") }
         for index in 0..<3 {
           it("worker \(index)") {
             #expect(Test.current?.id == host)
@@ -100,7 +100,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
             log.append("worker \(index)")
           }
         }
-        afterEach { log.append("teardown") }
+        afterEachPeer { log.append("teardown") }
       }
     }
 
@@ -113,7 +113,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
 
     do {
       try await spec("Main actor fixtures") {
-        beforeEach { log.append("root setup") }
+        beforeEachPeer { log.append("root setup") }
         context("invalid workers", .concurrent) {
           beforeAll { Issue.record("Set up an invalid concurrent group") }
           it("never starts") {
@@ -123,7 +123,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
           afterAll { Issue.record("Tore down an invalid concurrent group") }
         }
         it("valid sibling") { log.append("sibling") }
-        afterEach { log.append("root element teardown") }
+        afterEachPeer { log.append("root element teardown") }
         afterAll { log.append("root teardown") }
       }
       Issue.record("Expected ConcurrentDisallowedError from the spec")

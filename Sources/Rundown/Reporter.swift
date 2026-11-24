@@ -18,7 +18,7 @@
 package protocol Reporter: Sendable {
   /// Runs `body` as the scope of `node`. The traversal calls this around the
   /// root group, each nested group, each example and each hook except
-  /// `aroundEach`. Everything the node does happens inside `body`, including
+  /// `aroundEachPeer`. Everything the node does happens inside `body`, including
   /// the calls to `report` for errors that it threw, so that a reporter can
   /// attach an error to the node it came from.
   ///
@@ -32,7 +32,7 @@ package protocol Reporter: Sendable {
   func classify(_ error: any Error) -> ErrorKind
 
   /// Called for a new failure or skip thrown by a node's own code, in the
-  /// scope of that node, except for `aroundEach` hooks, which have no scope.
+  /// scope of that node, except for `aroundEachPeer` hooks, which have no scope.
   /// The returned decision says whether the traversal should rethrow the
   /// error once the run is over, or consider it dealt with.
   ///

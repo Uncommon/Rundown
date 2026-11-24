@@ -36,14 +36,14 @@ public protocol EachPhase: HookPhase where Scope == EachScope {}
 public enum BeforeAllPhase: BeforePhase, AllPhase {
   public static var phaseName: String { "before all" }
 }
-public enum AroundEachPhase: BeforePhase, AroundPhase {
-  public static var phaseName: String { "around each" }
+public enum AroundEachPeerPhase: BeforePhase, AroundPhase {
+  public static var phaseName: String { "around each peer" }
 }
-public enum BeforeEachPhase: BeforePhase, EachPhase {
-  public static var phaseName: String { "before each" }
+public enum BeforeEachPeerPhase: BeforePhase, EachPhase {
+  public static var phaseName: String { "before each peer" }
 }
-public enum AfterEachPhase: AfterPhase, EachPhase {
-  public static var phaseName: String { "after each" }
+public enum AfterEachPeerPhase: AfterPhase, EachPhase {
+  public static var phaseName: String { "after each peer" }
 }
 public enum AfterAllPhase: AfterPhase, AllPhase {
   public static var phaseName: String { "after all" }

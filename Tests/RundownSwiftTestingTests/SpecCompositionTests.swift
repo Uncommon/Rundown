@@ -9,15 +9,15 @@ struct SpecCompositionTests: SwiftTestingSuite {
                              values: [Int]) -> ExampleGroup<AsyncCall> {
     context("generated group") {
       beforeAll { trace.withLock { $0.append("group setup") } }
-      aroundEach(.excluded) { _ in
+      aroundEachPeer(.excluded) { _ in
         Issue.record("Entered an excluded wrapper")
       }
-      aroundEach { run in
+      aroundEachPeer { run in
         #expect(Self.fixture == "root")
         try await Self.$fixture.withValue("nested") { try await run() }
         #expect(Self.fixture == "root")
       }
-      beforeEach {
+      beforeEachPeer {
         #expect(Self.fixture == "nested")
         trace.withLock { $0.append("example setup") }
       }
@@ -35,7 +35,7 @@ struct SpecCompositionTests: SwiftTestingSuite {
         }
       }
       fIt("excluded despite focus", .excluded) { Issue.record("Ran an excluded example") }
-      afterEach {
+      afterEachPeer {
         #expect(Self.fixture == "nested")
         trace.withLock { $0.append("example teardown") }
       }
@@ -48,13 +48,13 @@ struct SpecCompositionTests: SwiftTestingSuite {
 
     try await spec("Composition") {
       beforeAll { trace.withLock { $0.append("root setup") } }
-      aroundEach { run in
+      aroundEachPeer { run in
         trace.withLock { $0.append("root wrapper enter") }
         try await Self.$fixture.withValue("root") { try await run() }
         #expect(Self.fixture == nil)
         trace.withLock { $0.append("root wrapper exit") }
       }
-      beforeEach { trace.withLock { $0.append("root element setup") } }
+      beforeEachPeer { trace.withLock { $0.append("root element setup") } }
       it("unfocused sibling") { Issue.record("Ran an unfocused sibling") }
       selectedGroup(trace, values: [1, 2, 3, 4])
       xContext("excluded group") {
@@ -67,7 +67,7 @@ struct SpecCompositionTests: SwiftTestingSuite {
         #expect(Self.fixture == "root")
         trace.withLock { $0.append("async sibling") }
       }
-      afterEach { trace.withLock { $0.append("root element teardown") } }
+      afterEachPeer { trace.withLock { $0.append("root element teardown") } }
       afterAll { trace.withLock { $0.append("root teardown") } }
     }
 

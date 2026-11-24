@@ -3,7 +3,7 @@ import XCTest
 
 /// Characterization tests for the XCTest runner. They pin down the structure
 /// of the `XCTContext` activities (names and nesting) and the order of hooks
-/// around `aroundEach`, so that changes to how the runner is built can be
+/// around `aroundEachPeer`, so that changes to how the runner is built can be
 /// shown not to alter its behavior.
 ///
 /// XCTest has no public way to observe activities from outside, so each step
@@ -40,18 +40,18 @@ final class ActivityStructureXCTests: Rundown.TestCase {
   }
 
   /// Every step runs in an activity named for the last element of its path,
-  /// except an `aroundEach` callback, which runs in the group's activity.
+  /// except an `aroundEachPeer` callback, which runs in the group's activity.
   func testActivityNameMatchesInnermostElement() throws {
     let log = Log()
 
     try spec("Activities") {
       beforeAll { log.record("beforeAll") }
-      beforeEach { log.record("beforeEach") }
+      beforeEachPeer { log.record("beforeEachPeer") }
       it("first") { log.record("first") }
       context("nested") {
         it("second") { log.record("second") }
       }
-      afterEach { log.record("afterEach") }
+      afterEachPeer { log.record("afterEachPeer") }
       afterAll { log.record("afterAll") }
     }
 
@@ -68,42 +68,42 @@ final class ActivityStructureXCTests: Rundown.TestCase {
 
     try spec("Root") {
       beforeAll { log.record("beforeAll") }
-      beforeEach { log.record("beforeEach") }
+      beforeEachPeer { log.record("beforeEachPeer") }
       it("first") { log.record("first") }
       context("nested") {
         beforeAll { log.record("nested beforeAll") }
         it("second") { log.record("second") }
         afterAll { log.record("nested afterAll") }
       }
-      afterEach { log.record("afterEach") }
+      afterEachPeer { log.record("afterEachPeer") }
       afterAll { log.record("afterAll") }
     }
 
     let beforeAll = "before all"
-    let beforeEach = "before each"
-    let afterEach = "after each"
+    let beforeEachPeer = "before each peer"
+    let afterEachPeer = "after each peer"
     let afterAll = "after all"
 
     XCTAssertEqual(log.snapshots.map(\.path), [
       ["Root", beforeAll],
-      // beforeEach hooks belong to the group that declares them, so they run
+      // beforeEachPeer hooks belong to the group that declares them, so they run
       // as children of the group's activity, before the element's own.
-      ["Root", beforeEach],
+      ["Root", beforeEachPeer],
       ["Root", "first"],
-      ["Root", afterEach],
-      ["Root", beforeEach],
-      // The nested context is one element of Root, so Root's each-hooks run
+      ["Root", afterEachPeer],
+      ["Root", beforeEachPeer],
+      // The nested context is one element of Root, so Root's peer hooks run
       // once around it, not around the example inside it.
       ["Root", "nested", beforeAll],
       ["Root", "nested", "second"],
       ["Root", "nested", afterAll],
-      ["Root", afterEach],
+      ["Root", afterEachPeer],
       ["Root", afterAll],
     ])
     XCTAssertEqual(log.labels, [
-      "beforeAll", "beforeEach", "first", "afterEach",
-      "beforeEach", "nested beforeAll", "second", "nested afterAll",
-      "afterEach", "afterAll",
+      "beforeAll", "beforeEachPeer", "first", "afterEachPeer",
+      "beforeEachPeer", "nested beforeAll", "second", "nested afterAll",
+      "afterEachPeer", "afterAll",
     ])
   }
 
@@ -112,7 +112,7 @@ final class ActivityStructureXCTests: Rundown.TestCase {
     let log = Log()
 
     try spec("Distinct") {
-      beforeEach { log.record("beforeEach") }
+      beforeEachPeer { log.record("beforeEachPeer") }
       it("first") { log.record("first") }
       it("second") { log.record("second") }
     }
@@ -140,70 +140,70 @@ final class ActivityStructureXCTests: Rundown.TestCase {
     ])
   }
 
-  /// Hook order with `aroundEach`, which wraps each element together with the
-  /// group's `beforeEach` and `afterEach` hooks.
-  func testAroundEachHookOrder() throws {
+  /// Hook order with `aroundEachPeer`, which wraps each element together with the
+  /// group's `beforeEachPeer` and `afterEachPeer` hooks.
+  func testAroundEachPeerHookOrder() throws {
     let log = Log()
 
     try spec("Around") {
       beforeAll { log.record("beforeAll") }
-      aroundEach("outer") { callback in
+      aroundEachPeer("outer") { callback in
         log.record("outer in")
         try callback()
         log.record("outer out")
       }
-      aroundEach("inner") { callback in
+      aroundEachPeer("inner") { callback in
         log.record("inner in")
         try callback()
         log.record("inner out")
       }
-      beforeEach { log.record("beforeEach") }
+      beforeEachPeer { log.record("beforeEachPeer") }
       it("first") { log.record("first") }
       context("nested") {
         it("second") { log.record("second") }
       }
-      afterEach { log.record("afterEach") }
+      afterEachPeer { log.record("afterEachPeer") }
       afterAll { log.record("afterAll") }
     }
 
     XCTAssertEqual(log.labels, [
       "beforeAll",
-      "outer in", "inner in", "beforeEach", "first", "afterEach", "inner out", "outer out",
-      "outer in", "inner in", "beforeEach", "second", "afterEach", "inner out", "outer out",
+      "outer in", "inner in", "beforeEachPeer", "first", "afterEachPeer", "inner out", "outer out",
+      "outer in", "inner in", "beforeEachPeer", "second", "afterEachPeer", "inner out", "outer out",
       "afterAll",
     ])
   }
 
-  /// The `aroundEach` hook is not an activity itself. Its callbacks run in the
+  /// The `aroundEachPeer` hook is not an activity itself. Its callbacks run in the
   /// activity of the group that declares it, and what it wraps nests inside.
-  func testAroundEachActivityContext() throws {
+  func testAroundEachPeerActivityContext() throws {
     let log = Log()
 
     try spec("Around") {
-      aroundEach { callback in
+      aroundEachPeer { callback in
         log.record("around in")
         try callback()
         log.record("around out")
       }
-      beforeEach { log.record("beforeEach") }
+      beforeEachPeer { log.record("beforeEachPeer") }
       it("first") { log.record("first") }
     }
 
     XCTAssertEqual(log.snapshots, [
       Snapshot(label: "around in", activity: "Around", path: ["Around"]),
-      Snapshot(label: "beforeEach", activity: "before each", path: ["Around", "before each"]),
+      Snapshot(label: "beforeEachPeer", activity: "before each peer", path: ["Around", "before each peer"]),
       Snapshot(label: "first", activity: "first", path: ["Around", "first"]),
       Snapshot(label: "around out", activity: "Around", path: ["Around"]),
     ])
   }
 
-  /// A nested context is one element, so `aroundEach` wraps it once and not
+  /// A nested context is one element, so `aroundEachPeer` wraps it once and not
   /// each example inside it.
-  func testAroundEachWrapsNestedContextOnce() throws {
+  func testAroundEachPeerWrapsNestedContextOnce() throws {
     let log = Log()
 
     try spec("Around") {
-      aroundEach { callback in
+      aroundEachPeer { callback in
         log.record("around in")
         try callback()
         log.record("around out")

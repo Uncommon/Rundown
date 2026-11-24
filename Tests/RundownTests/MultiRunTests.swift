@@ -55,18 +55,18 @@ class MultiRunTests: XCTestCase {
   func testExcludeOneOfTwo() async throws {
     try await useAllRunners { (runner, type) in
       let ranBeforeAll = Box(false)
-      let ranBeforeEach = Box(false)
+      let ranBeforeEachPeer = Box(false)
       let ran1 = Box(false)
       let ran2 = Box(false)
-      let ranAfterEach = Box(false)
+      let ranAfterEachPeer = Box(false)
       let ranAfterAll = Box(false)
 
       let describe = describe("Exclude one of two") {
         beforeAll {
           ranBeforeAll.set()
         }
-        beforeEach {
-          ranBeforeEach.set()
+        beforeEachPeer {
+          ranBeforeEachPeer.set()
         }
         it("one", .excluded) {
           ran1.set()
@@ -74,8 +74,8 @@ class MultiRunTests: XCTestCase {
         it("two") {
           ran2.set()
         }
-        afterEach {
-          ranAfterEach.set()
+        afterEachPeer {
+          ranAfterEachPeer.set()
         }
         afterAll {
           ranAfterAll.set()
@@ -85,10 +85,10 @@ class MultiRunTests: XCTestCase {
       try await runner(describe)
 
       XCTAssertTrue(ranBeforeAll.wrappedValue, "\(type) failure")
-      XCTAssertTrue(ranBeforeEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranBeforeEachPeer.wrappedValue, "\(type) failure")
       XCTAssertFalse(ran1.wrappedValue, "\(type) failure")
       XCTAssertTrue(ran2.wrappedValue, "\(type) failure")
-      XCTAssertTrue(ranAfterEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranAfterEachPeer.wrappedValue, "\(type) failure")
       XCTAssertTrue(ranAfterAll.wrappedValue, "\(type) failure")
     }
   }
@@ -97,24 +97,24 @@ class MultiRunTests: XCTestCase {
   func testExcludeHooks() async throws {
     try await useAllRunners { (runner, type) in
       let ranBeforeAll = Box(false)
-      let ranBeforeEach = Box(false)
+      let ranBeforeEachPeer = Box(false)
       let ranIt = Box(false)
-      let ranAfterEach = Box(false)
+      let ranAfterEachPeer = Box(false)
       let ranAfterAll = Box(false)
 
       let group = describe("Skip hooks") {
         beforeAll { ranBeforeAll.set() }
-        beforeEach { ranBeforeEach.set() }
+        beforeEachPeer { ranBeforeEachPeer.set() }
         it("excludes", .excluded) { ranIt.set() }
-        afterEach { ranAfterEach.set() }
+        afterEachPeer { ranAfterEachPeer.set() }
         afterAll { ranAfterAll.set() }
       }
 
       try await runner(group)
       XCTAssertFalse(ranBeforeAll.wrappedValue, "\(type) failure")
-      XCTAssertFalse(ranBeforeEach.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ranBeforeEachPeer.wrappedValue, "\(type) failure")
       XCTAssertFalse(ranIt.wrappedValue, "\(type) failure")
-      XCTAssertFalse(ranAfterEach.wrappedValue, "\(type) failure")
+      XCTAssertFalse(ranAfterEachPeer.wrappedValue, "\(type) failure")
       XCTAssertFalse(ranAfterAll.wrappedValue, "\(type) failure")
     }
   }
@@ -122,28 +122,28 @@ class MultiRunTests: XCTestCase {
   func testFocusOneOfTwo() async throws {
     try await useAllRunners { (runner, type) in
       let ranBeforeAll = Box(false)
-      let ranBeforeEach = Box(false)
+      let ranBeforeEachPeer = Box(false)
       let ran1 = Box(false)
       let ran2 = Box(false)
-      let ranAfterEach = Box(false)
+      let ranAfterEachPeer = Box(false)
       let ranAfterAll = Box(false)
 
       let group = describe("Skip one of two") {
         beforeAll { ranBeforeAll.set() }
-        beforeEach { ranBeforeEach.set() }
+        beforeEachPeer { ranBeforeEachPeer.set() }
         it("one", .focused) { ran1.set() }
         it("two") { ran2.set() }
-        afterEach { ranAfterEach.set() }
+        afterEachPeer { ranAfterEachPeer.set() }
         afterAll { ranAfterAll.set() }
       }
 
       try await runner(group)
 
       XCTAssertTrue(ranBeforeAll.wrappedValue, "\(type) failure")
-      XCTAssertTrue(ranBeforeEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranBeforeEachPeer.wrappedValue, "\(type) failure")
       XCTAssertTrue(ran1.wrappedValue, "\(type) failure")
       XCTAssertFalse(ran2.wrappedValue, "\(type) failure")
-      XCTAssertTrue(ranAfterEach.wrappedValue, "\(type) failure")
+      XCTAssertTrue(ranAfterEachPeer.wrappedValue, "\(type) failure")
       XCTAssertTrue(ranAfterAll.wrappedValue, "\(type) failure")
     }
   }
@@ -154,38 +154,38 @@ class MultiRunTests: XCTestCase {
       let ranAfterAll1 = Box(false)
       let ranBeforeAll2 = Box(false)
       let ranAfterAll2 = Box(false)
-      let beforeEachCount1 = Box(0)
-      let afterEachCount1 = Box(0)
-      let beforeEachCount2 = Box(0)
-      let afterEachCount2 = Box(0)
+      let beforeEachPeerCount1 = Box(0)
+      let afterEachPeerCount1 = Box(0)
+      let beforeEachPeerCount2 = Box(0)
+      let afterEachPeerCount2 = Box(0)
       let ran2 = Box(false)
 
       let group = describe("Deep focus") {
         beforeAll { ranBeforeAll1.set() }
-        beforeEach { beforeEachCount1.bump() }
+        beforeEachPeer { beforeEachPeerCount1.bump() }
         it("skips") { XCTFail("ran outer unfocused test") }
         describe("subgroup") {
           beforeAll { ranBeforeAll2.set() }
-          beforeEach { beforeEachCount2.bump() }
+          beforeEachPeer { beforeEachPeerCount2.bump() }
           it("runs focused", .focused) { ran2.set() }
           it("skips") { XCTFail("ran inner unfocused test") }
-          afterEach { afterEachCount2.bump() }
+          afterEachPeer { afterEachPeerCount2.bump() }
           afterAll { ranAfterAll2.set() }
         }
-        afterEach { afterEachCount1.bump() }
+        afterEachPeer { afterEachPeerCount1.bump() }
         afterAll { ranAfterAll1.set() }
       }
 
       try await runner(group)
 
       XCTAssert(ranBeforeAll1.wrappedValue, "\(type) failure")
-      XCTAssertEqual(beforeEachCount1.wrappedValue, 1, "\(type) failure")
+      XCTAssertEqual(beforeEachPeerCount1.wrappedValue, 1, "\(type) failure")
       XCTAssert(ranBeforeAll2.wrappedValue, "\(type) failure")
-      XCTAssertEqual(beforeEachCount2.wrappedValue, 1, "\(type) failure")
+      XCTAssertEqual(beforeEachPeerCount2.wrappedValue, 1, "\(type) failure")
       XCTAssert(ran2.wrappedValue, "\(type) failure")
-      XCTAssertEqual(afterEachCount2.wrappedValue, 1, "\(type) failure")
+      XCTAssertEqual(afterEachPeerCount2.wrappedValue, 1, "\(type) failure")
       XCTAssert(ranAfterAll2.wrappedValue, "\(type) failure")
-      XCTAssertEqual(afterEachCount1.wrappedValue, 1, "\(type) failure")
+      XCTAssertEqual(afterEachPeerCount1.wrappedValue, 1, "\(type) failure")
       XCTAssert(ranAfterAll1.wrappedValue, "\(type) failure")
     }
   }
@@ -209,14 +209,14 @@ class MultiRunTests: XCTestCase {
     }
   }
   
-  func testAroundEach() async throws {
-    // aroundEach can't be converted from sync to async, so the async runner
+  func testAroundEachPeer() async throws {
+    // aroundEachPeer can't be converted from sync to async, so the async runner
     // doesn't work
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
       
-      let group = describe("around each") {
-        aroundEach { (callback) in
+      let group = describe("around each peer") {
+        aroundEachPeer { (callback) in
           result.wrappedValue.append("outer before")
           try "".withCString { _ in
             result.wrappedValue.append("inner before")
@@ -238,12 +238,12 @@ class MultiRunTests: XCTestCase {
     }
   }
 
-  func testExcludedAroundEach() async throws {
+  func testExcludedAroundEachPeer() async throws {
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
       
-      let group = describe("around each") {
-        aroundEach(.excluded) { (callback) in
+      let group = describe("around each peer") {
+        aroundEachPeer(.excluded) { (callback) in
           result.wrappedValue.append("around")
           try callback()
         }
@@ -260,12 +260,12 @@ class MultiRunTests: XCTestCase {
     }
   }
 
-  /// A second aroundEach should be executed inside the callback of the first
-  func testDoubleAroundEach() throws {
+  /// A second aroundEachPeer should be executed inside the callback of the first
+  func testDoubleAroundEachPeer() throws {
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
       let group = describe("ArounchEach") {
-        aroundEach { (callback) in
+        aroundEachPeer { (callback) in
           result.wrappedValue.append("around 1 start")
           try "".withCString { _ in
             try callback()
@@ -273,7 +273,7 @@ class MultiRunTests: XCTestCase {
           result.wrappedValue.append("around 1 end")
         }
 
-        aroundEach { (callback) in
+        aroundEachPeer { (callback) in
           result.wrappedValue.append("around 2 start")
           try "".withCString { _ in
             try callback()
@@ -296,30 +296,30 @@ class MultiRunTests: XCTestCase {
     }
   }
   
-  func testAroundEachWithHooks() throws {
+  func testAroundEachPeerWithHooks() throws {
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
       let group = describe("ArounchEach") {
         beforeAll {
           result.wrappedValue.append("beforeAll")
         }
-        aroundEach { (callback) in
+        aroundEachPeer { (callback) in
           result.wrappedValue.append("around start")
           try "".withCString { _ in
             try callback()
           }
           result.wrappedValue.append("around end")
         }
-        beforeEach {
-          result.wrappedValue.append("beforeEach")
+        beforeEachPeer {
+          result.wrappedValue.append("beforeEachPeer")
         }
         
         it("works") {
           result.wrappedValue.append("it")
         }
         
-        afterEach {
-          result.wrappedValue.append("afterEach")
+        afterEachPeer {
+          result.wrappedValue.append("afterEachPeer")
         }
         afterAll {
           result.wrappedValue.append("afterAll")
@@ -331,7 +331,7 @@ class MultiRunTests: XCTestCase {
       XCTAssertEqual(result.wrappedValue,
                      ["beforeAll",
                       "around start",
-                      "beforeEach", "it", "afterEach",
+                      "beforeEachPeer", "it", "afterEachPeer",
                       "around end",
                       "afterAll",
                      ],
@@ -339,14 +339,14 @@ class MultiRunTests: XCTestCase {
     }
   }
 
-  func testAroundEachOnlyAllHooks() throws {
+  func testAroundEachPeerOnlyAllHooks() throws {
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
       let group = describe("ArounchEach") {
         beforeAll {
           result.wrappedValue.append("beforeAll")
         }
-        aroundEach { (callback) in
+        aroundEachPeer { (callback) in
           result.wrappedValue.append("around start")
           try "".withCString { _ in
             try callback()
@@ -376,27 +376,27 @@ class MultiRunTests: XCTestCase {
     }
   }
 
-  func testAroundEachOnlyEachHooks() throws {
+  func testAroundEachPeerOnlyPeerHooks() throws {
     try useSyncRunners { (runner, type) in
       let result = Box([String]())
       let group = describe("ArounchEach") {
-        aroundEach { (callback) in
+        aroundEachPeer { (callback) in
           result.wrappedValue.append("around start")
           try "".withCString { _ in
             try callback()
           }
           result.wrappedValue.append("around end")
         }
-        beforeEach {
-          result.wrappedValue.append("beforeEach")
+        beforeEachPeer {
+          result.wrappedValue.append("beforeEachPeer")
         }
 
         it("works") {
           result.wrappedValue.append("it")
         }
 
-        afterEach {
-          result.wrappedValue.append("afterEach")
+        afterEachPeer {
+          result.wrappedValue.append("afterEachPeer")
         }
       }
       
@@ -404,33 +404,33 @@ class MultiRunTests: XCTestCase {
 
       XCTAssertEqual(result.wrappedValue,
                      ["around start",
-                      "beforeEach", "it", "afterEach",
+                      "beforeEachPeer", "it", "afterEachPeer",
                       "around end",
                      ],
                      "\(type) failure")
     }
   }
 
-  // MARK: Each hooks and contexts
+  // MARK: Peer hooks and contexts
 
-  // beforeEach, afterEach and aroundEach apply to the elements of the group
+  // beforeEachPeer, afterEachPeer and aroundEachPeer apply to the elements of the group
   // they are declared in, and a nested context is one such element. They run
   // once around the whole context, not around each example inside it. To run
   // something for every example in a context, declare it inside that context.
 
-  func testEachHooksApplyToElementsOfTheirGroup() async throws {
+  func testPeerHooksApplyToElementsOfTheirGroup() async throws {
     try await useAllRunners { (runner, type) in
       let log = Box([String]())
-      let group = describe("each hooks") {
-        beforeEach { log.note("outer before") }
+      let group = describe("peer hooks") {
+        beforeEachPeer { log.note("outer before") }
         context("nested") {
-          beforeEach { log.note("inner before") }
+          beforeEachPeer { log.note("inner before") }
           it("one") { log.note("one") }
           it("two") { log.note("two") }
-          afterEach { log.note("inner after") }
+          afterEachPeer { log.note("inner after") }
         }
         it("sibling") { log.note("sibling") }
-        afterEach { log.note("outer after") }
+        afterEachPeer { log.note("outer after") }
       }
 
       try await runner(group)
@@ -446,17 +446,17 @@ class MultiRunTests: XCTestCase {
     }
   }
 
-  func testAroundEachWrapsNestedGroupOnce() throws {
+  func testAroundEachPeerWrapsNestedGroupOnce() throws {
     try useSyncRunners { (runner, type) in
       let log = Box([String]())
-      let group = describe("around each") {
-        aroundEach { (callback) in
+      let group = describe("around each peer") {
+        aroundEachPeer { (callback) in
           log.note("outer around>")
           try callback()
           log.note("<outer around")
         }
         context("nested") {
-          aroundEach { (callback) in
+          aroundEachPeer { (callback) in
             log.note("inner around>")
             try callback()
             log.note("<inner around")
@@ -480,8 +480,8 @@ class MultiRunTests: XCTestCase {
   /// Hooks don't cascade into contexts, so setup that several contexts need
   /// comes from a function that returns the hook.
   func testSharedHookFunction() async throws {
-    func sharedSetup(_ log: Box<[String]>) -> TestHook<BeforeEachPhase, SyncCall> {
-      beforeEach("shared") { log.note("shared setup") }
+    func sharedSetup(_ log: Box<[String]>) -> TestHook<BeforeEachPeerPhase, SyncCall> {
+      beforeEachPeer("shared") { log.note("shared setup") }
     }
 
     try await useAllRunners { (runner, type) in
@@ -540,15 +540,15 @@ class MultiRunTests: XCTestCase {
     }
 
     add("it throws",
-        expecting: ["beforeAll", "beforeEach", "fails", "afterEach",
-                    "beforeEach", "passes", "afterEach", "afterAll"],
+        expecting: ["beforeAll", "beforeEachPeer", "fails", "afterEachPeer",
+                    "beforeEachPeer", "passes", "afterEachPeer", "afterAll"],
         issues: 1) { log in
       describe("it throws") {
         beforeAll { log.note("beforeAll") }
-        beforeEach { log.note("beforeEach") }
+        beforeEachPeer { log.note("beforeEachPeer") }
         it("fails") { log.note("fails"); throw TestError(id: 1) }
         it("passes") { log.note("passes") }
-        afterEach { log.note("afterEach") }
+        afterEachPeer { log.note("afterEachPeer") }
         afterAll { log.note("afterAll") }
       }
     }
@@ -563,16 +563,16 @@ class MultiRunTests: XCTestCase {
       }
     }
 
-    add("beforeEach throws",
-        expecting: ["beforeAll", "beforeEach", "afterEach",
-                    "beforeEach", "afterEach", "afterAll"],
+    add("beforeEachPeer throws",
+        expecting: ["beforeAll", "beforeEachPeer", "afterEachPeer",
+                    "beforeEachPeer", "afterEachPeer", "afterAll"],
         issues: 2) { log in
-      describe("beforeEach throws") {
+      describe("beforeEachPeer throws") {
         beforeAll { log.note("beforeAll") }
-        beforeEach { log.note("beforeEach"); throw TestError(id: 1) }
+        beforeEachPeer { log.note("beforeEachPeer"); throw TestError(id: 1) }
         it("first") { log.note("first") }
         it("second") { log.note("second") }
-        afterEach { log.note("afterEach") }
+        afterEachPeer { log.note("afterEachPeer") }
         afterAll { log.note("afterAll") }
       }
     }
@@ -584,22 +584,22 @@ class MultiRunTests: XCTestCase {
         beforeAll("one") { log.note("beforeAll 1") }
         beforeAll("two") { log.note("beforeAll 2"); throw TestError(id: 1) }
         beforeAll("three") { log.note("beforeAll 3") }
-        beforeEach { log.note("beforeEach") }
+        beforeEachPeer { log.note("beforeEachPeer") }
         it("never runs") { log.note("never runs") }
-        afterEach { log.note("afterEach") }
+        afterEachPeer { log.note("afterEachPeer") }
         afterAll { log.note("afterAll") }
       }
     }
 
-    add("afterEach throws",
-        expecting: ["first", "afterEach 1", "afterEach 2",
-                    "second", "afterEach 1", "afterEach 2", "afterAll"],
+    add("afterEachPeer throws",
+        expecting: ["first", "afterEachPeer 1", "afterEachPeer 2",
+                    "second", "afterEachPeer 1", "afterEachPeer 2", "afterAll"],
         issues: 2) { log in
-      describe("afterEach throws") {
+      describe("afterEachPeer throws") {
         it("first") { log.note("first") }
         it("second") { log.note("second") }
-        afterEach("one") { log.note("afterEach 1"); throw TestError(id: 1) }
-        afterEach("two") { log.note("afterEach 2") }
+        afterEachPeer("one") { log.note("afterEachPeer 1"); throw TestError(id: 1) }
+        afterEachPeer("two") { log.note("afterEachPeer 2") }
         afterAll { log.note("afterAll") }
       }
     }
@@ -615,21 +615,21 @@ class MultiRunTests: XCTestCase {
     }
 
     add("nested group fails",
-        expecting: ["outer beforeAll", "outer beforeEach",
+        expecting: ["outer beforeAll", "outer beforeEachPeer",
                     "inner beforeAll", "fails", "inner afterAll",
-                    "outer afterEach", "outer beforeEach", "outer it",
-                    "outer afterEach", "outer afterAll"],
+                    "outer afterEachPeer", "outer beforeEachPeer", "outer it",
+                    "outer afterEachPeer", "outer afterAll"],
         issues: 1) { log in
       describe("outer") {
         beforeAll { log.note("outer beforeAll") }
-        beforeEach { log.note("outer beforeEach") }
+        beforeEachPeer { log.note("outer beforeEachPeer") }
         context("inner") {
           beforeAll { log.note("inner beforeAll") }
           it("fails") { log.note("fails"); throw TestError(id: 1) }
           afterAll { log.note("inner afterAll") }
         }
         it("outer it") { log.note("outer it") }
-        afterEach { log.note("outer afterEach") }
+        afterEachPeer { log.note("outer afterEachPeer") }
         afterAll { log.note("outer afterAll") }
       }
     }
@@ -693,14 +693,14 @@ class MultiRunTests: XCTestCase {
     }
   }
 
-  // aroundEach can't be converted from sync to async, so these aren't part of
+  // aroundEachPeer can't be converted from sync to async, so these aren't part of
   // the shared scenarios.
 
-  func testAroundEachErrorRunsAfterAll() throws {
+  func testAroundEachPeerErrorRunsAfterAll() throws {
     let log = Box([String]())
-    let group = describe("aroundEach throws") {
+    let group = describe("aroundEachPeer throws") {
       beforeAll { log.note("beforeAll") }
-      aroundEach { _ in
+      aroundEachPeer { _ in
         log.note("around")
         throw TestError(id: 1)
       }
@@ -714,11 +714,11 @@ class MultiRunTests: XCTestCase {
     XCTAssertEqual(log.wrappedValue, ["beforeAll", "around", "afterAll"])
   }
 
-  func testXCTestRunnerRecordsAroundEachError() throws {
+  func testXCTestRunnerRecordsAroundEachPeerError() throws {
     let log = Box([String]())
-    let group = describe("aroundEach throws") {
+    let group = describe("aroundEachPeer throws") {
       beforeAll { log.note("beforeAll") }
-      aroundEach { _ in
+      aroundEachPeer { _ in
         log.note("around")
         throw TestError(id: 1)
       }
@@ -726,7 +726,7 @@ class MultiRunTests: XCTestCase {
       afterAll { log.note("afterAll") }
     }
 
-    xcTestRunnerRecordingErrors(group, issueCount: 1, "aroundEach throws")
+    xcTestRunnerRecordingErrors(group, issueCount: 1, "aroundEachPeer throws")
     XCTAssertEqual(log.wrappedValue, ["beforeAll", "around", "afterAll"])
   }
 
@@ -815,8 +815,8 @@ private extension TestHook where Call == SyncMainCall {
   }
 }
 
-private extension AroundEach where Call == SyncMainCall {
-  init(fromSyncCall other: AroundEach<SyncCall>) {
+private extension AroundEachPeer where Call == SyncMainCall {
+  init(fromSyncCall other: AroundEachPeer<SyncCall>) {
     let block = other.block
     self.init(name: other.name, traits: other.traits) { inner in
       try block {
@@ -831,9 +831,9 @@ extension ExampleGroup where Call == SyncMainCall {
     self.init(description: other.description,
               traits: other.traits,
               beforeAll: other.beforeAllHooks.map { .init(fromSyncCall: $0) },
-              aroundEach: other.aroundEachHooks.map { .init(fromSyncCall: $0) },
-              beforeEach: other.beforeEachHooks.map { .init(fromSyncCall: $0) },
-              afterEach: other.afterEachHooks.map { .init(fromSyncCall: $0) },
+              aroundEachPeer: other.aroundEachPeerHooks.map { .init(fromSyncCall: $0) },
+              beforeEachPeer: other.beforeEachPeerHooks.map { .init(fromSyncCall: $0) },
+              afterEachPeer: other.afterEachPeerHooks.map { .init(fromSyncCall: $0) },
               afterAll: other.afterAllHooks.map { .init(fromSyncCall: $0) },
               elements: other.elements.map {
                 switch $0 {

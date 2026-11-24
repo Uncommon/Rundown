@@ -85,9 +85,9 @@ extension ExampleRunner {
   ///
   /// - If a `BeforeAll` hook fails, the elements of the group are skipped but
   ///   its `AfterAll` hooks still run.
-  /// - If a `BeforeEach` hook fails, that element is skipped but its
-  ///   `AfterEach` hooks still run.
-  /// - Every `AfterEach` and `AfterAll` hook runs, even if one before it failed.
+  /// - If a `BeforeEachPeer` hook fails, that element is skipped but its
+  ///   `AfterEachPeer` hooks still run.
+  /// - Every `AfterEachPeer` and `AfterAll` hook runs, even if one before it failed.
   ///
   /// An `XCTSkip` means that something does not apply, and only ends the
   /// element that threw it:
@@ -96,15 +96,15 @@ extension ExampleRunner {
   /// the group is skipped, including any remaining `BeforeAll` and `AfterAll`
   /// hooks, since nothing was set up.
   ///
-  /// If an `XCTSkip` is caught while running `BeforeEach` hooks, the rest of
-  /// that element is skipped, including any remaining `BeforeEach` and
-  /// `AfterEach` hooks. The group continues with its next element.
+  /// If an `XCTSkip` is caught while running `BeforeEachPeer` hooks, the rest of
+  /// that element is skipped, including any remaining `BeforeEachPeer` and
+  /// `AfterEachPeer` hooks. The group continues with its next element.
   ///
   /// If an `XCTSkip` is caught while running a test example, such as `It`,
-  /// the corresponding `AfterEach` hooks will still run, and execution will
+  /// the corresponding `AfterEachPeer` hooks will still run, and execution will
   /// continue with the next item in the group.
   ///
-  /// If an `XCTSkip` is thrown in an `AfterEach`, `AfterAll` or `AroundEach`
+  /// If an `XCTSkip` is thrown in an `AfterEachPeer`, `AfterAll` or `AroundEachPeer`
   /// hook, it is logged and ignored, and the rest of the run carries on.
   ///
   /// `.concurrent` is ignored: the elements of a concurrent group run one

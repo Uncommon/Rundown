@@ -79,30 +79,30 @@ final class ReporterTests: XCTestCase {
     return reporter
   }
 
-  func testScopesWrapNodesAndHooksButNotAroundEach() throws {
+  func testScopesWrapNodesAndHooksButNotAroundEachPeer() throws {
     let reporter = try run(describe("Root") {
       beforeAll {}
-      aroundEach("wrap") { callback in try callback() }
-      beforeEach {}
+      aroundEachPeer("wrap") { callback in try callback() }
+      beforeEachPeer {}
       it("first") {}
       context("nested") {
         it("second") {}
       }
-      afterEach {}
+      afterEachPeer {}
       afterAll {}
     })
 
     XCTAssertEqual(reporter.events, [
       "enter Root",
       "enter Root/before all", "exit Root/before all",
-      "enter Root/before each", "exit Root/before each",
+      "enter Root/before each peer", "exit Root/before each peer",
       "enter Root/first", "exit Root/first",
-      "enter Root/after each", "exit Root/after each",
-      "enter Root/before each", "exit Root/before each",
+      "enter Root/after each peer", "exit Root/after each peer",
+      "enter Root/before each peer", "exit Root/before each peer",
       "enter Root/nested",
       "enter Root/nested/second", "exit Root/nested/second",
       "exit Root/nested",
-      "enter Root/after each", "exit Root/after each",
+      "enter Root/after each peer", "exit Root/after each peer",
       "enter Root/after all", "exit Root/after all",
       "exit Root",
     ])
@@ -120,29 +120,29 @@ final class ReporterTests: XCTestCase {
   func testRecordedFailuresDontStopTheRunOrThrow() throws {
     let log = Box([String]())
     let reporter = try run(describe("Root") {
-      beforeEach { log.note("beforeEach") }
+      beforeEachPeer { log.note("beforeEachPeer") }
       it("fails") { log.note("fails"); throw TestError(id: 1) }
       it("still runs") { log.note("still runs") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
     })
 
-    XCTAssertEqual(log.wrappedValue, ["beforeEach", "fails", "afterEach",
-                                      "beforeEach", "still runs", "afterEach"])
+    XCTAssertEqual(log.wrappedValue, ["beforeEachPeer", "fails", "afterEachPeer",
+                                      "beforeEachPeer", "still runs", "afterEachPeer"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("failure") },
                    ["failure Root/fails"])
   }
 
-  func testFailingBeforeEachSkipsOnlyItsElement() throws {
+  func testFailingBeforeEachPeerSkipsOnlyItsElement() throws {
     let log = Box([String]())
     let reporter = try run(describe("Root") {
-      beforeEach { log.note("beforeEach"); throw TestError(id: 1) }
+      beforeEachPeer { log.note("beforeEachPeer"); throw TestError(id: 1) }
       it("never") { log.note("never") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
     })
 
-    XCTAssertEqual(log.wrappedValue, ["beforeEach", "afterEach"])
+    XCTAssertEqual(log.wrappedValue, ["beforeEachPeer", "afterEachPeer"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("failure") },
-                   ["failure Root/before each"])
+                   ["failure Root/before each peer"])
   }
 
   func testFailingBeforeAllSkipsElementsButNotAfterAll() throws {
@@ -181,30 +181,30 @@ final class ReporterTests: XCTestCase {
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("skip") }, ["skip Root/before all"])
   }
 
-  func testSkipInBeforeEachSkipsTheElementWithoutAfterEach() throws {
+  func testSkipInBeforeEachPeerSkipsTheElementWithoutAfterEachPeer() throws {
     let log = Box([String]())
     _ = try run(describe("Root") {
-      beforeEach { log.note("beforeEach"); throw RecordingReporter.TestSkip() }
+      beforeEachPeer { log.note("beforeEachPeer"); throw RecordingReporter.TestSkip() }
       it("never") { log.note("never") }
       it("also never") { log.note("also never") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
       afterAll { log.note("afterAll") }
     })
 
-    // Both elements are tried, neither runs, no afterEach, afterAll does
-    XCTAssertEqual(log.wrappedValue, ["beforeEach", "beforeEach", "afterAll"])
+    // Both elements are tried, neither runs, no afterEachPeer, afterAll does
+    XCTAssertEqual(log.wrappedValue, ["beforeEachPeer", "beforeEachPeer", "afterAll"])
   }
 
-  func testSkipInExampleIsSwallowedAndAfterEachRuns() throws {
+  func testSkipInExampleIsSwallowedAndAfterEachPeerRuns() throws {
     let log = Box([String]())
     _ = try run(describe("Root") {
       it("skips") { throw RecordingReporter.TestSkip() }
       it("next") { log.note("next") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
     }, reporter: .init(decision: .propagate))
 
     // Nothing was thrown, even though the decision is .propagate
-    XCTAssertEqual(log.wrappedValue, ["afterEach", "next", "afterEach"])
+    XCTAssertEqual(log.wrappedValue, ["afterEachPeer", "next", "afterEachPeer"])
   }
 
   /// A skip ends only the hook that threw it. The XCTest runner used to let
@@ -215,17 +215,17 @@ final class ReporterTests: XCTestCase {
     let reporter = try run(describe("Root") {
       it("runs") { log.note("runs") }
       it("runs too") { log.note("runs too") }
-      afterEach("skips") { throw RecordingReporter.TestSkip() }
-      afterEach("next") { log.note("afterEach") }
+      afterEachPeer("skips") { throw RecordingReporter.TestSkip() }
+      afterEachPeer("next") { log.note("afterEachPeer") }
       afterAll("skips") { throw RecordingReporter.TestSkip() }
       afterAll("next") { log.note("afterAll") }
     }, reporter: .init(decision: .propagate))
 
     // Nothing was thrown, though the decision is .propagate
     XCTAssertEqual(log.wrappedValue,
-                   ["runs", "afterEach", "runs too", "afterEach", "afterAll"])
+                   ["runs", "afterEachPeer", "runs too", "afterEachPeer", "afterAll"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("skip") },
-                   ["skip Root/after each: skips", "skip Root/after each: skips",
+                   ["skip Root/after each peer: skips", "skip Root/after each peer: skips",
                     "skip Root/after all: skips"])
   }
 
@@ -234,7 +234,7 @@ final class ReporterTests: XCTestCase {
     _ = try run(describe("Root") {
       context("nested") {
         it("x") { log.note("x") }
-        afterEach { throw RecordingReporter.TestSkip() }
+        afterEachPeer { throw RecordingReporter.TestSkip() }
       }
       it("y") { log.note("y") }
       afterAll { log.note("afterAll") }
@@ -243,53 +243,53 @@ final class ReporterTests: XCTestCase {
     XCTAssertEqual(log.wrappedValue, ["x", "y", "afterAll"])
   }
 
-  // MARK: aroundEach
+  // MARK: aroundEachPeer
 
-  func testErrorFromAroundEachIsReportedAtTheHook() throws {
+  func testErrorFromAroundEachPeerIsReportedAtTheHook() throws {
     let log = Box([String]())
     let reporter = try run(describe("Root") {
-      aroundEach("wrap") { _ in throw TestError(id: 1) }
+      aroundEachPeer("wrap") { _ in throw TestError(id: 1) }
       it("never") { log.note("never") }
     })
 
     XCTAssertEqual(log.wrappedValue, [])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("failure") },
-                   ["failure Root/around each: wrap"])
+                   ["failure Root/around each peer: wrap"])
   }
 
-  func testSkipInAroundEachBeforeTheCallbackSkipsTheElement() throws {
+  func testSkipInAroundEachPeerBeforeTheCallbackSkipsTheElement() throws {
     let log = Box([String]())
     let reporter = try run(describe("Root") {
-      aroundEach("skips") { _ in throw RecordingReporter.TestSkip() }
-      beforeEach { log.note("beforeEach") }
+      aroundEachPeer("skips") { _ in throw RecordingReporter.TestSkip() }
+      beforeEachPeer { log.note("beforeEachPeer") }
       it("never") { log.note("never") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
       afterAll { log.note("afterAll") }
     }, reporter: .init(decision: .propagate))
 
     XCTAssertEqual(log.wrappedValue, ["afterAll"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("skip") },
-                   ["skip Root/around each: skips"])
+                   ["skip Root/around each peer: skips"])
   }
 
-  func testSkipInAroundEachAfterTheCallbackIsSwallowed() throws {
+  func testSkipInAroundEachPeerAfterTheCallbackIsSwallowed() throws {
     let log = Box([String]())
     _ = try run(describe("Root") {
-      aroundEach { callback in
+      aroundEachPeer { callback in
         try callback()
         throw RecordingReporter.TestSkip()
       }
       it("first") { log.note("first") }
       it("second") { log.note("second") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
     }, reporter: .init(decision: .propagate))
 
-    XCTAssertEqual(log.wrappedValue, ["first", "afterEach", "second", "afterEach"])
+    XCTAssertEqual(log.wrappedValue, ["first", "afterEachPeer", "second", "afterEachPeer"])
   }
 
-  func testErrorInsideAroundEachIsReportedOnce() throws {
+  func testErrorInsideAroundEachPeerIsReportedOnce() throws {
     let reporter = try run(describe("Root") {
-      aroundEach { callback in try callback() }
+      aroundEachPeer { callback in try callback() }
       it("fails") { throw TestError(id: 1) }
     })
 
@@ -297,10 +297,10 @@ final class ReporterTests: XCTestCase {
                    ["failure Root/fails"])
   }
 
-  func testPropagatedErrorInsideAroundEachIsNotReportedAgain() throws {
+  func testPropagatedErrorInsideAroundEachPeerIsNotReportedAgain() throws {
     let reporter = RecordingReporter(decision: .propagate)
     XCTAssertThrowsError(try run(describe("Root") {
-      aroundEach { callback in try callback() }
+      aroundEachPeer { callback in try callback() }
       it("fails") { throw TestError(id: 1) }
     }, reporter: reporter))
 

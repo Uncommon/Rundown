@@ -5,16 +5,16 @@ final class ExampleNodeTests: XCTestCase {
   func testSyncGroupShape() {
     let group = describe("Root") {
       beforeAll("setup") {}
-      aroundEach("wrap") { callback in try callback() }
-      beforeEach {}
-      beforeEach("second") {}
+      aroundEachPeer("wrap") { callback in try callback() }
+      beforeEachPeer {}
+      beforeEachPeer("second") {}
       it("first") {}
       context("nested", .concurrent) {
-        beforeEach {}
+        beforeEachPeer {}
         it("inner") {}
         xIt("excluded") {}
       }
-      afterEach {}
+      afterEachPeer {}
       afterAll {}
     } as ExampleGroup<SyncCall>
 
@@ -27,19 +27,19 @@ final class ExampleNodeTests: XCTestCase {
     XCTAssertEqual(node.children.map(\.kind), [.example, .group])
 
     XCTAssertEqual(node.hooks(.beforeAll).map(\.name), ["before all: setup"])
-    XCTAssertEqual(node.hooks(.aroundEach).map(\.name), ["around each: wrap"])
-    XCTAssertEqual(node.hooks(.beforeEach).map(\.name),
-                   ["before each", "before each: second"])
-    XCTAssertEqual(node.hooks(.afterEach).map(\.name), ["after each"])
+    XCTAssertEqual(node.hooks(.aroundEachPeer).map(\.name), ["around each peer: wrap"])
+    XCTAssertEqual(node.hooks(.beforeEachPeer).map(\.name),
+                   ["before each peer", "before each peer: second"])
+    XCTAssertEqual(node.hooks(.afterEachPeer).map(\.name), ["after each peer"])
     XCTAssertEqual(node.hooks(.afterAll).map(\.name), ["after all"])
-    XCTAssertEqual(node.hooks(.beforeEach).map(\.kind),
-                   [.hook(.beforeEach), .hook(.beforeEach)])
+    XCTAssertEqual(node.hooks(.beforeEachPeer).map(\.kind),
+                   [.hook(.beforeEachPeer), .hook(.beforeEachPeer)])
 
     // Hooks stay with the group that declares them
     let nested = node.children[1]
     XCTAssertTrue(nested.isConcurrent)
     XCTAssertFalse(node.isConcurrent)
-    XCTAssertEqual(nested.hooks(.beforeEach).count, 1)
+    XCTAssertEqual(nested.hooks(.beforeEachPeer).count, 1)
     XCTAssertEqual(nested.hooks(.beforeAll).count, 0)
     XCTAssertEqual(nested.children.map(\.name), ["inner", "excluded"])
     XCTAssertEqual(nested.children.map(\.isExcluded), [false, true])
@@ -47,11 +47,11 @@ final class ExampleNodeTests: XCTestCase {
 
   func testExamplesAndHooksHaveNoChildren() {
     let node = (describe("Root") {
-      beforeEach {}
+      beforeEachPeer {}
       it("example") {}
     } as ExampleGroup<SyncCall>).node
 
-    for leaf in [node.children[0], node.hooks(.beforeEach)[0]] {
+    for leaf in [node.children[0], node.hooks(.beforeEachPeer)[0]] {
       XCTAssertTrue(leaf.children.isEmpty)
       XCTAssertTrue(leaf.hooks.isEmpty)
     }
@@ -93,8 +93,8 @@ final class ExampleNodeTests: XCTestCase {
       xIt("b") {}
       xContext("c") { it("inside") {} }
       context("d") {
-        beforeEach("skipped", .excluded) {}
-        beforeEach("kept") {}
+        beforeEachPeer("skipped", .excluded) {}
+        beforeEachPeer("kept") {}
         it("e") {}
       }
     } as ExampleGroup<SyncCall>).node
@@ -107,10 +107,10 @@ final class ExampleNodeTests: XCTestCase {
     XCTAssertEqual(node.children[2].children.map(\.name), ["inside"])
     XCTAssertEqual(node.children[2].children.map(\.isSelected), [true])
 
-    let hooks = node.children[3].hooks(.beforeEach)
+    let hooks = node.children[3].hooks(.beforeEachPeer)
     XCTAssertEqual(hooks.map(\.isSelected), [false, true])
-    XCTAssertEqual(node.children[3].selectedHooks(.beforeEach).map(\.name),
-                   ["before each: kept"])
+    XCTAssertEqual(node.children[3].selectedHooks(.beforeEachPeer).map(\.name),
+                   ["before each peer: kept"])
   }
 
   func testFocusSelectsOnlyFocusedBranches() {
@@ -178,7 +178,7 @@ final class ExampleNodeMainActorTests: XCTestCase, MainActorSuite {
   @MainActor
   func testMainActorGroups() {
     let sync = (describe("Main") {
-      aroundEach { callback in try callback() }
+      aroundEachPeer { callback in try callback() }
       it("runs") {}
     } as ExampleGroup<SyncMainCall>).node
     let async = (describe("Main async") {
@@ -191,6 +191,6 @@ final class ExampleNodeMainActorTests: XCTestCase, MainActorSuite {
     }
     XCTAssertEqual(sync.execution, .sync)
     XCTAssertEqual(async.execution, .async)
-    XCTAssertEqual(sync.hooks(.aroundEach)[0].isolation, .mainActor)
+    XCTAssertEqual(sync.hooks(.aroundEachPeer)[0].isolation, .mainActor)
   }
 }

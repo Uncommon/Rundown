@@ -69,7 +69,7 @@ final class CartXCTests: Rundown.TestCase {
   func testCartTotal() throws {
     try spec("Cart total") {
       context("with two items") {
-        beforeEach {
+        beforeEachPeer {
           self.prices = [19, 23]
         }
 
@@ -89,17 +89,17 @@ final class CartXCTests: Rundown.TestCase {
 
 ## Share setup and cleanup
 
-Setup and cleanup blocks are called *hooks*. In the XCTest example, `beforeEach` gives both examples a fresh set of prices. Put hooks in the group whose examples need them.
+Setup and cleanup blocks are called *hooks*. In the XCTest example, `beforeEachPeer` gives both examples a fresh set of prices. Put hooks in the group whose examples need them.
 
 | Hook | When it runs |
 | --- | --- |
 | `beforeAll` | Once before the group’s children run. |
-| `aroundEach` | Wraps each child and its per-child hooks. Your code calls the supplied callback to run them, which lets you use APIs such as `TaskLocal.withValue`. |
-| `beforeEach` | Before each direct child. |
-| `afterEach` | After each direct child. |
+| `aroundEachPeer` | Wraps each peer and its setup and cleanup hooks. Your code calls the supplied callback to run them, which lets you use APIs such as `TaskLocal.withValue`. |
+| `beforeEachPeer` | Before each example or nested group at the hook’s own level. |
+| `afterEachPeer` | After each example or nested group at the hook’s own level. |
 | `afterAll` | Once after the group’s children finish. |
 
-A nested group counts as one direct child. The parent’s per-child hooks wrap that group as a whole. Put a `beforeEach` inside the nested group when every example there needs its own setup.
+A hook’s *peers* are the examples and nested groups in the same enclosing group. A nested group counts as one peer, so the enclosing group’s peer hooks wrap that group as a whole. They do not run separately for its examples. Put a `beforeEachPeer` inside the nested group when every example there needs its own setup.
 
 Place setup hooks before the examples and cleanup hooks after them, in the order shown above. The ordering is checked at compile time. Use `for` loops to generate examples from input values and conditionals to include groups or examples when they apply.
 
@@ -155,7 +155,7 @@ let directory = Fixture {
 }
 ```
 
-In the above example, creating and deleting the temporary directory could also be done with `beforeEach`/`afterEach`, but the fixture gives a way to pass the URL to an example without having to store it in an optional variable from an outer scope. Fixtures are invoked after `beforeEach` and cleaned up before `afterEach`. 
+In the above example, creating and deleting the temporary directory could also be done with `beforeEachPeer`/`afterEachPeer`, but the fixture gives a way to pass the URL to an example without having to store it in an optional variable from an outer scope. Fixtures are invoked after `beforeEachPeer` and cleaned up before `afterEachPeer`. 
 
 Different types of fixture must be used depending on whether the test is `async` or `@MainActor`: `Fixture<Value>`, `AsyncFixture<Value>`, `MainActorFixture<Value>` or `AsyncMainActorFixture<Value>`.
 
@@ -217,6 +217,6 @@ To rerun one case with `xcodebuild`, build for testing and run the spec with `-r
 ## More details
 
 - Use `ExampleRunner.current?.description` inside a hook or example to include its full path in a log entry or attachment.
-- If setup fails, Rundown skips the affected work and still runs the corresponding cleanup hooks. A `beforeAll` failure skips the group’s children, while a `beforeEach` failure skips the child it was preparing.
+- If setup fails, Rundown skips the affected work and still runs the corresponding cleanup hooks. A `beforeAll` failure skips the group’s children, while a `beforeEachPeer` failure skips the child it was preparing.
 - In a Swift Testing host test, `try Test.cancel("reason")` (Swift 6.3 or later) stops new setup and examples. Cleanup still runs for groups and examples already entered.
 - Rundown is available under the [MIT license](LICENSE).

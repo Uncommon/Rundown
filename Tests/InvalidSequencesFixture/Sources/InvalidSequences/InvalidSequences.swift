@@ -4,15 +4,15 @@ import Rundown
 @ExampleBuilder<SyncCall>
 func emptyGroup() -> ExampleGroup<SyncCall> {
   describe("empty") { // expected-error {{Group must have examples}}
-    beforeEach { }
+    beforeEachPeer { }
   }
 }
 
-// 2) BeforeAll after BeforeEach triggers "BeforeAll must precede BeforeEach"
+// 2) BeforeAll after BeforeEachPeer triggers "BeforeAll must precede BeforeEachPeer"
 @ExampleBuilder<SyncCall>
-func beforeAllAfterBeforeEach() -> ExampleGroup<SyncCall> {
-  describe("beforeAll after beforeEach") { // expected-error {{BeforeAll must precede BeforeEach}}
-    beforeEach { }
+func beforeAllAfterBeforeEachPeer() -> ExampleGroup<SyncCall> {
+  describe("beforeAll after beforeEachPeer") { // expected-error {{BeforeAll must precede BeforeEachPeer}}
+    beforeEachPeer { }
     beforeAll { }
     it("ex") { }
   }
@@ -27,31 +27,31 @@ func beforeAllAfterExamples() -> ExampleGroup<SyncCall> {
   }
 }
 
-// 4) BeforeEach after examples triggers "BeforeEach cannot appear after examples"
+// 4) BeforeEachPeer after examples triggers "BeforeEachPeer cannot appear after examples"
 @ExampleBuilder<SyncCall>
-func beforeEachAfterExamples() -> ExampleGroup<SyncCall> {
-  describe("beforeEach after examples") { // expected-error {{BeforeEach cannot appear after examples}}
+func beforeEachPeerAfterExamples() -> ExampleGroup<SyncCall> {
+  describe("beforeEachPeer after examples") { // expected-error {{BeforeEachPeer cannot appear after examples}}
     it("ex") { }
-    beforeEach { }
+    beforeEachPeer { }
   }
 }
 
-// 5) AfterEach after AfterAll triggers "AfterEach must precede AfterAll"
+// 5) AfterEachPeer after AfterAll triggers "AfterEachPeer must precede AfterAll"
 @ExampleBuilder<SyncCall>
-func afterEachAfterAfterAll() -> ExampleGroup<SyncCall> {
-  describe("afterEach after afterAll") { // expected-error {{AfterEach must precede AfterAll}}
+func afterEachPeerAfterAfterAll() -> ExampleGroup<SyncCall> {
+  describe("afterEachPeer after afterAll") { // expected-error {{AfterEachPeer must precede AfterAll}}
     it("ex") { }
     afterAll { }
-    afterEach { }
+    afterEachPeer { }
   }
 }
 
-// 6) AroundEach after examples triggers "AroundEach cannot appear after examples"
+// 6) AroundEachPeer after examples triggers "AroundEachPeer cannot appear after examples"
 @ExampleBuilder<SyncCall>
-func aroundEachAfterExamples() -> ExampleGroup<SyncCall> {
-  describe("aroundEacha after examples") { // expected-error {{AroundEach cannot appear after examples}}
+func aroundEachPeerAfterExamples() -> ExampleGroup<SyncCall> {
+  describe("aroundEachPeer after examples") { // expected-error {{AroundEachPeer cannot appear after examples}}
     it("ex") { }
-    aroundEach { _ in }
+    aroundEachPeer { _ in }
   }
 }
 
@@ -70,15 +70,15 @@ func loopEndingBeforeExamples() -> ExampleGroup<SyncCall> {
 @ExampleBuilder<SyncCall>
 func groupEndsInBeforePhase() -> ExampleGroup<SyncCall> {
   describe("group ends in before phase") { // expected-error {{Group must have examples}}
-    beforeEach { }
+    beforeEachPeer { }
   }
 }
 
-// 9) Group must have examples when ending in AroundEachPhase
+// 9) Group must have examples when ending in AroundEachPeerPhase
 @ExampleBuilder<SyncCall>
-func groupEndsInAroundEachPhase() -> ExampleGroup<SyncCall> {
-  describe("group ends in aroundEach phase") { // expected-error {{Group must have examples}}
-    aroundEach { _ in }
+func groupEndsInAroundEachPeerPhase() -> ExampleGroup<SyncCall> {
+  describe("group ends in aroundEachPeer phase") { // expected-error {{Group must have examples}}
+    aroundEachPeer { _ in }
   }
 }
 
@@ -87,10 +87,10 @@ func groupEndsInAroundEachPhase() -> ExampleGroup<SyncCall> {
 func conditionalEndingBeforeExamples() -> ExampleGroup<SyncCall> {
   describe("conditional ending before examples") {
     if Bool.random() { // expected-error {{Conditional must end in example or 'after' element}}
-      beforeEach { }
+      beforeEachPeer { }
     }
     else { // expected-error {{Conditional must end in example or 'after' element}}
-      beforeEach { }
+      beforeEachPeer { }
     }
     it("ex") { }
   }
@@ -101,7 +101,7 @@ func conditionalEndingBeforeExamples() -> ExampleGroup<SyncCall> {
 func optionalEndingBeforeExamples() -> ExampleGroup<SyncCall> {
   describe("optional ending before examples") {
     if Bool.random() { // expected-error {{Conditional must end in example or 'after' element}}
-      beforeEach { }
+      beforeEachPeer { }
     }
     it("ex") { }
   }
@@ -112,8 +112,8 @@ func optionalEndingBeforeExamples() -> ExampleGroup<SyncCall> {
 func switchEndingBeforeExamples() -> ExampleGroup<SyncCall> {
   describe("switch ending before examples") {
     switch Int.random(in: 0..<2) {
-      case 0: beforeEach { } // expected-error {{Conditional must end in example or 'after' element}}
-      default: beforeEach { } // expected-error {{Conditional must end in example or 'after' element}}
+      case 0: beforeEachPeer { } // expected-error {{Conditional must end in example or 'after' element}}
+      default: beforeEachPeer { } // expected-error {{Conditional must end in example or 'after' element}}
     }
     it("ex") { }
   }
@@ -125,7 +125,7 @@ func optionalEndingInAfterHook() -> ExampleGroup<SyncCall> {
   describe("optional ending in after hook") {
     if Bool.random() { // expected-error {{Conditional without 'else' must end in an example}}
       it("ex") { }
-      afterEach { }
+      afterEachPeer { }
     }
   }
 }
@@ -133,7 +133,7 @@ func optionalEndingInAfterHook() -> ExampleGroup<SyncCall> {
 // 14) An after hook with nothing before it
 @ExampleBuilder<SyncCall>
 func afterHookFirst() -> ExampleGroup<SyncCall> {
-  describe("after hook first") { // expected-error {{AfterEach and AfterAll must come after examples}}
+  describe("after hook first") { // expected-error {{AfterEachPeer and AfterAll must come after examples}}
     afterAll { }
   }
 }
@@ -141,9 +141,9 @@ func afterHookFirst() -> ExampleGroup<SyncCall> {
 // 15) A before hook followed directly by an after hook
 @ExampleBuilder<SyncCall>
 func afterHookAfterBeforeHook() -> ExampleGroup<SyncCall> {
-  describe("after hook after before hook") { // expected-error {{AfterEach and AfterAll must come after examples}}
-    beforeEach { }
-    afterEach { }
+  describe("after hook after before hook") { // expected-error {{AfterEachPeer and AfterAll must come after examples}}
+    beforeEachPeer { }
+    afterEachPeer { }
     it("ex") { }
   }
 }
@@ -151,9 +151,9 @@ func afterHookAfterBeforeHook() -> ExampleGroup<SyncCall> {
 // 16) An example after an after hook
 @ExampleBuilder<SyncCall>
 func exampleAfterAfterHook() -> ExampleGroup<SyncCall> {
-  describe("example after after hook") { // expected-error {{Examples cannot appear after AfterEach or AfterAll}}
+  describe("example after after hook") { // expected-error {{Examples cannot appear after AfterEachPeer or AfterAll}}
     it("ex") { }
-    afterEach { }
+    afterEachPeer { }
     it("more") { }
   }
 }

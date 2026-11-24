@@ -45,7 +45,7 @@ final class MessageXCTests: Rundown.TestCase {
           log.note("after unwrap")
         }
         it("continues") { log.note("next example") }
-        afterEach { log.note("afterEach") }
+        afterEachPeer { log.note("afterEachPeer") }
         afterAll { log.note("afterAll") }
       }
     }
@@ -53,7 +53,7 @@ final class MessageXCTests: Rundown.TestCase {
     XCTAssertEqual(issues.wrappedValue.first?.sourceCodeContext.location?.fileURL.path, #filePath)
     XCTAssertEqual(issues.wrappedValue.first?.sourceCodeContext.location?.lineNumber,
                    unwrapLine.wrappedValue)
-    XCTAssertEqual(log.wrappedValue, ["afterEach", "next example", "afterEach", "afterAll"])
+    XCTAssertEqual(log.wrappedValue, ["afterEachPeer", "next example", "afterEachPeer", "afterAll"])
   }
 
   func testUnwrapFailureInBeforeAllRunsTeardownAndContinues() throws {
@@ -106,7 +106,7 @@ final class MessageXCTests: Rundown.TestCase {
   }
 
   func testSkipInItRunsAfterHooks() throws {
-    let ranAfterEach = Box(false)
+    let ranAfterEachPeer = Box(false)
     let ranAfterAll = Box(false)
 
     try spec("Skip") {
@@ -114,15 +114,15 @@ final class MessageXCTests: Rundown.TestCase {
         it("skips") {
           try XCTSkipIf(true, "skip It")
         }
-        afterEach {
-          ranAfterEach.set()
+        afterEachPeer {
+          ranAfterEachPeer.set()
         }
         afterAll {
           ranAfterAll.set()
         }
       }
     }
-    XCTAssert(ranAfterEach.wrappedValue, "AfterEach did not run")
+    XCTAssert(ranAfterEachPeer.wrappedValue, "AfterEachPeer did not run")
     XCTAssert(ranAfterAll.wrappedValue, "AfterAll did not run")
   }
 
@@ -132,14 +132,14 @@ final class MessageXCTests: Rundown.TestCase {
         beforeAll {
           try XCTSkipIf(true, "skip BeforeAll")
         }
-        beforeEach {
-          XCTFail("should not run BeforeEach")
+        beforeEachPeer {
+          XCTFail("should not run BeforeEachPeer")
         }
         it("skips elements") {
           XCTFail("should not run It")
         }
-        afterEach {
-          XCTFail("should not run AfterEach")
+        afterEachPeer {
+          XCTFail("should not run AfterEachPeer")
         }
         afterAll {
           XCTFail("should not run AfterAll")
@@ -148,17 +148,17 @@ final class MessageXCTests: Rundown.TestCase {
     }
   }
 
-  func testSkipInBeforeEach() throws {
-    let beforeEachCount = Box(0)
+  func testSkipInBeforeEachPeer() throws {
+    let beforeEachPeerCount = Box(0)
     let ranAfterAll = Box(false)
 
     try spec("Skip") {
-      context("skipping in BeforeEach") {
-        beforeEach {
+      context("skipping in BeforeEachPeer") {
+        beforeEachPeer {
           XCTAssertEqual(ExampleRunner.current!.description,
-                         "Skip, skipping in BeforeEach, before each")
-          beforeEachCount.bump()
-          try XCTSkipIf(true, "skip BeforeEach")
+                         "Skip, skipping in BeforeEachPeer, before each peer")
+          beforeEachPeerCount.bump()
+          try XCTSkipIf(true, "skip BeforeEachPeer")
         }
         it("skips first element") {
           XCTFail("should not run It")
@@ -166,15 +166,15 @@ final class MessageXCTests: Rundown.TestCase {
         it("skips second element") {
           XCTFail("should not run It")
         }
-        afterEach {
-          XCTFail("should not run AfterEach")
+        afterEachPeer {
+          XCTFail("should not run AfterEachPeer")
         }
         afterAll {
           ranAfterAll.set()
         }
       }
     }
-    XCTAssertEqual(beforeEachCount.wrappedValue, 2,
+    XCTAssertEqual(beforeEachPeerCount.wrappedValue, 2,
                    "a skip should only skip its own element")
     XCTAssert(ranAfterAll.wrappedValue, "AfterAll did not run")
   }
@@ -183,19 +183,19 @@ final class MessageXCTests: Rundown.TestCase {
   // that a skip that escapes can't end the test early and leave the other
   // scenarios' assertions unchecked.
 
-  func testSkipInAfterEachDoesNotAbortTheRun() throws {
+  func testSkipInAfterEachPeerDoesNotAbortTheRun() throws {
     let log = Box([String]())
 
     try spec("Skip") {
-      context("skipping in AfterEach") {
+      context("skipping in AfterEachPeer") {
         it("first") { log.note("first") }
-        afterEach("skips") { throw XCTSkip("skip AfterEach") }
-        afterEach("next") { log.note("afterEach") }
+        afterEachPeer("skips") { throw XCTSkip("skip AfterEachPeer") }
+        afterEachPeer("next") { log.note("afterEachPeer") }
       }
       it("second") { log.note("second") }
       afterAll { log.note("afterAll") }
     }
-    XCTAssertEqual(log.wrappedValue, ["first", "afterEach", "second", "afterAll"])
+    XCTAssertEqual(log.wrappedValue, ["first", "afterEachPeer", "second", "afterAll"])
   }
 
   func testSkipInAfterAllDoesNotAbortTheRun() throws {
@@ -212,14 +212,14 @@ final class MessageXCTests: Rundown.TestCase {
     XCTAssertEqual(log.wrappedValue, ["first", "afterAll", "second"])
   }
 
-  func testSkipInAroundEachDoesNotAbortTheRun() throws {
+  func testSkipInAroundEachPeerDoesNotAbortTheRun() throws {
     let log = Box([String]())
 
     try spec("Skip") {
-      context("skipping in AroundEach") {
-        aroundEach("skips") { callback in
+      context("skipping in AroundEachPeer") {
+        aroundEachPeer("skips") { callback in
           log.note("around")
-          throw XCTSkip("skip AroundEach")
+          throw XCTSkip("skip AroundEachPeer")
         }
         it("not run") { XCTFail("should not run It") }
       }
@@ -230,17 +230,17 @@ final class MessageXCTests: Rundown.TestCase {
 
   /// An error is recorded where it happens, so the issue carries the full path
   /// including the name of the hook.
-  func testErrorInBeforeEachIncludesPath() throws {
+  func testErrorInBeforeEachPeerIncludesPath() throws {
     let options = XCTExpectedFailure.Options()
     options.issueMatcher = {
       $0.type == .uncaughtException
-        && $0.compactDescription.hasPrefix("Errors, in context, before each ")
+        && $0.compactDescription.hasPrefix("Errors, in context, before each peer ")
     }
     XCTExpectFailure("the error is recorded as an issue", options: options)
 
     try spec("Errors") {
       context("in context") {
-        beforeEach {
+        beforeEachPeer {
           throw TestError(id: 1)
         }
         it("never runs") {

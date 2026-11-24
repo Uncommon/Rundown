@@ -12,22 +12,22 @@ struct DiscoveryComparisonFixture: Sendable {
   @ExampleBuilder<AsyncCall>
   func build() -> ExampleGroup<AsyncCall> {
     beforeAll { record("root beforeAll") }
-    aroundEach { run in
-      record("root aroundEach enter")
-      defer { record("root aroundEach exit") }
+    aroundEachPeer { run in
+      record("root aroundEachPeer enter")
+      defer { record("root aroundEachPeer exit") }
       try await run()
     }
-    beforeEach { record("root beforeEach") }
+    beforeEachPeer { record("root beforeEachPeer") }
     generatedGroup(values: [1, 2])
     it("Independent example") { record("independent example") }
-    afterEach { record("root afterEach") }
+    afterEachPeer { record("root afterEachPeer") }
     afterAll { record("root afterAll") }
   }
 
   private func generatedGroup(values: [Int]) -> ExampleGroup<AsyncCall> {
     context("Generated group") {
       beforeAll { record("group beforeAll") }
-      beforeEach { record("group beforeEach") }
+      beforeEachPeer { record("group beforeEachPeer") }
       for value in values {
         if value.isMultiple(of: 2) {
           it("Repeated discovery label") {
@@ -51,7 +51,7 @@ struct DiscoveryComparisonFixture: Sendable {
         record("thrown error")
         throw ExampleFailure()
       }
-      afterEach { record("group afterEach") }
+      afterEachPeer { record("group afterEachPeer") }
       afterAll { record("group afterAll") }
     }
   }
@@ -81,14 +81,14 @@ struct DiscoveryComparisonTests: SwiftTestingSuite {
     #expect(issues.withLock { $0 } == 3)
     #expect(fixture.trace == [
       "root beforeAll",
-      "root aroundEach enter", "root beforeEach", "group beforeAll",
-      "group beforeEach", "sync example 1", "group afterEach",
-      "group beforeEach", "async example 2", "group afterEach",
-      "group beforeEach", "required assertion", "group afterEach",
-      "group beforeEach", "thrown error", "group afterEach",
-      "group afterAll", "root afterEach", "root aroundEach exit",
-      "root aroundEach enter", "root beforeEach", "independent example",
-      "root afterEach", "root aroundEach exit", "root afterAll",
+      "root aroundEachPeer enter", "root beforeEachPeer", "group beforeAll",
+      "group beforeEachPeer", "sync example 1", "group afterEachPeer",
+      "group beforeEachPeer", "async example 2", "group afterEachPeer",
+      "group beforeEachPeer", "required assertion", "group afterEachPeer",
+      "group beforeEachPeer", "thrown error", "group afterEachPeer",
+      "group afterAll", "root afterEachPeer", "root aroundEachPeer exit",
+      "root aroundEachPeer enter", "root beforeEachPeer", "independent example",
+      "root afterEachPeer", "root aroundEachPeer exit", "root afterAll",
     ])
   }
 }
@@ -102,12 +102,12 @@ final class MainActorDiscoveryComparisonFixture: MainActorSuite {
     let _ = MainActor.preconditionIsolated()
     beforeAll { self.record("root beforeAll") }
     context("Isolated group") {
-      beforeEach { self.record("group beforeEach") }
+      beforeEachPeer { self.record("group beforeEachPeer") }
       it("Suspending main-actor example") {
         await Task.yield()
         self.record("main-actor example")
       }
-      afterEach { self.record("group afterEach") }
+      afterEachPeer { self.record("group afterEachPeer") }
     }
     afterAll { self.record("root afterAll") }
   }
@@ -125,8 +125,8 @@ struct MainActorDiscoveryComparisonTests: MainActorSwiftTestingSuite {
     try await spec("Main-actor discovery comparison", builder: fixture.build)
 
     #expect(fixture.trace == [
-      "root beforeAll", "group beforeEach", "main-actor example",
-      "group afterEach", "root afterAll",
+      "root beforeAll", "group beforeEachPeer", "main-actor example",
+      "group afterEachPeer", "root afterAll",
     ])
   }
 }

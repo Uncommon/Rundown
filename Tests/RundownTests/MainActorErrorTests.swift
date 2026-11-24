@@ -20,14 +20,14 @@ final class MainActorErrorTests: Rundown.TestCase {
     let log = Box([String]())
     let group: ExampleGroup<AsyncMainCall> = describe("async main") {
       beforeAll { log.note("beforeAll") }
-      beforeEach { log.note("beforeEach") }
+      beforeEachPeer { log.note("beforeEachPeer") }
       it("fails") {
         await Task.yield()
         log.note("fails")
         throw TestError(id: 1)
       }
       it("passes") { log.note("passes") }
-      afterEach { log.note("afterEach") }
+      afterEachPeer { log.note("afterEachPeer") }
       afterAll { log.note("afterAll") }
     }
 
@@ -39,8 +39,8 @@ final class MainActorErrorTests: Rundown.TestCase {
       XCTAssertEqual(error, TestError(id: 1))
     }
     XCTAssertEqual(log.wrappedValue,
-                   ["beforeAll", "beforeEach", "fails", "afterEach",
-                    "beforeEach", "passes", "afterEach", "afterAll"])
+                   ["beforeAll", "beforeEachPeer", "fails", "afterEachPeer",
+                    "beforeEachPeer", "passes", "afterEachPeer", "afterAll"])
   }
 
   func testAsyncRunnerRunsAfterAllWhenBeforeAllThrows() async throws {
@@ -51,7 +51,7 @@ final class MainActorErrorTests: Rundown.TestCase {
         log.note("beforeAll")
         throw TestError(id: 1)
       }
-      beforeEach { log.note("beforeEach") }
+      beforeEachPeer { log.note("beforeEachPeer") }
       it("never runs") { log.note("never runs") }
       afterAll { log.note("afterAll") }
     }

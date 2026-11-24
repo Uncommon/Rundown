@@ -102,18 +102,18 @@ public extension MainActorSuite {
   
   @DeAsyncRD
   @_disfavoredOverload
-  func aroundEach(_ name: String = "",
-                  _ traits: (any Trait)...,
-                  executor: @escaping AsyncMainCall.AroundCallback)
-  -> AroundEach<AsyncMainCall> {
+  func aroundEachPeer(_ name: String = "",
+                      _ traits: (any Trait)...,
+                      executor: @escaping AsyncMainCall.AroundCallback)
+  -> AroundEachPeer<AsyncMainCall> {
     .init(name: name, traits: traits, block: executor)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
-  func aroundEach(_ traits: (any Trait)...,
-                  executor: @escaping AsyncMainCall.AroundCallback)
-  -> AroundEach<AsyncMainCall> {
+  func aroundEachPeer(_ traits: (any Trait)...,
+                      executor: @escaping AsyncMainCall.AroundCallback)
+  -> AroundEachPeer<AsyncMainCall> {
     .init(name: "", traits: traits, block: executor)
   }
   
@@ -126,15 +126,15 @@ public extension MainActorSuite {
   
   @DeAsyncRD
   @_disfavoredOverload
-  func beforeEach(_ name: String = "", _ traits: (any Trait)...,
-                  execute: @escaping AsyncMainCall.Callback) -> TestHook<BeforeEachPhase, AsyncMainCall> {
+  func beforeEachPeer(_ name: String = "", _ traits: (any Trait)...,
+                      execute: @escaping AsyncMainCall.Callback) -> TestHook<BeforeEachPeerPhase, AsyncMainCall> {
     .init(name, traits, execute: execute)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
-  func afterEach(_ name: String = "", _ traits: (any Trait)...,
-                 execute: @escaping AsyncMainCall.Callback) -> TestHook<AfterEachPhase, AsyncMainCall> {
+  func afterEachPeer(_ name: String = "", _ traits: (any Trait)...,
+                     execute: @escaping AsyncMainCall.Callback) -> TestHook<AfterEachPeerPhase, AsyncMainCall> {
     .init(name, traits, execute: execute)
   }
   
