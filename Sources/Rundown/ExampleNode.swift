@@ -94,18 +94,16 @@ package struct ExampleNode: Sendable {
     hooks[kind] ?? []
   }
 
-  /// Whether the node runs, as far as its own group is concerned. This is
-  /// resolved when the tree is built, and leaves excluded and unselected nodes
-  /// in the tree so that it still has the structure of the spec.
+  /// Whether the node is selected to run. Selection is resolved when the tree
+  /// is built, keeping excluded and unselected nodes to preserve its structure.
   ///
   /// - A node with the `.excluded` trait is not selected.
-  /// - If any non-excluded child of a group has a focused descendant, then
+  /// - If any child of a group has focus outside an excluded subtree, then
   ///   only those children are selected, and the rest are left out.
   /// - Otherwise every non-excluded child is selected.
   ///
-  /// A node whose group is not selected doesn't run either, so a traversal
-  /// only goes into nodes that are selected, from the root down. The root
-  /// has no group to leave it out, and is always selected.
+  /// Every descendant and hook of an unselected group is also unselected.
+  /// The root is selected unless it has the `.excluded` trait.
   private(set) var isSelected: Bool = true
 
   /// The children that run, in order
@@ -126,23 +124,46 @@ package struct ExampleNode: Sendable {
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }
   package var isConcurrent: Bool { traits.contains { $0 is ConcurrentTrait } }
 
-  /// Whether this node or any descendant is focused. Excluded descendants
-  /// count, the same as `TestExample.isDeepFocused` for a group.
+  /// Whether this node or a descendant contributes focus. An excluded subtree
+  /// never contributes focus, even if it contains focused nodes.
   var isDeepFocused: Bool {
-    isFocused || children.contains(where: \.isDeepFocused)
+    !isExcluded && (isFocused || children.contains(where: \.isDeepFocused))
   }
 
   /// Resolves which of the children run. See `isSelected`.
   fileprivate func resolvingSelection() -> ExampleNode {
+    guard !isExcluded
+    else { return deselectingSubtree() }
     var node = self
-    let candidates = children.filter { !$0.isExcluded }
-    let anyFocused = candidates.contains(where: \.isDeepFocused)
+    let anyFocused = children.contains(where: \.isDeepFocused)
     node.children = children.map { child in
-      var child = child
-      child.isSelected = !child.isExcluded && (!anyFocused || child.isDeepFocused)
+      if child.isExcluded || (anyFocused && !child.isDeepFocused) {
+        return child.deselectingSubtree()
+      }
       return child
     }
     return node
+  }
+
+  private func deselectingSubtree() -> ExampleNode {
+    var node = self
+    node.isSelected = false
+    node.children = children.map { $0.deselectingSubtree() }
+    node.hooks = hooks.mapValues { $0.map { $0.deselectingSubtree() } }
+    return node
+  }
+
+  /// Finds focused examples and groups that exclusion prevents from running.
+  /// Inspect the declared traits even in unselected branches so that focus
+  /// hidden by an excluded ancestor can still be diagnosed.
+  func excludedFocusPaths(under path: [String] = [], excludedByAncestor: Bool = false) -> [[String]] {
+    let path = path + [description]
+    let excluded = excludedByAncestor || isExcluded
+    var paths = excluded && isFocused ? [path] : []
+    for child in children {
+      paths += child.excludedFocusPaths(under: path, excludedByAncestor: excluded)
+    }
+    return paths
   }
 }
 
@@ -281,7 +302,8 @@ extension It where Call: NodeCallType {
                 body: Call.nodeBody(block),
                 around: nil,
                 children: [],
-                hooks: [:])
+                hooks: [:],
+                isSelected: !isExcluded)
   }
 }
 

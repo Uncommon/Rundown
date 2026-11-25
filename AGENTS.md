@@ -8,3 +8,8 @@
   delimiters may remain on a separate line.
 - Put `else` on a new line, aligned with its `guard` or `if`, including `else if`.
 - Preserve unrelated formatting when making a focused change.
+
+# Test descriptions
+
+- Write `it`, `fIt`, and `xIt` messages as verb phrases that complete
+  "it …" and state the expected behavior, such as `it("runs unfocused siblings")`.

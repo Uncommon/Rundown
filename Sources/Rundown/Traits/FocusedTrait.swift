@@ -2,9 +2,9 @@
 /// those elements, plus the before/after hooks of their group, will
 /// be executed.
 ///
-/// This behavior propagates up the group hierarchy: if
-/// if any descendants of a group are focused, then non-focused
-/// siblings of that group will be skipped.
+/// This behavior propagates up the group hierarchy: if any descendants of a
+/// group are focused, then non-focused siblings of that group will be skipped.
+/// Excluded elements and their descendants never contribute focus.
 ///
 /// Focusing is intended to be used as a temporary debugging tool.
 /// Usages of `FocusedTrait` should usually not be checked in to source
@@ -19,8 +19,9 @@ public extension TestExample {
   /// Returns `true` if this element has a `FocusedTrait`
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }
   
-  /// Returns `true` if this element or any sub-element has a `FocusedTrait`
-  var isDeepFocused: Bool { isFocused }
+  /// Returns `true` if this element or a descendant contributes focus.
+  /// Excluded elements and their descendants do not contribute focus.
+  var isDeepFocused: Bool { !isExcluded && isFocused }
 }
 
 

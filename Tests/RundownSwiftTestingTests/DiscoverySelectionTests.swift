@@ -9,7 +9,7 @@ private struct DiscoverySelectionFixture: Sendable {
   private let executed = OSAllocatedUnfairLock(initialState: Set<String>())
 
   var expected: Set<String> {
-    focused ? ["Chosen", "Holder example"]
+    focused ? ["Chosen"]
       : ["Chosen", "Holder example", "Unfocused nested example", "Unfocused root example"]
   }
 

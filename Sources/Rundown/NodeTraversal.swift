@@ -32,9 +32,18 @@ extension ExampleNode {
   /// own and a fresh path. Errors that the reporter propagates are thrown after
   /// everything has run.
   @DeAsyncRD
-  package func run(with reporter: any Reporter) async throws {
+  package func run(with reporter: any Reporter, warnsAboutExcludedFocus: Bool = true) async throws {
+    if warnsAboutExcludedFocus { warnAboutExcludedFocus() }
+    guard isSelected
+    else { return }
     await checkCanRun()
     try await runInRootScope(reporter) { try await traverse(reporter) }
+  }
+
+  package func warnAboutExcludedFocus() {
+    for path in excludedFocusPaths() {
+      ExampleRunner.logger.warning("Focused element \"\(path.joined(separator: ", "), privacy: .public)\" is excluded; its focus has no effect")
+    }
   }
 
   @DeAsyncRD

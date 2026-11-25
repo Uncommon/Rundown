@@ -20,7 +20,7 @@ public struct ExampleGroup<Call: CallType>: TestExample {
   let elements: [any TestExample]
   
   public var isDeepFocused: Bool {
-    isFocused || elements.contains(where: \.isDeepFocused)
+    !isExcluded && (isFocused || elements.contains(where: \.isDeepFocused))
   }
 
   public init(_ description: String,

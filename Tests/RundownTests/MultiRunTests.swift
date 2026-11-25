@@ -148,6 +148,51 @@ class MultiRunTests: XCTestCase {
     }
   }
   
+  func testExcludedFocusDoesNotSelectItsAncestors() async throws {
+    try await useAllRunners { runner, type in
+      for activeFocus in [false, true] {
+        let events = Box([String]())
+        let group = describe("Excluded focus") {
+          beforeAll { events.note("setup") }
+          it("runs as a sibling") { events.note("sibling") }
+          context("holder") {
+            it("runs without focus") { events.note("plain") }
+            xContext("excluded") {
+              beforeAll { XCTFail("Set up an excluded group") }
+              beforeEach { XCTFail("Entered an excluded hook") }
+              fIt("stays excluded despite focus") { XCTFail("Ran excluded focus") }
+              afterAll { XCTFail("Tore down an excluded group") }
+            }
+          }
+          it("runs when selected", activeFocus ? [.focused] : []) { events.note("chosen") }
+          fIt("stays excluded despite focus", .excluded) { XCTFail("Ran an excluded example") }
+          afterAll { events.note("cleanup") }
+        }
+
+        try await runner(group)
+
+        let expected = activeFocus ? ["setup", "chosen", "cleanup"]
+          : ["setup", "sibling", "plain", "chosen", "cleanup"]
+        XCTAssertEqual(events.wrappedValue, expected, "\(type), active focus: \(activeFocus)")
+      }
+    }
+  }
+
+  func testExcludedRootDoesNotRunHooksOrFocusedExamples() async throws {
+    try await useAllRunners { runner, type in
+      let events = Box([String]())
+      let group = describe("Excluded root", .excluded) {
+        beforeAll { events.note("setup") }
+        fIt("stays excluded with its root") { events.note("example") }
+        afterAll { events.note("cleanup") }
+      }
+
+      try await runner(group)
+
+      XCTAssertTrue(events.wrappedValue.isEmpty, "\(type) ran an excluded root")
+    }
+  }
+
   func testDeepFocus() async throws {
     try await useAllRunners { (runner, type) in
       let ranBeforeAll1 = Box(false)

@@ -208,7 +208,7 @@ A trait is an option you attach to an example or group.
 
 If any examples or groups are marked with the `.focused` trait, Rundown limits the run to those examples and groups, including the enclosing groups and their hooks. Inside each selected group, Rundown applies the same rule. If nothing inside is focused, its children run as usual.
 
-Write `it("adds the prices", .focused) { … }` to focus an example, or use `.excluded` to leave it out. Both traits also work on `context` and `describe`. If a group has no selected children, its setup is skipped. In Swift Testing, use `.disabled` on `@Test` or `@Suite` to skip the whole test or suite.
+Write `it("adds the prices", .focused) { … }` to focus an example, or use `.excluded` to leave it out. Both traits also work on `context` and `describe`. If a group has no selected children, its setup is skipped. In Swift Testing, use `.disabled` on `@Test` or `@Suite` to skip the whole test or suite. Focused children inside an excluded group are still excluded.
 
 Swift Testing discovers and filters the enclosing `@Test`. To narrow a SwiftPM run, use `swift test --filter` with the name of the test or suite. Rundown selects and schedules the examples inside each spec.
 

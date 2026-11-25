@@ -1,6 +1,8 @@
 /// Marks an element as excluded. It will not be executed, and a group
 /// where all elements are excluded will also not execute before/after
 /// hooks.
+/// An excluded group excludes all its descendants, and focus anywhere in that
+/// subtree has no effect on selection.
 ///
 /// "Excluded" is a slightly different concept from "skipped" as in
 /// `XCTSkip`. Excluding is meant to be a temporary change during

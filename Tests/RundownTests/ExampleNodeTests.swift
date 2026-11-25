@@ -103,9 +103,9 @@ final class ExampleNodeTests: XCTestCase {
     XCTAssertEqual(node.children.map(\.name), ["a", "b", "c", "d"])
     XCTAssertEqual(node.children.map(\.isSelected), [true, false, false, true])
     XCTAssertEqual(node.selectedChildren.map(\.name), ["a", "d"])
-    // The children of an excluded group are kept and still resolve on their own
+    // The children of an excluded group stay in the tree but are not selected
     XCTAssertEqual(node.children[2].children.map(\.name), ["inside"])
-    XCTAssertEqual(node.children[2].children.map(\.isSelected), [true])
+    XCTAssertEqual(node.children[2].children.map(\.isSelected), [false])
 
     let hooks = node.children[3].hooks(.beforeEachPeer)
     XCTAssertEqual(hooks.map(\.isSelected), [false, true])
@@ -134,32 +134,112 @@ final class ExampleNodeTests: XCTestCase {
     XCTAssertEqual(node.children[2].children.map(\.isSelected), [true])
   }
 
-  /// Unintended, probably, but kept from the old `filterFocusSkip` so that
-  /// behavior doesn't change: a focused node inside an excluded subtree makes
-  /// the groups around it count as focused, so their siblings are left out.
-  func testFocusInsideExcludedSubtreeStillCountsAsFocus() {
-    let node = (describe("Root") {
-      it("sibling") {}
+  func testFocusInsideExcludedSubtreeDoesNotSuppressSiblings() {
+    let group = describe("Root") {
+      it("runs as a sibling") {}
       context("holder") {
-        it("plain") {}
+        it("runs without focus") {}
         xContext("out") {
-          fIt("focused but out") {}
+          fIt("stays excluded despite focus") {}
         }
       }
-    } as ExampleGroup<SyncCall>).node
+    } as ExampleGroup<SyncCall>
+    let node = group.node
 
-    XCTAssertEqual(node.children.map(\.isSelected), [false, true])
-    // Inside the holder nothing that runs is focused, so everything that
-    // isn't excluded runs
+    XCTAssertFalse(group.isDeepFocused)
+    XCTAssertFalse(node.isDeepFocused)
+    XCTAssertEqual(node.children.map(\.isSelected), [true, true])
     XCTAssertEqual(node.children[1].children.map(\.isSelected), [true, false])
+    XCTAssertFalse(node.children[1].children[1].children[0].isSelected)
   }
 
-  func testRootIsAlwaysSelected() {
-    let node = (describe("Root", .excluded) {
-      it("a") {}
-    } as ExampleGroup<SyncCall>).node
-    XCTAssertTrue(node.isSelected)
+  func testExcludedRootDeselectsEveryDescendantAndHook() {
+    let group = describe("Root", .excluded, .focused) {
+      beforeAll {}
+      context("nested") {
+        beforeEach {}
+        fIt("stays excluded with its root") {}
+        afterEachPeer {}
+      }
+      afterAll {}
+    } as ExampleGroup<SyncCall>
+    let node = group.node
+
+    XCTAssertFalse(node.isSelected)
     XCTAssertTrue(node.isExcluded)
+    XCTAssertFalse(group.isDeepFocused)
+    XCTAssertFalse(node.isDeepFocused)
+    XCTAssertTrue(node.selectedChildren.isEmpty)
+    XCTAssertTrue(node.selectedHooks(.beforeAll).isEmpty)
+    XCTAssertTrue(node.selectedHooks(.afterAll).isEmpty)
+    let nested = node.children[0]
+    XCTAssertFalse(nested.isSelected)
+    XCTAssertFalse(nested.children[0].isSelected)
+    XCTAssertTrue(nested.selectedHooks(.beforeEach).isEmpty)
+    XCTAssertTrue(nested.selectedHooks(.afterEachPeer).isEmpty)
+    XCTAssertEqual(node.excludedFocusPaths(), [["Root"], ["Root", "nested", "stays excluded with its root"]])
+  }
+
+  func testExcludedFocusedElementsDoNotContributeFocus() {
+    let group = describe("Root") {
+      it("runs without focus") {}
+      fIt("stays excluded despite focus", .excluded) {}
+      fContext("excluded group", .excluded) { it("stays excluded with its group") {} }
+    } as ExampleGroup<SyncCall>
+    let node = group.node
+
+    XCTAssertFalse(group.isDeepFocused)
+    XCTAssertFalse(group.elements[1].isDeepFocused)
+    XCTAssertFalse(group.elements[2].isDeepFocused)
+    XCTAssertFalse(node.isDeepFocused)
+    XCTAssertEqual(node.children.map(\.isSelected), [true, false, false])
+    XCTAssertFalse(node.children[2].children[0].isSelected)
+  }
+
+  func testUnfocusedBranchesDeselectTheirDescendantsAndHooks() {
+    let node = (describe("Root") {
+      context("unfocused") {
+        beforeAll {}
+        context("nested") { it("stays unselected with its group") {} }
+        afterAll {}
+      }
+      fIt("runs when selected") {}
+    } as ExampleGroup<SyncCall>).node
+
+    let unfocused = node.children[0]
+    XCTAssertFalse(unfocused.isSelected)
+    XCTAssertFalse(unfocused.children[0].isSelected)
+    XCTAssertFalse(unfocused.children[0].children[0].isSelected)
+    XCTAssertTrue(unfocused.selectedHooks(.beforeAll).isEmpty)
+    XCTAssertTrue(unfocused.selectedHooks(.afterAll).isEmpty)
+  }
+
+  func testExcludedFocusDiagnosticsIncludeHiddenAndDirectFocus() {
+    let node = (describe("Root") {
+      fIt("runs when selected") {}
+      context("unselected holder") {
+        xContext("excluded") {
+          fContext("focused group") { fIt("stays excluded with its group") {} }
+        }
+      }
+      fIt("stays directly excluded", .excluded) {}
+    } as ExampleGroup<SyncCall>).node
+
+    XCTAssertFalse(node.children[1].isSelected)
+    XCTAssertEqual(node.excludedFocusPaths(), [
+      ["Root", "unselected holder", "excluded", "focused group"],
+      ["Root", "unselected holder", "excluded", "focused group", "stays excluded with its group"],
+      ["Root", "stays directly excluded"],
+    ])
+  }
+
+  func testExcludedFocusDiagnosticsIgnoreValidFocusAndUnfocusedExclusions() {
+    let node = (describe("Root") {
+      fContext("active") { it("runs with its focused group") {} }
+      xContext("excluded") { xIt("stays excluded") {} }
+    } as ExampleGroup<SyncCall>).node
+
+    XCTAssertTrue(node.excludedFocusPaths().isEmpty)
   }
 
   /// The node tree agrees with what the group itself reports

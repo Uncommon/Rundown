@@ -62,6 +62,8 @@ public enum _SpecRegistration {
       return Test.__function(named: "examples(unit:)", in: spec, xcTestCompatibleSelector: nil, traits: [scope],
                              arguments: {
                                let root = S().spec.named(String(describing: spec)).node
+                               // Diagnose the full tree once, before case selection removes branches.
+                               root.warnAboutExcludedFocus()
                                let cases = DiscoveryCase.makeCases(in: root.withoutGroupHooks,
                                                                    unit: unit, path: [root.description], indices: [])
                                scope.root.withLock { $0 = cases.isEmpty ? nil : root }
@@ -70,7 +72,8 @@ public enum _SpecRegistration {
                              sourceBounds: bounds(at: sourceLocation),
                              parameters: [(firstName: "unit", secondName: nil, type: DiscoveryCase.self)]) { discoveryCase in
         try await withRundownAssertionPaths {
-          try await discoveryCase.root.run(with: SwiftTestingReporter(allowsConcurrency: true))
+          try await discoveryCase.root.run(with: SwiftTestingReporter(allowsConcurrency: true),
+                                           warnsAboutExcludedFocus: false)
         }
       }
     }, into: outValue, asTypeAt: type)
