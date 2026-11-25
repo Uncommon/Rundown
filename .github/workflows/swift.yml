@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: ["v*"]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Swift ${{ matrix.swift }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - swift: "6.2"
+            runner: macos-15
+            xcode: "26.0.1"
+            discovery: false
+          - swift: "6.3"
+            runner: macos-26
+            xcode: "26.6"
+            discovery: false
+          - swift: "6.4"
+            runner: xcode-27
+            xcode: "27.2"
+            discovery: true
+
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Run package tests
+        run: swift test
+
+      - name: Test downstream discovery
+        if: matrix.discovery
+        run: swift test --package-path Tests/ExternalSpecFixture
