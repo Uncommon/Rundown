@@ -5,6 +5,7 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
     AroundEachPhase.phaseName + (name.isEmpty ? "" : ": \(name)")
   }
   public let traits: [any Trait]
+  let declarationLocation: DeclarationLocation
   let block: Call.AroundCallback
 }
 
@@ -18,9 +19,15 @@ public struct AroundEach<Call: CallType>: TestElement, Sendable {
 @_disfavoredOverload
 public func aroundEach(_ name: String = "",
                        _ traits: (any Trait)...,
+                       fileID: String = #fileID,
+                       filePath: String = #filePath,
+                       line: Int = #line,
+                       column: Int = #column,
                        executor: @escaping AsyncCall.AroundCallback)
   -> AroundEach<AsyncCall> {
-  .init(name: name, traits: traits, block: executor)
+  .init(name: name, traits: traits,
+        declarationLocation: .init(fileID: fileID, filePath: filePath, line: line, column: column),
+        block: executor)
 }
 
 /// Wraps every selected example in this group and its nested groups,
@@ -32,7 +39,13 @@ public func aroundEach(_ name: String = "",
 @DeAsyncRD
 @_disfavoredOverload
 public func aroundEach(_ traits: (any Trait)...,
+                       fileID: String = #fileID,
+                       filePath: String = #filePath,
+                       line: Int = #line,
+                       column: Int = #column,
                        executor: @escaping AsyncCall.AroundCallback)
   -> AroundEach<AsyncCall> {
-  .init(name: "", traits: traits, block: executor)
+  .init(name: "", traits: traits,
+        declarationLocation: .init(fileID: fileID, filePath: filePath, line: line, column: column),
+        block: executor)
 }

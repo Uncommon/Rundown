@@ -59,12 +59,15 @@ final class MessageXCTests: Rundown.TestCase {
   func testUnwrapFailureInBeforeAllRunsTeardownAndContinues() throws {
     let log = Box([String]())
     let recorded = Box(0)
+    let issues = Box([XCTIssue]())
+    let unwrapLine = Box(0)
     let options = XCTExpectedFailure.Options()
     options.issueMatcher = { issue in
       guard issue.type == .assertionFailure,
             issue.compactDescription.hasPrefix("Unwrap, context, before all ")
       else { return false }
       recorded.bump()
+      issues.wrappedValue.append(issue)
       return true
     }
 
@@ -72,6 +75,7 @@ final class MessageXCTests: Rundown.TestCase {
       try spec("Unwrap") {
         context("context") {
           beforeAll {
+            unwrapLine.wrappedValue = #line + 1
             _ = try XCTUnwrap(nil as Int?)
             log.note("after unwrap")
           }
@@ -83,6 +87,9 @@ final class MessageXCTests: Rundown.TestCase {
       }
     }
     XCTAssertEqual(recorded.wrappedValue, 1)
+    XCTAssertEqual(issues.wrappedValue.first?.sourceCodeContext.location?.fileURL.path, #filePath)
+    XCTAssertEqual(issues.wrappedValue.first?.sourceCodeContext.location?.lineNumber,
+                   unwrapLine.wrappedValue)
     XCTAssertEqual(log.wrappedValue, ["context afterAll", "next example", "afterAll"])
   }
   

@@ -288,6 +288,7 @@ extension ExampleNode {
         // This reporting node isn't part of the tree and has no executable
         // body. The example remains the unit of selection and scheduling.
         let phaseNode = ExampleNode(kind: .example, name: phase.description,
+                                    declarationLocation: declarationLocation,
                                     traits: [], isolation: isolation, execution: execution,
                                     body: nil, around: nil, children: [], hooks: [:])
         outcome = ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [phase]) {

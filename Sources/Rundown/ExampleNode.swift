@@ -70,6 +70,7 @@ package struct ExampleNode: Sendable {
   /// The same text as the `description` of the element, so a hook's includes
   /// its phase, such as "before each peer: name".
   let name: String
+  package let declarationLocation: DeclarationLocation?
   package let traits: [any Trait]
   let isolation: Isolation
   let execution: Execution
@@ -243,6 +244,7 @@ extension ExampleGroup where Call: NodeCallType {
   private var nodeBeforeSelection: ExampleNode {
     ExampleNode(kind: .group,
                 name: description,
+                declarationLocation: nil,
                 traits: traits,
                 isolation: Call.nodeIsolation,
                 execution: Call.nodeExecution,
@@ -272,6 +274,7 @@ extension It where Call: NodeCallType {
   var node: ExampleNode {
     ExampleNode(kind: .example,
                 name: description,
+                declarationLocation: declarationLocation,
                 traits: traits,
                 isolation: Call.nodeIsolation,
                 execution: Call.nodeExecution,
@@ -286,6 +289,7 @@ extension TestHook where Call: NodeCallType {
   fileprivate func node(_ kind: ExampleNode.HookKind) -> ExampleNode {
     ExampleNode(kind: .hook(kind),
                 name: description,
+                declarationLocation: declarationLocation,
                 traits: traits,
                 isolation: Call.nodeIsolation,
                 execution: Call.nodeExecution,
@@ -301,6 +305,7 @@ extension AroundEachPeer where Call: NodeCallType {
   fileprivate var node: ExampleNode {
     ExampleNode(kind: .hook(.aroundEachPeer),
                 name: description,
+                declarationLocation: declarationLocation,
                 traits: traits,
                 isolation: Call.nodeIsolation,
                 execution: Call.nodeExecution,
@@ -316,6 +321,7 @@ extension AroundEach where Call: NodeCallType {
   fileprivate var node: ExampleNode {
     ExampleNode(kind: .hook(.aroundEach),
                 name: description,
+                declarationLocation: declarationLocation,
                 traits: traits,
                 isolation: Call.nodeIsolation,
                 execution: Call.nodeExecution,

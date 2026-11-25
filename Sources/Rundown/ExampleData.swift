@@ -62,19 +62,29 @@ public protocol TestExample<Call>: TestElement {
 public struct It<Call: CallType>: TestExample {
   public let description: String
   public let traits: [any Trait]
+  let declarationLocation: DeclarationLocation
   let block: Call.Callback
 
   public init(_ description: String,
               _ traits: (any Trait)...,
+              fileID: String = #fileID,
+              filePath: String = #filePath,
+              line: Int = #line,
+              column: Int = #column,
               executing block:  Call.Callback) {
-    self.init(description, traits, execute: block)
+    self.init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: block)
   }
 
   public init(_ description: String,
               _ traits: [any Trait],
+              fileID: String = #fileID,
+              filePath: String = #filePath,
+              line: Int = #line,
+              column: Int = #column,
               execute: Call.Callback) {
     self.description = description
     self.traits = traits
+    self.declarationLocation = .init(fileID: fileID, filePath: filePath, line: line, column: column)
     self.block = execute
   }
 
@@ -83,6 +93,7 @@ public struct It<Call: CallType>: TestExample {
               where Call == AsyncCall {
     self.description = other.description
     self.traits = other.traits
+    self.declarationLocation = other.declarationLocation
     self.block = other.block
   }
 }
@@ -92,15 +103,23 @@ public struct It<Call: CallType>: TestExample {
 @DeAsyncRD
 public func it(_ description: String,
                _ traits: (any Trait)...,
+               fileID: String = #fileID,
+               filePath: String = #filePath,
+               line: Int = #line,
+               column: Int = #column,
                execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
-  .init(description, traits, execute: execute)
+  .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 @DeAsyncRD
 public func it(_ description: String,
                _ traits: [any Trait],
+               fileID: String = #fileID,
+               filePath: String = #filePath,
+               line: Int = #line,
+               column: Int = #column,
                execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
-  .init(description, traits, execute: execute)
+  .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 @DeAsyncRD(stripSendable: .parameters)

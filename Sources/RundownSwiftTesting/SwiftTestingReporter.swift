@@ -59,7 +59,17 @@ struct SwiftTestingReporter: Reporter {
     if path.isEmpty || node.isAroundHook {
       path.append(node.description)
     }
-    Issue.record(error, Comment(rawValue: path.joined(separator: ", ")))
+    let comment = Comment(rawValue: path.joined(separator: ", "))
+    if let location = node.declarationLocation {
+      Issue.record(error, comment,
+                   sourceLocation: SourceLocation(fileID: location.fileID,
+                                                  filePath: location.filePath,
+                                                  line: location.line,
+                                                  column: location.column))
+    }
+    else {
+      Issue.record(error, comment)
+    }
     return .record
   }
 }

@@ -66,8 +66,12 @@ public struct AsyncMainActorFixture<Value>: Sendable {
 public func it<Value>(_ description: String,
                       _ traits: [any Trait],
                       using fixture: Fixture<Value>,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  .init(description, traits, execute: {
+  .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: {
     try await runFixture(make: fixture.make, cleanup: fixture.cleanup, execute: execute)
   })
 }
@@ -78,8 +82,12 @@ public func it<Value>(_ description: String,
 public func it<Value>(_ description: String,
                       _ traits: (any Trait)...,
                       using fixture: Fixture<Value>,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  it(description, traits, using: fixture, execute: execute)
+  it(description, traits, using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 @DeAsyncRD
@@ -87,8 +95,12 @@ public func it<Value>(_ description: String,
 public func fIt<Value>(_ description: String,
                        _ traits: (any Trait)...,
                        using fixture: Fixture<Value>,
+                       fileID: String = #fileID,
+                       filePath: String = #filePath,
+                       line: Int = #line,
+                       column: Int = #column,
                        execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  it(description, traits + [.focused], using: fixture, execute: execute)
+  it(description, traits + [.focused], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 @DeAsyncRD
@@ -96,15 +108,23 @@ public func fIt<Value>(_ description: String,
 public func xIt<Value>(_ description: String,
                        _ traits: (any Trait)...,
                        using fixture: Fixture<Value>,
+                       fileID: String = #fileID,
+                       filePath: String = #filePath,
+                       line: Int = #line,
+                       column: Int = #column,
                        execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  it(description, traits + [.excluded], using: fixture, execute: execute)
+  it(description, traits + [.excluded], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 public func it<Value>(_ description: String,
                       _ traits: [any Trait],
                       using fixture: AsyncFixture<Value>,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  .init(description, traits, execute: {
+  .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: {
     try await runFixture(make: fixture.make, cleanup: fixture.cleanup, execute: execute)
   })
 }
@@ -113,22 +133,34 @@ public func it<Value>(_ description: String,
 public func it<Value>(_ description: String,
                       _ traits: (any Trait)...,
                       using fixture: AsyncFixture<Value>,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  it(description, traits, using: fixture, execute: execute)
+  it(description, traits, using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 public func fIt<Value>(_ description: String,
                        _ traits: (any Trait)...,
                        using fixture: AsyncFixture<Value>,
+                       fileID: String = #fileID,
+                       filePath: String = #filePath,
+                       line: Int = #line,
+                       column: Int = #column,
                        execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  it(description, traits + [.focused], using: fixture, execute: execute)
+  it(description, traits + [.focused], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 public func xIt<Value>(_ description: String,
                        _ traits: (any Trait)...,
                        using fixture: AsyncFixture<Value>,
+                       fileID: String = #fileID,
+                       filePath: String = #filePath,
+                       line: Int = #line,
+                       column: Int = #column,
                        execute: @escaping @Sendable (Value) async throws -> Void) -> It<AsyncCall> {
-  it(description, traits + [.excluded], using: fixture, execute: execute)
+  it(description, traits + [.excluded], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }
 
 // MARK: - Main-actor examples
@@ -139,8 +171,12 @@ public extension MainActorSuite {
   func it<Value>(_ description: String,
                  _ traits: [any Trait],
                  using fixture: Fixture<Value>,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    .init(description, traits, execute: {
+    .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: {
       try await runMainActorFixture(make: fixture.make, cleanup: fixture.cleanup, execute: execute)
     })
   }
@@ -151,8 +187,12 @@ public extension MainActorSuite {
   func it<Value>(_ description: String,
                  _ traits: (any Trait)...,
                  using fixture: Fixture<Value>,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits, using: fixture, execute: execute)
+    it(description, traits, using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -160,8 +200,12 @@ public extension MainActorSuite {
   func fIt<Value>(_ description: String,
                   _ traits: (any Trait)...,
                   using fixture: Fixture<Value>,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits + [.focused], using: fixture, execute: execute)
+    it(description, traits + [.focused], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -169,8 +213,12 @@ public extension MainActorSuite {
   func xIt<Value>(_ description: String,
                   _ traits: (any Trait)...,
                   using fixture: Fixture<Value>,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits + [.excluded], using: fixture, execute: execute)
+    it(description, traits + [.excluded], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -178,8 +226,12 @@ public extension MainActorSuite {
   func it<Value>(_ description: String,
                  _ traits: [any Trait],
                  using fixture: MainActorFixture<Value>,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    .init(description, traits, execute: {
+    .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: {
       try await runMainActorFixture(make: fixture.make, cleanup: fixture.cleanup, execute: execute)
     })
   }
@@ -190,8 +242,12 @@ public extension MainActorSuite {
   func it<Value>(_ description: String,
                  _ traits: (any Trait)...,
                  using fixture: MainActorFixture<Value>,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits, using: fixture, execute: execute)
+    it(description, traits, using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -199,8 +255,12 @@ public extension MainActorSuite {
   func fIt<Value>(_ description: String,
                   _ traits: (any Trait)...,
                   using fixture: MainActorFixture<Value>,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits + [.focused], using: fixture, execute: execute)
+    it(description, traits + [.focused], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -208,15 +268,23 @@ public extension MainActorSuite {
   func xIt<Value>(_ description: String,
                   _ traits: (any Trait)...,
                   using fixture: MainActorFixture<Value>,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits + [.excluded], using: fixture, execute: execute)
+    it(description, traits + [.excluded], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   func it<Value>(_ description: String,
                  _ traits: [any Trait],
                  using fixture: AsyncMainActorFixture<Value>,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    .init(description, traits, execute: {
+    .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: {
       try await runMainActorFixture(make: fixture.make, cleanup: fixture.cleanup, execute: execute)
     })
   }
@@ -225,22 +293,34 @@ public extension MainActorSuite {
   func it<Value>(_ description: String,
                  _ traits: (any Trait)...,
                  using fixture: AsyncMainActorFixture<Value>,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits, using: fixture, execute: execute)
+    it(description, traits, using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   func fIt<Value>(_ description: String,
                   _ traits: (any Trait)...,
                   using fixture: AsyncMainActorFixture<Value>,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits + [.focused], using: fixture, execute: execute)
+    it(description, traits + [.focused], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   func xIt<Value>(_ description: String,
                   _ traits: (any Trait)...,
                   using fixture: AsyncMainActorFixture<Value>,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping @Sendable @MainActor (Value) async throws -> Void) -> It<AsyncMainCall> {
-    it(description, traits + [.excluded], using: fixture, execute: execute)
+    it(description, traits + [.excluded], using: fixture, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
 }

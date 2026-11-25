@@ -811,14 +811,16 @@ class MultiRunTests: XCTestCase {
 private extension TestHook where Call == SyncMainCall {
   init(fromSyncCall other: TestHook<Phase, SyncCall>) {
     let block = other.block
-    self.init(other.name, other.traits, execute: { try block() })
+    self.init(other.name, other.traits,
+              fileID: other.declarationLocation.fileID, filePath: other.declarationLocation.filePath,
+              line: other.declarationLocation.line, column: other.declarationLocation.column, execute: { try block() })
   }
 }
 
 private extension AroundEachPeer where Call == SyncMainCall {
   init(fromSyncCall other: AroundEachPeer<SyncCall>) {
     let block = other.block
-    self.init(name: other.name, traits: other.traits) { inner in
+    self.init(name: other.name, traits: other.traits, declarationLocation: other.declarationLocation) { inner in
       try block {
         try MainActor.assumeIsolated { try inner() }
       }
@@ -829,7 +831,7 @@ private extension AroundEachPeer where Call == SyncMainCall {
 private extension AroundEach where Call == SyncMainCall {
   init(fromSyncCall other: AroundEach<SyncCall>) {
     let block = other.block
-    self.init(name: other.name, traits: other.traits) { inner in
+    self.init(name: other.name, traits: other.traits, declarationLocation: other.declarationLocation) { inner in
       try block {
         try MainActor.assumeIsolated { try inner() }
       }
@@ -854,6 +856,8 @@ extension ExampleGroup where Call == SyncMainCall {
                   case let it as It<SyncCall>:
                     let block = it.block
                     return It<SyncMainCall>(it.description, it.traits,
+                                            fileID: it.declarationLocation.fileID, filePath: it.declarationLocation.filePath,
+                                            line: it.declarationLocation.line, column: it.declarationLocation.column,
                                             execute: { try block() })
                   case let group as ExampleGroup<SyncCall>:
                     return ExampleGroup<SyncMainCall>(fromSync: group)

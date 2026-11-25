@@ -46,6 +46,10 @@ public func fContext(_ description: String,
 @DeAsyncRD
 public func fIt(_ description: String,
                 _ traits: (any Trait)...,
+                fileID: String = #fileID,
+                filePath: String = #filePath,
+                line: Int = #line,
+                column: Int = #column,
                 execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
-  .init(description, traits + [.focused], execute: execute)
+  .init(description, traits + [.focused], fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }

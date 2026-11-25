@@ -20,16 +20,24 @@ public extension MainActorSuite {
   @_disfavoredOverload
   func it(_ description: String,
           _ traits: (any Trait)...,
+          fileID: String = #fileID,
+          filePath: String = #filePath,
+          line: Int = #line,
+          column: Int = #column,
           execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
-    .init(description, traits, execute: execute)
+    .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
   @_disfavoredOverload
   func it(_ description: String,
           _ traits: [any Trait],
+          fileID: String = #fileID,
+          filePath: String = #filePath,
+          line: Int = #line,
+          column: Int = #column,
           execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
-    .init(description, traits, execute: execute)
+    .init(description, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   @DeAsyncRD
@@ -54,8 +62,12 @@ public extension MainActorSuite {
   @_disfavoredOverload
   func fIt(_ description: String,
            _ traits: (any Trait)...,
+           fileID: String = #fileID,
+           filePath: String = #filePath,
+           line: Int = #line,
+           column: Int = #column,
            execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
-    .init(description, traits + [.focused], execute: execute)
+    .init(description, traits + [.focused], fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -78,8 +90,12 @@ public extension MainActorSuite {
   @_disfavoredOverload
   func xIt(_ description: String,
            _ traits: (any Trait)...,
+           fileID: String = #fileID,
+           filePath: String = #filePath,
+           line: Int = #line,
+           column: Int = #column,
            execute: @escaping AsyncMainCall.Callback) -> It<AsyncMainCall> {
-    .init(description, traits + [.excluded], execute: execute)
+    .init(description, traits + [.excluded], fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
 
   @DeAsyncRD
@@ -104,76 +120,124 @@ public extension MainActorSuite {
   @_disfavoredOverload
   func aroundEach(_ name: String = "",
                   _ traits: (any Trait)...,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   executor: @escaping AsyncMainCall.AroundCallback)
   -> AroundEach<AsyncMainCall> {
-    .init(name: name, traits: traits, block: executor)
+    .init(name: name, traits: traits,
+          declarationLocation: .init(fileID: fileID, filePath: filePath, line: line, column: column),
+          block: executor)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func aroundEach(_ traits: (any Trait)...,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   executor: @escaping AsyncMainCall.AroundCallback)
   -> AroundEach<AsyncMainCall> {
-    .init(name: "", traits: traits, block: executor)
+    .init(name: "", traits: traits,
+          declarationLocation: .init(fileID: fileID, filePath: filePath, line: line, column: column),
+          block: executor)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func aroundEachPeer(_ name: String = "",
                       _ traits: (any Trait)...,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       executor: @escaping AsyncMainCall.AroundCallback)
   -> AroundEachPeer<AsyncMainCall> {
-    .init(name: name, traits: traits, block: executor)
+    .init(name: name, traits: traits,
+          declarationLocation: .init(fileID: fileID, filePath: filePath, line: line, column: column),
+          block: executor)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func aroundEachPeer(_ traits: (any Trait)...,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       executor: @escaping AsyncMainCall.AroundCallback)
   -> AroundEachPeer<AsyncMainCall> {
-    .init(name: "", traits: traits, block: executor)
+    .init(name: "", traits: traits,
+          declarationLocation: .init(fileID: fileID, filePath: filePath, line: line, column: column),
+          block: executor)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func beforeAll(_ name: String = "", _ traits: (any Trait)...,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping AsyncMainCall.Callback) -> TestHook<BeforeAllPhase, AsyncMainCall> {
-    .init(name, traits, execute: execute)
+    .init(name, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func beforeEach(_ name: String = "", _ traits: (any Trait)...,
+                  fileID: String = #fileID,
+                  filePath: String = #filePath,
+                  line: Int = #line,
+                  column: Int = #column,
                   execute: @escaping AsyncMainCall.Callback) -> TestHook<BeforeEachPhase, AsyncMainCall> {
-    .init(name, traits, execute: execute)
+    .init(name, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func afterEach(_ name: String = "", _ traits: (any Trait)...,
+                 fileID: String = #fileID,
+                 filePath: String = #filePath,
+                 line: Int = #line,
+                 column: Int = #column,
                  execute: @escaping AsyncMainCall.Callback) -> TestHook<AfterEachPhase, AsyncMainCall> {
-    .init(name, traits, execute: execute)
+    .init(name, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func beforeEachPeer(_ name: String = "", _ traits: (any Trait)...,
+                      fileID: String = #fileID,
+                      filePath: String = #filePath,
+                      line: Int = #line,
+                      column: Int = #column,
                       execute: @escaping AsyncMainCall.Callback) -> TestHook<BeforeEachPeerPhase, AsyncMainCall> {
-    .init(name, traits, execute: execute)
+    .init(name, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func afterEachPeer(_ name: String = "", _ traits: (any Trait)...,
+                     fileID: String = #fileID,
+                     filePath: String = #filePath,
+                     line: Int = #line,
+                     column: Int = #column,
                      execute: @escaping AsyncMainCall.Callback) -> TestHook<AfterEachPeerPhase, AsyncMainCall> {
-    .init(name, traits, execute: execute)
+    .init(name, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   @DeAsyncRD
   @_disfavoredOverload
   func afterAll(_ name: String = "", _ traits: (any Trait)...,
+                fileID: String = #fileID,
+                filePath: String = #filePath,
+                line: Int = #line,
+                column: Int = #column,
                 execute: @escaping AsyncMainCall.Callback) -> TestHook<AfterAllPhase, AsyncMainCall> {
-    .init(name, traits, execute: execute)
+    .init(name, traits, fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
   }
   
   // MARK: Spec Runners

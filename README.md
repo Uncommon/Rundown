@@ -180,6 +180,28 @@ In the above example, creating and deleting the temporary directory could also b
 
 Different types of fixture must be used depending on whether the test is `async` or `@MainActor`: `Fixture<Value>`, `AsyncFixture<Value>`, `MainActorFixture<Value>` or `AsyncMainActorFixture<Value>`.
 
+## Thrown error locations
+
+In Swift Testing and XCTest activities, thrown errors point to the hook or `it` declaration in your test code. Swift cannot generally recover the original `throw` statement's location. Reusable groups keep the locations inside the helper that declared them; fixture setup and cleanup errors point to the example using the fixture.
+
+If you wrap a DSL function in your own helper, forward the defaulted location arguments so errors point to calls to your helper. For example, this synchronous wrapper forwards its caller's location to `it`:
+
+```swift
+import Rundown
+
+func example(_ description: String,
+             fileID: String = #fileID,
+             filePath: String = #filePath,
+             line: Int = #line,
+             column: Int = #column,
+             execute: @escaping SyncCall.Callback) -> It<SyncCall> {
+  it(description, fileID: fileID, filePath: filePath,
+     line: line, column: column, execute: execute)
+}
+```
+
+An error thrown inside `example("refreshes") { ... }` is then attributed to that call.
+
 ## Rundown and Swift Testing traits
 
 A trait is an option you attach to an example or group.

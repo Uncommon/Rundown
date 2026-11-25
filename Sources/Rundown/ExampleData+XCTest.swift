@@ -180,13 +180,25 @@ struct XCTestReporter: Reporter, @unchecked Sendable {
         let message = (error as? XCTSkip)?.message.map { ": (\($0))" } ?? ""
         ExampleRunner.logger.info("Skipped \"\(ExampleRunner.current?.description ?? node.description)\"\(message)")
       case .failure:
+        let location = node.declarationLocation.map {
+          XCTSourceCodeLocation(filePath: $0.filePath, lineNumber: $0.line)
+        }
         // It's not clear if this should be .thrownError or .uncaughtException
         let issue = XCTIssue(type: .uncaughtException,
                              compactDescription: "uncaught exception",
                              detailedDescription: error.localizedDescription,
-                             sourceCodeContext: .init(),
+                             sourceCodeContext: XCTSourceCodeContext(location: location),
                              associatedError: error)
-        test.record(issue)
+        if node.isAroundHook {
+          // Around hooks execute outside a node scope. Include their phase in
+          // the path that TestCase attaches to this thrown-error issue.
+          ExampleRunner.$elementStack.withValue(ExampleRunner.elementStack + [node]) {
+            test.record(issue)
+          }
+        }
+        else {
+          test.record(issue)
+        }
     }
     return .record
   }

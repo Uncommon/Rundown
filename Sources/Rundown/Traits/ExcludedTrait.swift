@@ -40,6 +40,10 @@ public func xContext(_ description: String,
 @DeAsyncRD
 public func xIt(_ description: String,
                 _ traits: (any Trait)...,
+                fileID: String = #fileID,
+                filePath: String = #filePath,
+                line: Int = #line,
+                column: Int = #column,
                 execute: @escaping AsyncCall.Callback) -> It<AsyncCall> {
-  .init(description, traits + [.excluded], execute: execute)
+  .init(description, traits + [.excluded], fileID: fileID, filePath: filePath, line: line, column: column, execute: execute)
 }

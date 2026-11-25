@@ -85,16 +85,18 @@ struct AsyncAssertionPathTests: SwiftTestingSuite {
 struct SuiteAssertionPathTests: SwiftTestingSuite {
   @Test func syncSpecUsesSuiteTrait() throws {
     let issues = OSAllocatedUnfairLock(initialState: [Issue]())
+    let assertionLocation = SourceLocation(fileID: #fileID, filePath: #filePath, line: #line, column: #column)
 
     try AssertionProbe.$issues.withValue(issues) {
       try spec("Sync spec") {
-        it("fails") { #expect(Bool(false), "probe sync") }
+        it("fails") { #expect(Bool(false), "probe sync", sourceLocation: assertionLocation) }
       }
       #expect(Bool(false), "probe outside")
     }
 
     let comments = issues.withLock { $0.map { $0.comments.map(\.rawValue) } }
     #expect(comments == [["probe sync", "Rundown path: Sync spec, fails"], ["probe outside"]])
+    #expect(issues.withLock { $0.first?.sourceLocation } == assertionLocation)
   }
 
   @Test func suiteTraitAndAsyncSpecAddOnePath() async throws {
