@@ -131,11 +131,11 @@ final class DSLTests: XCTestCase {
 
     try spec("nothing") {
       beforeAll { log.note("beforeAll") }
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       if enabled {
         it("never") { log.note("never") }
       }
-      afterEachPeer { log.note("afterEachPeer") }
+      afterEach { log.note("afterEach") }
       afterAll { log.note("afterAll") }
     }
     XCTAssertEqual(log.wrappedValue, [])
@@ -148,13 +148,13 @@ final class DSLTests: XCTestCase {
 
     try spec("hooks") {
       if true || Bool.random() {
-        beforeEachPeer { log.note("beforeEachPeer") }
+        beforeEach { log.note("beforeEach") }
         it("inside") { log.note("inside") }
       }
       it("sibling") { log.note("sibling") }
     }
     XCTAssertEqual(log.wrappedValue,
-                   ["beforeEachPeer", "inside", "beforeEachPeer", "sibling"])
+                   ["beforeEach", "inside", "beforeEach", "sibling"])
   }
 
   // MARK: Loops
@@ -164,17 +164,17 @@ final class DSLTests: XCTestCase {
 
     try spec("loop") {
       beforeAll { log.note("beforeAll") }
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       for index in 1...3 {
         it("iteration \(index)") { log.note("it \(index)") }
       }
-      afterEachPeer { log.note("afterEachPeer") }
+      afterEach { log.note("afterEach") }
     }
     XCTAssertEqual(log.wrappedValue,
                    ["beforeAll",
-                    "beforeEachPeer", "it 1", "afterEachPeer",
-                    "beforeEachPeer", "it 2", "afterEachPeer",
-                    "beforeEachPeer", "it 3", "afterEachPeer"])
+                    "beforeEach", "it 1", "afterEach",
+                    "beforeEach", "it 2", "afterEach",
+                    "beforeEach", "it 3", "afterEach"])
   }
 
   func testLoopBetweenExamples() throws {
@@ -196,7 +196,7 @@ final class DSLTests: XCTestCase {
     let log = Box([String]())
 
     try spec("both") {
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       for index in 1...2 {
         if index == 2 {
           it("only \(index)") { log.note("only \(index)") }
@@ -209,9 +209,9 @@ final class DSLTests: XCTestCase {
       }
     }
     XCTAssertEqual(log.wrappedValue,
-                   ["beforeEachPeer", "only 2",
-                    "beforeEachPeer", "it 3",
-                    "beforeEachPeer", "it 4"])
+                   ["beforeEach", "only 2",
+                    "beforeEach", "it 3",
+                    "beforeEach", "it 4"])
   }
 
   // MARK: Async groups
@@ -221,7 +221,7 @@ final class DSLTests: XCTestCase {
     let enabled = true
 
     try await spec("async") {
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       for index in 1...2 {
         it("sync \(index)") { log.note("sync \(index)") }
       }
@@ -236,10 +236,10 @@ final class DSLTests: XCTestCase {
       }
     }
     XCTAssertEqual(log.wrappedValue,
-                   ["beforeEachPeer", "sync 1", "beforeEachPeer", "sync 2", "beforeEachPeer", "async"])
+                   ["beforeEach", "sync 1", "beforeEach", "sync 2", "beforeEach", "async"])
   }
 
-  /// A sync afterAll can follow a sync afterEachPeer in an async group.
+  /// A sync afterAll can follow a sync afterEach in an async group.
   func testSyncAfterHooksInAsyncGroup() async throws {
     let log = Box([String]())
 
@@ -249,10 +249,10 @@ final class DSLTests: XCTestCase {
         await Task.yield()
         log.note("it")
       }
-      afterEachPeer { log.note("afterEachPeer") }
+      afterEach { log.note("afterEach") }
       afterAll { log.note("afterAll") }
     }
-    XCTAssertEqual(log.wrappedValue, ["beforeAll", "it", "afterEachPeer", "afterAll"])
+    XCTAssertEqual(log.wrappedValue, ["beforeAll", "it", "afterEach", "afterAll"])
   }
 
   // MARK: Focus and exclude helpers
@@ -361,7 +361,7 @@ final class MainActorDSLTests: Rundown.TestCase {
     let disabled = false
 
     try spec("main actor") {
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       for index in 1...2 {
         it("iteration \(index)") { log.note("it \(index)") }
       }
@@ -381,8 +381,8 @@ final class MainActorDSLTests: Rundown.TestCase {
       }
     }
     XCTAssertEqual(log.wrappedValue,
-                   ["beforeEachPeer", "it 1", "beforeEachPeer", "it 2",
-                    "beforeEachPeer", "inside", "beforeEachPeer", "if"])
+                   ["beforeEach", "it 1", "beforeEach", "it 2",
+                    "beforeEach", "inside", "beforeEach", "if"])
   }
 
   func testFocusHelpers() throws {
@@ -422,7 +422,7 @@ final class MainActorDSLTests: Rundown.TestCase {
     let enabled = true
 
     try await spec("async main actor") {
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       for index in 1...2 {
         it("iteration \(index)") { log.note("it \(index)") }
       }
@@ -436,9 +436,9 @@ final class MainActorDSLTests: Rundown.TestCase {
         await Task.yield()
         log.note("excluded")
       }
-      afterEachPeer { log.note("afterEachPeer") }
+      afterEach { log.note("afterEach") }
       afterAll { log.note("afterAll") }
     }
-    XCTAssertEqual(log.wrappedValue, ["beforeEachPeer", "focused", "afterEachPeer", "afterAll"])
+    XCTAssertEqual(log.wrappedValue, ["beforeEach", "focused", "afterEach", "afterAll"])
   }
 }

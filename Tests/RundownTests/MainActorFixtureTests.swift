@@ -30,10 +30,10 @@ final class MainActorFixtureTests: Rundown.TestCase {
           log.note("body")
         }
         xIt("does not run when excluded", using: fixture) { _ in XCTFail("Excluded") }
-        afterEachPeer { log.note("afterEachPeer") }
+        afterEach { log.note("afterEach") }
       }
     }
-    XCTAssertEqual(log.wrappedValue, ["setup", "body", "cleanup", "afterEachPeer"])
+    XCTAssertEqual(log.wrappedValue, ["setup", "body", "cleanup", "afterEach"])
   }
 
   func testAsyncMainActorLifecyclesAndSyncFactoriesInAsyncExamples() async throws {

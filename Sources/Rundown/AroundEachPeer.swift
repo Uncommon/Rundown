@@ -8,7 +8,6 @@ public struct AroundEachPeer<Call: CallType>: TestElement, Sendable {
   let block: Call.AroundCallback
 }
 
-@DeAsyncRD
 /// For each peer (an example or nested group in the same enclosing group),
 /// the given executor will be called. That executor will be given a callback
 /// that runs the peer as well as any `beforeEachPeer`/`afterEachPeer` elements.
@@ -16,6 +15,7 @@ public struct AroundEachPeer<Call: CallType>: TestElement, Sendable {
 ///
 /// This allows for callback-based setup and teardown, such as
 /// Swift's various "with" functions like `TaskLocal.withValue()`.
+@DeAsyncRD
 @_disfavoredOverload
 public func aroundEachPeer(_ name: String = "",
                            _ traits: (any Trait)...,
@@ -24,7 +24,6 @@ public func aroundEachPeer(_ name: String = "",
   .init(name: name, traits: traits, block: executor)
 }
 
-@DeAsyncRD
 /// For each peer (an example or nested group in the same enclosing group),
 /// the given executor will be called. That executor will be given a callback
 /// that runs the peer as well as any `beforeEachPeer`/`afterEachPeer` elements.
@@ -32,6 +31,7 @@ public func aroundEachPeer(_ name: String = "",
 ///
 /// This allows for callback-based setup and teardown, such as
 /// Swift's various "with" functions like `TaskLocal.withValue()`.
+@DeAsyncRD
 @_disfavoredOverload
 public func aroundEachPeer(_ traits: (any Trait)...,
                            executor: @escaping AsyncCall.AroundCallback)

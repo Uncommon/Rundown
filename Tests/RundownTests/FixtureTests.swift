@@ -18,7 +18,7 @@ final class FixtureTests: XCTestCase {
       log.note("cleanup")
     }
     let group: ExampleGroup<SyncCall> = describe("Root") {
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       it("uses a fresh fixture", using: fixture) { value in
         XCTAssertEqual(value.uses, 0)
         value.uses += 1
@@ -33,13 +33,14 @@ final class FixtureTests: XCTestCase {
           }
         }
       }
-      afterEachPeer { log.note("afterEachPeer") }
+      afterEach { log.note("afterEach") }
     }
     XCTAssertEqual(log.wrappedValue, [], "Building the tree must not construct a fixture")
     try group.run()
     try group.run()
-    let oneRun = ["beforeEachPeer", "make", "first", "cleanup", "afterEachPeer",
-                  "beforeEachPeer", "make", "inner 0", "cleanup", "make", "inner 1", "cleanup", "afterEachPeer"]
+    let oneRun = ["beforeEach", "make", "first", "cleanup", "afterEach",
+                  "beforeEach", "make", "inner 0", "cleanup", "afterEach",
+                  "beforeEach", "make", "inner 1", "cleanup", "afterEach"]
     XCTAssertEqual(log.wrappedValue, oneRun + oneRun)
   }
 
@@ -51,7 +52,7 @@ final class FixtureTests: XCTestCase {
       xIt("does not run when excluded", .focused, using: fixture) { _ in XCTFail("Excluded") }
       fIt("runs when focused", using: fixture) { XCTAssertEqual($0, 42) }
       context("blocked", .focused) {
-        beforeEachPeer { throw TestError(id: 1) }
+        beforeEach { throw TestError(id: 1) }
         it("does not start after enclosing setup fails", using: fixture) { _ in XCTFail("Blocked") }
       }
     }
@@ -65,20 +66,20 @@ final class FixtureTests: XCTestCase {
       XCTFail("No value was constructed")
     }
     let group: ExampleGroup<SyncCall> = describe("Root") {
-      aroundEachPeer { run in
+      aroundEach { run in
         log.note("around start")
         try run()
         log.note("around end")
       }
-      beforeEachPeer { log.note("beforeEachPeer") }
+      beforeEach { log.note("beforeEach") }
       it("reports a setup failure", using: fixture) { _ in XCTFail("Setup failed") }
       it("runs the next example") { log.note("sibling") }
-      afterEachPeer { log.note("afterEachPeer") }
+      afterEach { log.note("afterEach") }
     }
     let reporter = RecordingReporter()
     try group.node.run(with: reporter)
-    XCTAssertEqual(log.wrappedValue, ["around start", "beforeEachPeer", "afterEachPeer", "around end",
-                                      "around start", "beforeEachPeer", "sibling", "afterEachPeer", "around end"])
+    XCTAssertEqual(log.wrappedValue, ["around start", "beforeEach", "afterEach", "around end",
+                                      "around start", "beforeEach", "sibling", "afterEach", "around end"])
     XCTAssertEqual(reporter.events.filter { $0.hasPrefix("failure") },
                    ["failure Root/reports a setup failure/fixture setup"])
   }
@@ -124,12 +125,12 @@ final class FixtureTests: XCTestCase {
           if phase == "body" { throw RecordingReporter.TestSkip() }
         }
         it("runs the next example") { log.note("next") }
-        afterEachPeer { log.note("afterEachPeer") }
+        afterEach { log.note("afterEach") }
       }
       let reporter = RecordingReporter(decision: .propagate)
       try group.node.run(with: reporter)
       let expected = (phase == "setup" ? ["setup"] : ["setup", "body", "cleanup"])
-        + ["afterEachPeer", "next", "afterEachPeer"]
+        + ["afterEach", "next", "afterEach"]
       XCTAssertEqual(log.wrappedValue, expected, phase)
       XCTAssertEqual(reporter.events.filter { $0.hasPrefix("skip") }.count, 1, phase)
       XCTAssertFalse(reporter.events.contains { $0.hasPrefix("failure") }, phase)

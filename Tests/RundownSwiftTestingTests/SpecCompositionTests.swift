@@ -9,15 +9,15 @@ struct SpecCompositionTests: SwiftTestingSuite {
                              values: [Int]) -> ExampleGroup<AsyncCall> {
     context("generated group") {
       beforeAll { trace.withLock { $0.append("group setup") } }
-      aroundEachPeer(.excluded) { _ in
+      aroundEach(.excluded) { _ in
         Issue.record("Entered an excluded wrapper")
       }
-      aroundEachPeer { run in
+      aroundEach { run in
         #expect(Self.fixture == "root")
         try await Self.$fixture.withValue("nested") { try await run() }
         #expect(Self.fixture == "root")
       }
-      beforeEachPeer {
+      beforeEach {
         #expect(Self.fixture == "nested")
         trace.withLock { $0.append("example setup") }
       }
@@ -35,7 +35,7 @@ struct SpecCompositionTests: SwiftTestingSuite {
         }
       }
       fIt("excluded despite focus", .excluded) { Issue.record("Ran an excluded example") }
-      afterEachPeer {
+      afterEach {
         #expect(Self.fixture == "nested")
         trace.withLock { $0.append("example teardown") }
       }

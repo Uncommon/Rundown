@@ -55,8 +55,8 @@ struct SwiftTestingReporter: Reporter {
     else { return .record }
 
     var path = ExampleRunner.current?.path ?? []
-    // An aroundEachPeer hook wraps its child outside its own node scope.
-    if path.isEmpty || node.isAroundEachPeerHook {
+    // An around hook wraps its child outside its own node scope.
+    if path.isEmpty || node.isAroundHook {
       path.append(node.description)
     }
     Issue.record(error, Comment(rawValue: path.joined(separator: ", ")))

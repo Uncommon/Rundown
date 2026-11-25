@@ -21,12 +21,12 @@ extension SharedSearchGroups {
   @ExampleBuilder<SyncMainCall>
   func searchGroup(_ log: Box<[String]>) -> ExampleGroup<SyncMainCall> {
     beforeAll { isolatedRecord(log, "beforeAll") }
-    aroundEachPeer { callback in
+    aroundEach { callback in
       isolatedRecord(log, "around>")
       try callback()
       isolatedRecord(log, "<around")
     }
-    beforeEachPeer { isolatedRecord(log, "beforeEachPeer") }
+    beforeEach { isolatedRecord(log, "beforeEach") }
     it("first") { isolatedRecord(log, "first") }
     context("nested") {
       it("second") { isolatedRecord(log, "second") }
@@ -37,7 +37,7 @@ extension SharedSearchGroups {
     if Bool.random() || true {
       it("conditional") { isolatedRecord(log, "conditional") }
     }
-    afterEachPeer { isolatedRecord(log, "afterEachPeer") }
+    afterEach { isolatedRecord(log, "afterEach") }
     afterAll { isolatedRecord(log, "afterAll") }
   }
 
@@ -51,10 +51,10 @@ extension SharedSearchGroups {
       isolatedRecord(log, "async")
     }
     context("nested") {
-      beforeEachPeer { await Task.yield() }
+      beforeEach { await Task.yield() }
       it("inner") { isolatedRecord(log, "inner") }
     }
-    afterEachPeer { isolatedRecord(log, "afterEachPeer") }
+    afterEach { isolatedRecord(log, "afterEach") }
     afterAll { isolatedRecord(log, "afterAll") }
   }
 }
@@ -74,7 +74,7 @@ final class MainActorHelperGroupTests: Rundown.TestCase, SharedSearchGroups {
   /// The log that `searchGroup` should produce
   var expectedSearchLog: [String] {
     func wrapped(_ name: String) -> [String] {
-      ["around>", "beforeEachPeer", name, "afterEachPeer", "<around"]
+      ["around>", "beforeEach", name, "afterEach", "<around"]
     }
     return ["beforeAll"]
       + ["first", "second", "loop 1", "loop 2", "conditional"].flatMap(wrapped)
@@ -101,9 +101,9 @@ final class MainActorHelperGroupTests: Rundown.TestCase, SharedSearchGroups {
     try await asyncSearchGroup(log).run()
     XCTAssertEqual(log.wrappedValue,
                    ["beforeAll",
-                    "sync", "afterEachPeer",
-                    "async", "afterEachPeer",
-                    "inner", "afterEachPeer",
+                    "sync", "afterEach",
+                    "async", "afterEach",
+                    "inner", "afterEach",
                     "afterAll"])
   }
 

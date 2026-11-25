@@ -826,11 +826,25 @@ private extension AroundEachPeer where Call == SyncMainCall {
   }
 }
 
+private extension AroundEach where Call == SyncMainCall {
+  init(fromSyncCall other: AroundEach<SyncCall>) {
+    let block = other.block
+    self.init(name: other.name, traits: other.traits) { inner in
+      try block {
+        try MainActor.assumeIsolated { try inner() }
+      }
+    }
+  }
+}
+
 extension ExampleGroup where Call == SyncMainCall {
   init(fromSync other: ExampleGroup<SyncCall>) {
     self.init(description: other.description,
               traits: other.traits,
               beforeAll: other.beforeAllHooks.map { .init(fromSyncCall: $0) },
+              aroundEach: other.aroundEachHooks.map { .init(fromSyncCall: $0) },
+              beforeEach: other.beforeEachHooks.map { .init(fromSyncCall: $0) },
+              afterEach: other.afterEachHooks.map { .init(fromSyncCall: $0) },
               aroundEachPeer: other.aroundEachPeerHooks.map { .init(fromSyncCall: $0) },
               beforeEachPeer: other.beforeEachPeerHooks.map { .init(fromSyncCall: $0) },
               afterEachPeer: other.afterEachPeerHooks.map { .init(fromSyncCall: $0) },

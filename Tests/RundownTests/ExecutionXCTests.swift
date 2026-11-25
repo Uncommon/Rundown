@@ -28,38 +28,38 @@ final class ExecutionXCTests: Rundown.TestCase {
   }
 
   @MainActor
-  func testBeforeAfterEachPeer() throws {
+  func testBeforeAfterEach() throws {
     let beforeCount = Box(0)
     let itCount = Box(0)
     let afterCount = Box(0)
 
     try spec("Running 'each' hooks") {
-      beforeEachPeer {
+      beforeEach {
         self.mainThing()
         beforeCount.bump()
       }
 
       it("runs first test") {
         MainActor.assertIsolated("MainActor isolation failed")
-        XCTAssertEqual(beforeCount.wrappedValue, 1, "BeforeEachPeer missed")
-        XCTAssertEqual(afterCount.wrappedValue, 0, "AfterEachPeer missed")
+        XCTAssertEqual(beforeCount.wrappedValue, 1, "BeforeEach missed")
+        XCTAssertEqual(afterCount.wrappedValue, 0, "AfterEach missed")
         itCount.bump()
       }
 
       context("in a context") {
         it("runs second test") {
-          XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEachPeer missed")
-          XCTAssertEqual(afterCount.wrappedValue, 1, "AfterEachPeer missed")
+          XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEach missed")
+          XCTAssertEqual(afterCount.wrappedValue, 1, "AfterEach missed")
           itCount.bump()
         }
       }
 
-      afterEachPeer {
+      afterEach {
         afterCount.bump()
       }
     }
-    XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEachPeer didn't run correctly")
+    XCTAssertEqual(beforeCount.wrappedValue, 2, "BeforeEach didn't run correctly")
     XCTAssertEqual(itCount.wrappedValue, 2, "Its didn't run correctly")
-    XCTAssertEqual(afterCount.wrappedValue, 2, "AfterEachPeer didn't run correctly")
+    XCTAssertEqual(afterCount.wrappedValue, 2, "AfterEach didn't run correctly")
   }
 }

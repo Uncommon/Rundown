@@ -31,7 +31,7 @@ struct FixtureSpecTests: SwiftTestingSuite {
         it("reports a setup failure", using: failedSetup) { _ in Issue.record("Ran after failed setup") }
         it("reports example and cleanup failures", using: failedCleanup) { _ in throw FixtureSpecFailure.body }
         it("continues after failed examples") { events.withLock { $0.append("sibling") } }
-        afterEachPeer { events.withLock { $0.append("afterEachPeer") } }
+        afterEach { events.withLock { $0.append("afterEach") } }
       }
     } matching: { issue in
       guard issue.error is FixtureSpecFailure, issue.comments.count == 1,
@@ -43,7 +43,7 @@ struct FixtureSpecTests: SwiftTestingSuite {
     #expect(paths.withLock { $0 } == ["Fixtures, reports a setup failure, fixture setup",
                                      "Fixtures, reports example and cleanup failures",
                                      "Fixtures, reports example and cleanup failures, fixture cleanup"])
-    #expect(events.withLock { $0 } == ["afterEachPeer", "afterEachPeer", "sibling", "afterEachPeer"])
+    #expect(events.withLock { $0 } == ["afterEach", "afterEach", "sibling", "afterEach"])
   }
 
   @Test func requireFailuresAreNotDuplicatedAndCleanupStillRuns() async throws {
@@ -63,7 +63,7 @@ struct FixtureSpecTests: SwiftTestingSuite {
           _ = try #require(nil as Int?, "fixture probe")
         }
         it("continues after failed examples") { events.withLock { $0.append("sibling") } }
-        afterEachPeer { events.withLock { $0.append("afterEachPeer") } }
+        afterEach { events.withLock { $0.append("afterEach") } }
       }
     }
     let recorded = issues.withLock { $0 }
@@ -74,7 +74,7 @@ struct FixtureSpecTests: SwiftTestingSuite {
       ["fixture probe", "Rundown path: Assertions, reports failed example and cleanup requirements"],
       ["fixture probe", "Rundown path: Assertions, reports failed example and cleanup requirements, fixture cleanup"],
     ])
-    #expect(events.withLock { $0 } == ["afterEachPeer", "afterEachPeer", "sibling", "afterEachPeer"])
+    #expect(events.withLock { $0 } == ["afterEach", "afterEach", "sibling", "afterEach"])
   }
 
 #if compiler(>=6.3)
@@ -89,11 +89,11 @@ struct FixtureSpecTests: SwiftTestingSuite {
       try await spec("Cancellation") {
         it("does not start after cancellation", using: fixture) { _ in Issue.record("Started body after cancellation") }
         it("does not start a sibling after cancellation") { Issue.record("Started sibling after cancellation") }
-        afterEachPeer { events.withLock { $0.append("afterEachPeer") } }
+        afterEach { events.withLock { $0.append("afterEach") } }
       }
     }.value
     #expect(!Task.isCancelled)
-    #expect(events.withLock { $0 } == ["cleanup", "afterEachPeer"])
+    #expect(events.withLock { $0 } == ["cleanup", "afterEach"])
   }
 
   @Test(arguments: [false, true])
@@ -114,11 +114,11 @@ struct FixtureSpecTests: SwiftTestingSuite {
         try Test.cancel("Done with this case")
       }
       it("does not start after cancellation") { Issue.record("Started an example after cancellation") }
-      afterEachPeer { events.withLock { $0.append("afterEachPeer") } }
+      afterEach { events.withLock { $0.append("afterEach") } }
       afterAll { events.withLock { $0.append("afterAll") } }
     }
     #expect(Task.isCancelled)
-    let expected = (inSetup ? ["setup"] : ["setup", "body", "cleanup"]) + ["afterEachPeer", "afterAll"]
+    let expected = (inSetup ? ["setup"] : ["setup", "body", "cleanup"]) + ["afterEach", "afterAll"]
     #expect(events.withLock { $0 } == expected)
   }
 #endif

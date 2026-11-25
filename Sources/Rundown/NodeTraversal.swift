@@ -10,6 +10,21 @@ import Foundation
 // non-isolated and main-actor nodes. The parts that differ between the flavors
 // are in the helpers at the bottom.
 
+/// The per-example hooks accumulated along one branch of the tree.
+/// Each concurrent branch receives its own value; closures keep their declared
+/// isolation and reporting still happens in the executing example's group.
+private struct InheritedHooks: Sendable {
+  var before: [ExampleNode] = []
+  var after: [ExampleNode] = []
+  var around: [ExampleNode] = []
+
+  func including(_ group: ExampleNode) -> Self {
+    Self(before: before + group.selectedHooks(.beforeEach),
+         after: group.selectedHooks(.afterEach) + after,
+         around: around + group.selectedHooks(.aroundEach))
+  }
+}
+
 // MARK: Traversal
 
 extension ExampleNode {
@@ -64,7 +79,7 @@ extension ExampleNode {
 
   /// The body of a group: its hooks and children, but not its scope.
   @DeAsyncRD
-  fileprivate func traverse(_ reporter: any Reporter) async throws {
+  fileprivate func traverse(_ reporter: any Reporter, inheriting inherited: InheritedHooks = .init()) async throws {
     guard !reporter.shouldStop
     else { return }
     let selected = selectedChildren
@@ -78,10 +93,11 @@ extension ExampleNode {
       throw ConcurrentDisallowedError()
     }
 
+    let hooks = inherited.including(self)
     try await withGroupHooks(reporter) {
       let error = await forEachChild(selected, concurrently: concurrent) { child in
         try await self.runAround(self.selectedHooks(.aroundEachPeer)[...], reporter) {
-          try await self.runElement(child, reporter)
+          try await self.runElement(child, reporter, inheriting: hooks)
         }
       }
       if let error { throw error }
@@ -124,7 +140,8 @@ extension ExampleNode {
   }
 
   @DeAsyncRD
-  fileprivate func runElement(_ child: ExampleNode, _ reporter: any Reporter) async throws {
+  fileprivate func runElement(_ child: ExampleNode, _ reporter: any Reporter,
+                              inheriting hooks: InheritedHooks) async throws {
     guard !reporter.shouldStop
     else { return }
     var firstError: (any Error)?
@@ -146,7 +163,7 @@ extension ExampleNode {
       break
     }
     if setUpSuccessful && !reporter.shouldStop {
-      let outcome = await child.runChild(reporter)
+      let outcome = await child.runChild(reporter, inheriting: hooks)
       // An example that skips is swallowed, and afterEachPeer still runs
       if case .failed(let error) = outcome {
         firstError = error
@@ -164,10 +181,16 @@ extension ExampleNode {
 
   /// A nested group or an example, in its own scope
   @DeAsyncRD
-  fileprivate func runChild(_ reporter: any Reporter) async -> Outcome {
+  fileprivate func runChild(_ reporter: any Reporter, inheriting hooks: InheritedHooks) async -> Outcome {
     guard isGroup
     else {
-      return await runLeaf(reporter)
+      do {
+        try await runAround(hooks.around[...], reporter) {
+          try await self.runExampleHooks(hooks, reporter)
+        }
+        return .completed
+      }
+      catch { return .failed(error) }
     }
 
     var outcome = Outcome.completed
@@ -175,11 +198,47 @@ extension ExampleNode {
     await withPath {
       await reporter.scope(for: self) {
         // Errors from inside a group have already been reported
-        do { try await traverse(reporter) }
+        do { try await traverse(reporter, inheriting: hooks) }
         catch { outcome = .failed(error) }
       }
     }
     return outcome
+  }
+
+  /// Setup and cleanup for a single example, after all enclosing group
+  /// setup has finished. Cleanup unwinds even when setup fails or skips.
+  @DeAsyncRD
+  fileprivate func runExampleHooks(_ hooks: InheritedHooks, _ reporter: any Reporter) async throws {
+    var firstError: (any Error)?
+    var setUpSucceeded = true
+    for hook in hooks.before {
+      guard !reporter.shouldStop
+      else {
+        setUpSucceeded = false
+        break
+      }
+      switch await hook.runLeaf(reporter) {
+        case .completed:
+          continue
+        case .skipped:
+          break
+        case .failed(let error):
+          firstError = error
+      }
+      setUpSucceeded = false
+      break
+    }
+    if setUpSucceeded && !reporter.shouldStop {
+      if case .failed(let error) = await runLeaf(reporter) {
+        firstError = error
+      }
+    }
+    for hook in hooks.after {
+      if case .failed(let error) = await hook.runLeaf(reporter) {
+        firstError = firstError ?? error
+      }
+    }
+    if let firstError { throw firstError }
   }
 
   /// An example or hook: calls its body in its scope, and reports an error.
@@ -250,7 +309,7 @@ extension ExampleNode {
     return skipped ? .skipped : .completed
   }
 
-  /// Nests the `aroundEachPeer` hooks, outermost first, around `inner`.
+  /// Nests around hooks, outermost first, around `inner`.
   ///
   /// A hook has no scope, but an error that it throws itself is reported. One
   /// that comes out of `inner` has been reported already, so it is only

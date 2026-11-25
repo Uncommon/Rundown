@@ -23,7 +23,7 @@ struct CancellationTests: SwiftTestingSuite {
             withUnsafeCurrentTask { $0?.cancel() }
             try Task.checkCancellation()
           }
-          afterEachPeer { events.withLock { $0.append("child afterEachPeer") } }
+          afterEach { events.withLock { $0.append("child afterEach") } }
           afterAll { events.withLock { $0.append("child afterAll") } }
         }
         it("finishes once already running") {
@@ -40,7 +40,7 @@ struct CancellationTests: SwiftTestingSuite {
 
     #expect(!Task.isCancelled)
     #expect(events.withLock { $0 } == [
-      "sibling in flight", "child afterEachPeer", "child afterAll", "sibling finished", "group afterAll", "root afterAll",
+      "sibling in flight", "child afterEach", "child afterAll", "sibling finished", "group afterAll", "root afterAll",
     ])
   }
 
@@ -63,7 +63,7 @@ struct CancellationTests: SwiftTestingSuite {
     #expect(events.withLock { $0 } == ["Fixture setup, before all: open fixture", "afterAll"])
   }
 
-  @Test func cancellationInBeforeEachPeerUnwindsEnclosingGroups() throws {
+  @Test func cancellationInBeforeEachUnwindsEnclosingGroups() throws {
     let events = OSAllocatedUnfairLock(initialState: [String]())
 
     try spec("Example setup") {
@@ -72,43 +72,43 @@ struct CancellationTests: SwiftTestingSuite {
         try run()
       }
       context("nested group") {
-        beforeEachPeer("open fixture") {
+        beforeEach("open fixture") {
           let path = try #require(ExampleRunner.current?.description)
           events.withLock { $0.append(path) }
           try Test.cancel("Fixture unavailable at \(path)")
         }
         it("never starts") { Issue.record("Started an example after cancellation") }
-        afterEachPeer { events.withLock { $0.append("nested afterEachPeer") } }
+        afterEach { events.withLock { $0.append("nested afterEach") } }
         afterAll { events.withLock { $0.append("nested afterAll") } }
       }
       it("never starts either") { Issue.record("Started a sibling after cancellation") }
-      afterEachPeer { events.withLock { $0.append("root afterEachPeer") } }
+      afterEach { events.withLock { $0.append("root afterEach") } }
       afterAll { events.withLock { $0.append("root afterAll") } }
     }
 
     #expect(Task.isCancelled)
     #expect(events.withLock { $0 } == [
-      "Example setup, nested group, before each peer: open fixture",
-      "nested afterEachPeer", "nested afterAll", "root afterEachPeer",
+      "Example setup, nested group, before each: open fixture",
+      "nested afterEach", "root afterEach", "nested afterAll",
       "outer aroundEachPeer cleanup", "root afterAll",
     ])
   }
 
-  @Test func cancellationInAnAsyncAroundEachPeerStopsLaterExamples() async throws {
+  @Test func cancellationInAnAsyncAroundEachStopsLaterExamples() async throws {
     let events = OSAllocatedUnfairLock(initialState: [String]())
 
     try await spec {
-      aroundEachPeer { run in
+      aroundEach { run in
         try await run()
         try Test.cancel("Cancel after the wrapped example")
       }
       it("runs") { events.withLock { $0.append("example") } }
       it("never starts") { Issue.record("Started a sibling after cancellation") }
-      afterEachPeer { events.withLock { $0.append("afterEachPeer") } }
+      afterEach { events.withLock { $0.append("afterEach") } }
       afterAll { events.withLock { $0.append("afterAll") } }
     }
 
-    #expect(events.withLock { $0 } == ["example", "afterEachPeer", "afterAll"])
+    #expect(events.withLock { $0 } == ["example", "afterEach", "afterAll"])
   }
 
   @Test(arguments: [false, true])
@@ -122,13 +122,13 @@ struct CancellationTests: SwiftTestingSuite {
           #expect(Test.Case.current?.isParameterized == true)
           events.withLock { $0.append("example") }
         }
-        afterEachPeer("cancel if needed") {
+        afterEach("cancel if needed") {
           if cancel {
             let path = try #require(ExampleRunner.current?.description)
             try Test.cancel("Cancel only this case at \(path)")
           }
         }
-        afterEachPeer { events.withLock { $0.append("remaining afterEachPeer") } }
+        afterEach { events.withLock { $0.append("remaining afterEach") } }
         afterAll { events.withLock { $0.append("group afterAll") } }
       }
       it("runs only in the active case") { events.withLock { $0.append("sibling") } }
@@ -136,7 +136,7 @@ struct CancellationTests: SwiftTestingSuite {
     }
 
     #expect(Task.isCancelled == cancel)
-    let expected = ["example", "remaining afterEachPeer", "group afterAll"]
+    let expected = ["example", "remaining afterEach", "group afterAll"]
       + (cancel ? [] : ["sibling"]) + ["root afterAll"]
     #expect(events.withLock { $0 } == expected)
   }

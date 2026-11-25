@@ -21,19 +21,19 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     try withKnownIssue {
       try spec {
         beforeAll { log.append("beforeAll") }
-        aroundEachPeer { run in
-          log.append("aroundEachPeer start")
+        aroundEach { run in
+          log.append("aroundEach start")
           try run()
-          log.append("aroundEachPeer end")
+          log.append("aroundEach end")
         }
-        beforeEachPeer { log.append("beforeEachPeer") }
+        beforeEach { log.append("beforeEach") }
         context("nested") {
           it("throws") {
             log.append("example")
             throw MainActorSpecFailure()
           }
         }
-        afterEachPeer { log.append("afterEachPeer") }
+        afterEach { log.append("afterEach") }
         afterAll { log.append("afterAll") }
       }
     } matching: { issue in
@@ -42,8 +42,8 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     }
 
     #expect(log.entries == [
-      "beforeAll", "aroundEachPeer start", "beforeEachPeer", "example", "afterEachPeer",
-      "aroundEachPeer end", "afterAll",
+      "beforeAll", "aroundEach start", "beforeEach", "example", "afterEach",
+      "aroundEach end", "afterAll",
     ])
   }
 
@@ -58,12 +58,12 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
           await Task.yield()
           log.append("beforeAll")
         }
-        aroundEachPeer { run in
-          log.append("aroundEachPeer start")
+        aroundEach { run in
+          log.append("aroundEach start")
           try await run()
-          log.append("aroundEachPeer end")
+          log.append("aroundEach end")
         }
-        beforeEachPeer { log.append("beforeEachPeer") }
+        beforeEach { log.append("beforeEach") }
         context("nested") {
           it("throws") {
             await Task.yield()
@@ -71,7 +71,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
             throw MainActorSpecFailure()
           }
         }
-        afterEachPeer { log.append("afterEachPeer") }
+        afterEach { log.append("afterEach") }
         afterAll { log.append("afterAll") }
       }
     } matching: { issue in
@@ -80,8 +80,8 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     }
 
     #expect(log.entries == [
-      "beforeAll", "aroundEachPeer start", "beforeEachPeer", "example", "afterEachPeer",
-      "aroundEachPeer end", "afterAll",
+      "beforeAll", "aroundEach start", "beforeEach", "example", "afterEach",
+      "aroundEach end", "afterAll",
     ])
   }
 
@@ -92,7 +92,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     try spec("Main actor fixtures") {
       let _ = MainActor.preconditionIsolated()
       context("serial workers", .concurrent) {
-        beforeEachPeer { log.append("setup") }
+        beforeEach { log.append("setup") }
         for index in 0..<3 {
           it("worker \(index)") {
             #expect(Test.current?.id == host)
@@ -100,7 +100,7 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
             log.append("worker \(index)")
           }
         }
-        afterEachPeer { log.append("teardown") }
+        afterEach { log.append("teardown") }
       }
     }
 

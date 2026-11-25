@@ -10,11 +10,11 @@
 /// ## Why there are two sets of types
 ///
 /// `ExampleBuilder` and its `Accumulator` types, along with `ExampleGroup`,
-/// `It`, `TestHook` and `AroundEachPeer`, exist to be written against. They are
-/// generic over the call type and over the phase (`BeforeAllPhase`,
+/// `It`, `TestHook`, `AroundEach` and `AroundEachPeer`, exist to be written
+/// against. They are generic over the call type and phase (`BeforeAllPhase`,
 /// `ExamplePhase` and so on) so that the compiler enforces the order and
 /// structure of a spec: hooks before examples, `afterAll` last, no
-/// `aroundEachPeer` after an example, and a main-actor closure only where
+/// around hooks after an example, and a main-actor closure only where
 /// main-actor elements are allowed. That is also why the DSL functions return
 /// them, which makes them public API.
 ///
@@ -33,7 +33,7 @@ package struct ExampleNode: Sendable {
 
   /// The place of a hook in the lifecycle of its group
   enum HookKind: CaseIterable, Hashable, Sendable {
-    case beforeAll, aroundEachPeer, beforeEachPeer, afterEachPeer, afterAll
+    case beforeAll, aroundEach, beforeEach, afterEach, aroundEachPeer, beforeEachPeer, afterEachPeer, afterAll
   }
 
   enum Isolation: Hashable, Sendable {
@@ -58,7 +58,7 @@ package struct ExampleNode: Sendable {
     case asyncMain(AsyncMainCall.Callback)
   }
 
-  /// The closure of an `aroundEachPeer` hook, which takes the callback to wrap
+  /// The closure of an around hook, which takes the callback to wrap
   enum AroundBody: Sendable {
     case sync(SyncCall.AroundCallback)
     case async(AsyncCall.AroundCallback)
@@ -76,17 +76,17 @@ package struct ExampleNode: Sendable {
 
   /// What running the node does, for examples and non-around hooks
   let body: Body?
-  /// The wrapper of an `aroundEachPeer` hook
+  /// The wrapper of an around hook
   let around: AroundBody?
 
   /// The groups and examples directly inside a group, in order. Empty for
   /// examples and hooks.
   private(set) var children: [ExampleNode]
 
-  /// The hooks of a group, in order within each kind. A hook applies to the
-  /// children of the group that declares it, and a child group counts as one
-  /// child, so peer hooks are not copied down to the examples of a nested
-  /// group. Empty for examples and hooks.
+  /// The hooks declared by a group, in order within each kind. Peer hooks
+  /// apply to immediate children, counting a nested group as one peer.
+  /// Per-example hooks are accumulated during traversal and run for every
+  /// selected descendant example. Empty for examples and hooks.
   private(set) var hooks: [HookKind: [ExampleNode]]
 
   func hooks(_ kind: HookKind) -> [ExampleNode] {
@@ -119,7 +119,7 @@ package struct ExampleNode: Sendable {
 
   package var isGroup: Bool { kind == .group }
   var isExample: Bool { kind == .example }
-  package var isAroundEachPeerHook: Bool { kind == .hook(.aroundEachPeer) }
+  package var isAroundHook: Bool { kind == .hook(.aroundEach) || kind == .hook(.aroundEachPeer) }
 
   var isExcluded: Bool { traits.contains { $0 is ExcludedTrait } }
   var isFocused: Bool { traits.contains { $0 is FocusedTrait } }
@@ -257,6 +257,9 @@ extension ExampleGroup where Call: NodeCallType {
                 },
                 hooks: [
                   .beforeAll: beforeAllHooks.map { $0.node(.beforeAll) },
+                  .aroundEach: aroundEachHooks.map { $0.node },
+                  .beforeEach: beforeEachHooks.map { $0.node(.beforeEach) },
+                  .afterEach: afterEachHooks.map { $0.node(.afterEach) },
                   .aroundEachPeer: aroundEachPeerHooks.map { $0.node },
                   .beforeEachPeer: beforeEachPeerHooks.map { $0.node(.beforeEachPeer) },
                   .afterEachPeer: afterEachPeerHooks.map { $0.node(.afterEachPeer) },
@@ -297,6 +300,21 @@ extension TestHook where Call: NodeCallType {
 extension AroundEachPeer where Call: NodeCallType {
   fileprivate var node: ExampleNode {
     ExampleNode(kind: .hook(.aroundEachPeer),
+                name: description,
+                traits: traits,
+                isolation: Call.nodeIsolation,
+                execution: Call.nodeExecution,
+                body: nil,
+                around: Call.nodeAround(block),
+                children: [],
+                hooks: [:],
+                isSelected: !isExcluded)
+  }
+}
+
+extension AroundEach where Call: NodeCallType {
+  fileprivate var node: ExampleNode {
+    ExampleNode(kind: .hook(.aroundEach),
                 name: description,
                 traits: traits,
                 isolation: Call.nodeIsolation,

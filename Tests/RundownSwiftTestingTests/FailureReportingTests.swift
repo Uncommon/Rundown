@@ -19,21 +19,21 @@ struct FailureReportingTests: SwiftTestingSuite {
           afterAll { trace.withLock { $0.append("group teardown") } }
         }
         context("failed example setup") {
-          aroundEachPeer { run in
+          aroundEach { run in
             defer { trace.withLock { $0.append("wrapper exit") } }
             try run()
           }
-          beforeEachPeer("open") { throw HookFailure() }
-          beforeEachPeer { Issue.record("Ran setup after a failing beforeEachPeer") }
-          it("never starts") { Issue.record("Ran an example after a failing beforeEachPeer") }
-          afterEachPeer("close") { throw HookFailure() }
-          afterEachPeer { trace.withLock { $0.append("example teardown") } }
+          beforeEach("open") { throw HookFailure() }
+          beforeEach { Issue.record("Ran setup after a failing beforeEach") }
+          it("never starts") { Issue.record("Ran an example after a failing beforeEach") }
+          afterEach("close") { throw HookFailure() }
+          afterEach { trace.withLock { $0.append("example teardown") } }
         }
         context("failed wrapper") {
-          aroundEachPeer("allocate") { _ in throw HookFailure() }
-          beforeEachPeer { Issue.record("Ran setup after a wrapper failed before its callback") }
+          aroundEach("allocate") { _ in throw HookFailure() }
+          beforeEach { Issue.record("Ran setup after a wrapper failed before its callback") }
           it("never starts") { Issue.record("Ran an example whose wrapper never called it") }
-          afterEachPeer { Issue.record("Tore down an element that was never entered") }
+          afterEach { Issue.record("Tore down an element that was never entered") }
           afterAll { trace.withLock { $0.append("wrapper group teardown") } }
         }
         it("runs later") { trace.withLock { $0.append("sibling") } }
@@ -49,9 +49,9 @@ struct FailureReportingTests: SwiftTestingSuite {
     #expect(paths.withLock { $0 } == [
       "Fixtures, failed group setup, before all: open",
       "Fixtures, failed group setup, after all: close",
-      "Fixtures, failed example setup, before each peer: open",
-      "Fixtures, failed example setup, after each peer: close",
-      "Fixtures, failed wrapper, around each peer: allocate",
+      "Fixtures, failed example setup, before each: open",
+      "Fixtures, failed example setup, after each: close",
+      "Fixtures, failed wrapper, around each: allocate",
     ])
     #expect(trace.withLock { $0 } == [
       "group teardown", "example teardown", "wrapper exit", "wrapper group teardown", "sibling",
@@ -65,7 +65,7 @@ struct FailureReportingTests: SwiftTestingSuite {
     try await withKnownIssue {
       try await spec("Concurrent failures") {
         context("workers", .concurrent) {
-          aroundEachPeer("close") { run in
+          aroundEach("close") { run in
             try await run()
             throw HookFailure()
           }
@@ -77,7 +77,7 @@ struct FailureReportingTests: SwiftTestingSuite {
             await Task.yield()
             throw HookFailure()
           }
-          afterEachPeer { trace.withLock { $0.append("worker teardown") } }
+          afterEach { trace.withLock { $0.append("worker teardown") } }
           afterAll { trace.withLock { $0.append("group teardown") } }
         }
         it("runs after workers finish") { trace.withLock { $0.append("sibling") } }
@@ -98,8 +98,8 @@ struct FailureReportingTests: SwiftTestingSuite {
     }
 
     #expect(paths.withLock { $0.sorted() } == [
-      "Concurrent failures, workers, around each peer: close",
-      "Concurrent failures, workers, around each peer: close",
+      "Concurrent failures, workers, around each: close",
+      "Concurrent failures, workers, around each: close",
       "Concurrent failures, workers, throws after suspension",
       "Concurrent failures, workers, throws cancellation in an active task",
     ])
