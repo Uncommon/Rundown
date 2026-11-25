@@ -79,26 +79,26 @@ final class ActivityStructureXCTests: Rundown.TestCase {
       afterAll { log.record("afterAll") }
     }
 
-    let beforeAll = "before all"
-    let beforeEachPeer = "before each peer"
-    let afterEachPeer = "after each peer"
-    let afterAll = "after all"
+    let beforeAllName = "before all"
+    let beforeEachPeerName = "before each peer"
+    let afterEachPeerName = "after each peer"
+    let afterAllName = "after all"
 
     XCTAssertEqual(log.snapshots.map(\.path), [
-      ["Root", beforeAll],
+      ["Root", beforeAllName],
       // beforeEachPeer hooks belong to the group that declares them, so they run
       // as children of the group's activity, before the element's own.
-      ["Root", beforeEachPeer],
+      ["Root", beforeEachPeerName],
       ["Root", "first"],
-      ["Root", afterEachPeer],
-      ["Root", beforeEachPeer],
+      ["Root", afterEachPeerName],
+      ["Root", beforeEachPeerName],
       // The nested context is one element of Root, so Root's peer hooks run
       // once around it, not around the example inside it.
-      ["Root", "nested", beforeAll],
+      ["Root", "nested", beforeAllName],
       ["Root", "nested", "second"],
-      ["Root", "nested", afterAll],
-      ["Root", afterEachPeer],
-      ["Root", afterAll],
+      ["Root", "nested", afterAllName],
+      ["Root", afterEachPeerName],
+      ["Root", afterAllName],
     ])
     XCTAssertEqual(log.labels, [
       "beforeAll", "beforeEachPeer", "first", "afterEachPeer",
