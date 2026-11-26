@@ -7,11 +7,6 @@ struct TestError: Error, Equatable {
   var id: Int
 }
 
-extension Box where T == [String] {
-  /// Appends an entry to the log
-  func note(_ entry: String) { wrappedValue.append(entry) }
-}
-
 /// Tests that verify execution on the regular, XCTest, and async versions
 /// of the run method.
 @MainActor
