@@ -17,13 +17,17 @@ private class AwaitStripper: SyntaxRewriter {
     
     // Return *just* the rewritten inner expression.
     // This effectively removes the 'await' keyword.
-    return rewrittenInnerExpression
+    return rewrittenInnerExpression.with(\.leadingTrivia, node.leadingTrivia + rewrittenInnerExpression.leadingTrivia)
   }
   
   override func visit(_ node: FunctionTypeSyntax) -> TypeSyntax {
     let specifiers = node.effectSpecifiers?.with(\.asyncSpecifier, nil)
     return .init(node.with(\.effectSpecifiers, specifiers))
   }
+}
+
+private func typeKey(_ type: some SyntaxProtocol) -> String {
+  type.tokens(viewMode: .sourceAccurate).map(\.text).joined()
 }
 
 private class TypeChangeRewriter: SyntaxRewriter {
@@ -33,27 +37,13 @@ private class TypeChangeRewriter: SyntaxRewriter {
     self.replacements = replacements
   }
   
-  override func visit(_ node: IdentifierTypeSyntax) -> TypeSyntax {
-    if let newName = replacements[node.name.text] {
-      var newNode = node
-      newNode.name = .identifier(newName)
-      return TypeSyntax(newNode)
-    }
-    return super.visit(node)
-  }
-  
-  override func visit(_ node: GenericArgumentSyntax) -> GenericArgumentSyntax {
-    if let newName = replacements[node.argument.description] {
-      return node.with(\.argument, .init(stringLiteral: newName))
-    }
-    return super.visit(node)
-  }
-  
-  override func visit(_ node: SameTypeRequirementSyntax) -> SameTypeRequirementSyntax {
-    if let newName = replacements[node.rightType.description] {
-      return node.with(\.rightType, .init(stringLiteral: newName))
-    }
-    return super.visit(node)
+  override func visitAny(_ node: Syntax) -> Syntax? {
+    guard let type = node.as(TypeSyntax.self),
+          let replacement = replacements[typeKey(type)]
+    else { return nil }
+    return Syntax(TypeSyntax(stringLiteral: replacement)
+      .with(\.leadingTrivia, type.leadingTrivia)
+      .with(\.trailingTrivia, type.trailingTrivia))
   }
 }
 
@@ -66,59 +56,60 @@ public enum StripSendable: String {
 }
 
 public struct DeAsyncMacro: PeerMacro {
-  /// Parses an argument representing an array of types like `[TypeA.self, TypeB.self]`
-  /// and returns an array of strings containing the type names: `["TypeA", "TypeB"]`.
-  static func parseTypeNames(_ argument: LabeledExprSyntax) -> [String] {
+  /// Reads literal metatypes, including qualified and compound types.
+  static func parseTypeNames(_ argument: LabeledExprSyntax) throws -> [String] {
     guard let arrayExpr = argument.expression.as(ArrayExprSyntax.self)
     else {
-      return []
+      throw MacroError.message("@DeAsync replacement arguments must be array literals of types such as [Value.self].")
     }
     
     var typeNames: [String] = []
     for element in arrayExpr.elements {
       guard let memberAccess = element.expression.as(MemberAccessExprSyntax.self),
-            let baseIdent = memberAccess.base?.as(DeclReferenceExprSyntax.self),
-            !baseIdent.baseName.text.isEmpty
+            memberAccess.declName.baseName.text == "self",
+            let base = memberAccess.base
       else {
-        return []
+        throw MacroError.message("@DeAsync replacement types must use Type.self syntax.")
       }
-      typeNames.append(baseIdent.baseName.text)
+      let type = TypeSyntax(stringLiteral: base.trimmedDescription)
+      guard !type.hasError
+      else {
+        throw MacroError.message("@DeAsync replacement types must use Type.self syntax.")
+      }
+      typeNames.append(type.trimmedDescription)
     }
     return typeNames
   }
   
   /// Converts the two type list arguments into a dictionary
-  static func parseReplacementDictionary(_ node: AttributeSyntax) -> [String:String] {
-    guard let arguments = node.arguments,
-          arguments.children(viewMode: .all).count == 2
+  static func parseReplacementDictionary(_ node: AttributeSyntax) throws -> [String:String] {
+    guard let arguments = node.arguments?.as(LabeledExprListSyntax.self)
     else { return [:] }
-    let names = arguments.children(viewMode: .all)
-      .compactMap { $0.as(LabeledExprSyntax.self) }
-      .map { parseTypeNames($0) }
-    let pairs = zip(names[0], names[1])
+    let oldNames = try arguments.first { $0.label?.text == "replacing" }.map(parseTypeNames) ?? []
+    let newNames = try arguments.first { $0.label?.text == "with" }.map(parseTypeNames) ?? []
+    guard oldNames.count == newNames.count
+    else {
+      throw MacroError.message("@DeAsync requires 'replacing' and 'with' to contain the same number of types.")
+    }
+    let keys = oldNames.map { typeKey(TypeSyntax(stringLiteral: $0)) }
+    let pairs = zip(keys, newNames)
     
     return .init(pairs, uniquingKeysWith: { (a, b) in a })
   }
   
-  /// Returns the value of the 'stripSendable' argument if present, or false otherwise.
-  static func stripSendableParameterValue(_ node: AttributeSyntax) -> StripSendable {
-    guard let arguments = node.arguments
+  /// Returns the requested case, or `.none` when the argument is omitted.
+  static func stripSendableParameterValue(_ node: AttributeSyntax) throws -> StripSendable {
+    guard let argument = node.arguments?.as(LabeledExprListSyntax.self)?
+      .first(where: { $0.label?.text == "stripSendable" })
     else {
       return .none
     }
-    for child in arguments.children(viewMode: .all) {
-      if let labeledExpr = child.as(LabeledExprSyntax.self),
-         labeledExpr.label?.text == "stripSendable" {
-        if let memberAccess = labeledExpr.expression.as(MemberAccessExprSyntax.self),
-           let stripSendable = StripSendable(rawValue: memberAccess.declName.description) {
-          return stripSendable
-        }
-        else {
-          return .none
-        }
-      }
+    guard let memberAccess = argument.expression.as(MemberAccessExprSyntax.self),
+          let strip = StripSendable(rawValue: memberAccess.declName.baseName.text)
+    else {
+      throw MacroError.message("@DeAsync requires 'stripSendable' to be .none, .parameters, .function, or .all.")
     }
-    return .none
+    return strip
   }
   
   /// Removes all '@Sendable' effect specifiers from closure parameter types in the function signature.
@@ -152,7 +143,7 @@ public struct DeAsyncMacro: PeerMacro {
       throw MacroError.message("@DeAsync can only be applied to functions.")
     }
     
-    let strip = stripSendableParameterValue(node)
+    let strip = try stripSendableParameterValue(node)
     
     funcDecl.attributes = filterDisfavoredOverload(funcDecl.attributes)
     if strip.shouldStripFunction {
@@ -162,8 +153,9 @@ public struct DeAsyncMacro: PeerMacro {
       funcDecl.signature = stripSendable(funcDecl.signature)
     }
     
-    let defaultReplacements = node.attributeName.trimmedDescription == "DeAsyncRD" ? ["AsyncCall":"SyncCall", "AsyncMainCall":"SyncMainCall"] : [:]
-    let replacements = parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
+    let macroBaseName = node.attributeName.trimmedDescription.split(separator: ".").last.map(String.init) ?? "DeAsync"
+    let defaultReplacements = macroBaseName == "DeAsyncRD" ? ["AsyncCall":"SyncCall", "AsyncMainCall":"SyncMainCall"] : [:]
+    let replacements = try parseReplacementDictionary(node).merging(defaultReplacements, uniquingKeysWith: { (a, b) in a })
     let signature = funcDecl.signature
     let effects = signature.effectSpecifiers
     
@@ -183,7 +175,7 @@ public struct DeAsyncMacro: PeerMacro {
     convertedSignature = awaitStripper.rewrite(convertedSignature).as(FunctionSignatureSyntax.self)!
       .with(\.effectSpecifiers, newEffects)
     
-    let whereClause = replacements.isEmpty ? nil : funcDecl.genericWhereClause.map {
+    let whereClause = funcDecl.genericWhereClause.map {
       typeChangeRewriter.rewrite($0).as(GenericWhereClauseSyntax.self)!
     }
     
@@ -193,11 +185,6 @@ public struct DeAsyncMacro: PeerMacro {
     }
     
     let newBody = awaitStripper.rewrite(body).as(CodeBlockSyntax.self)!
-    
-    let macroBaseName =
-    node.attributeName.trimmedDescription
-      .split(separator: ".").last
-      .map(String.init) ?? "AddSyncPeer"
     
     let newAttributes = funcDecl.attributes.filter {
       guard case .attribute(let attr) = $0

@@ -262,4 +262,145 @@ final class DeAsyncMacroTests: XCTestCase {
     throw XCTSkip("macros are only supported when running tests for the host platform")
 #endif
   }
+
+  func testReplacementsCombineWithEveryStripSendableOption() throws {
+#if canImport(RundownMacros)
+    for option in ["none", "parameters", "function", "all"] {
+      let functionAttribute = ["function", "all"].contains(option) ? "" : "@Sendable\n"
+      let parameterAttribute = ["parameters", "all"].contains(option) ? "" : "@Sendable "
+      assertMacroExpansion(
+        """
+        @DeAsync(replacing: [AsyncCall.self], with: [SyncCall.self], stripSendable: .\(option))
+        @Sendable
+        func thing(_ value: AsyncCall, block: @Sendable () async -> Void) async -> AsyncCall {
+            await block()
+            return value
+        }
+        """,
+        expandedSource: """
+        @Sendable
+        func thing(_ value: AsyncCall, block: @Sendable () async -> Void) async -> AsyncCall {
+            await block()
+            return value
+        }
+
+        \(functionAttribute)func thing(_ value: SyncCall, block: \(parameterAttribute)() -> Void) -> SyncCall {
+            block()
+            return value
+        }
+        """,
+        macros: testMacros)
+    }
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testWhereClauseIsPreservedWithoutTypeReplacements() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync(stripSendable: .parameters)
+      func thing<T>(_ value: T, block: @Sendable () async -> Void) async -> T where T: Equatable {
+          await block()
+          return value
+      }
+      """,
+      expandedSource: """
+      func thing<T>(_ value: T, block: @Sendable () async -> Void) async -> T where T: Equatable {
+          await block()
+          return value
+      }
+
+      func thing<T>(_ value: T, block: () -> Void) -> T where T: Equatable {
+          block()
+          return value
+      }
+      """,
+      macros: testMacros)
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testReplacementsHandleQualifiedAndCompoundTypes() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsync(replacing: [Source.Value.self, [ Source.Value ].self], with: [Destination.Value.self, Set<Destination.Value>.self], stripSendable: .none)
+      func thing<T>(_ value: Source.Value, values: [Source.Value], box: Box<Source.Value>) async -> [Source.Value] where T == Source.Value {
+          return await something()
+      }
+      """,
+      expandedSource: """
+      func thing<T>(_ value: Source.Value, values: [Source.Value], box: Box<Source.Value>) async -> [Source.Value] where T == Source.Value {
+          return await something()
+      }
+
+      func thing<T>(_ value: Destination.Value, values: Set<Destination.Value>, box: Box<Destination.Value>) -> Set<Destination.Value> where T == Destination.Value {
+          return something()
+      }
+      """,
+      macros: testMacros)
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testInvalidReplacementArgumentsProduceDiagnostics() throws {
+#if canImport(RundownMacros)
+    let countMismatch = "@DeAsync requires 'replacing' and 'with' to contain the same number of types."
+    let invalidArray = "@DeAsync replacement arguments must be array literals of types such as [Value.self]."
+    let invalidType = "@DeAsync replacement types must use Type.self syntax."
+    let invalidStrip = "@DeAsync requires 'stripSendable' to be .none, .parameters, .function, or .all."
+    let cases = [
+      ("@DeAsync(replacing: [AsyncCall.self], with: [], stripSendable: .all)", countMismatch),
+      ("@DeAsync(replacing: [AsyncCall.self])", countMismatch),
+      ("@DeAsync(with: [SyncCall.self])", countMismatch),
+      ("@DeAsync(replacing: types, with: [])", invalidArray),
+      ("@DeAsync(replacing: [], with: types)", invalidArray),
+      ("@DeAsync(replacing: [AsyncCall.other], with: [SyncCall.self])", invalidType),
+      ("@DeAsync(replacing: [42.self], with: [SyncCall.self])", invalidType),
+      ("@DeAsync(stripSendable: option)", invalidStrip),
+    ]
+    for (attribute, message) in cases {
+      assertMacroExpansion(
+        """
+        \(attribute)
+        func thing() async {}
+        """,
+        expandedSource: """
+        func thing() async {}
+        """,
+        diagnostics: [.init(message: message, line: 1, column: 1)],
+        macros: testMacros)
+    }
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
+
+  func testRDReplacementsCombineWithDefaultsAndStripSendable() throws {
+#if canImport(RundownMacros)
+    assertMacroExpansion(
+      """
+      @DeAsyncRD(replacing: [CustomAsync.self], with: [CustomSync.self], stripSendable: .parameters)
+      func thing(_ value: CustomAsync, block: @Sendable (AsyncCall) async -> AsyncMainCall) async where Call == AsyncCall {
+          await something()
+      }
+      """,
+      expandedSource: """
+      func thing(_ value: CustomAsync, block: @Sendable (AsyncCall) async -> AsyncMainCall) async where Call == AsyncCall {
+          await something()
+      }
+
+      func thing(_ value: CustomSync, block: (SyncCall) -> SyncMainCall) where Call == SyncCall {
+          something()
+      }
+      """,
+      macros: testMacros)
+#else
+    throw XCTSkip("macros are only supported when running tests for the host platform")
+#endif
+  }
 }
