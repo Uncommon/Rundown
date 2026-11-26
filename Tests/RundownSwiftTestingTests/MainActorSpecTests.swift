@@ -51,7 +51,8 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
     MainActor.preconditionIsolated()
     let log = SpecLog()
 
-    try await withKnownIssue {
+    // Explicit closures avoid Swift 6.2's isolation-checker failure here.
+    try await withKnownIssue { @MainActor @Sendable in
       try await spec {
         let _ = MainActor.preconditionIsolated()
         beforeAll {
@@ -74,6 +75,8 @@ struct MainActorSpecTests: MainActorSwiftTestingSuite {
         afterEach { log.append("afterEach") }
         afterAll { log.append("afterAll") }
       }
+    } when: { @Sendable in
+      true
     } matching: { issue in
       issue.error is MainActorSpecFailure
         && issue.comments.map(\.rawValue) == ["AsyncSpec, nested, throws"]

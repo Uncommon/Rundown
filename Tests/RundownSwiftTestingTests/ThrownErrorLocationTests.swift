@@ -21,7 +21,9 @@ private enum ThrownIssueProbe {
     #expect(recorded.map { $0.comments.map(\.rawValue) } == paths.map { [$0] })
     for issue in recorded {
       #expect(issue.sourceLocation?.fileID == #fileID)
+#if compiler(>=6.3)
       #expect(issue.sourceLocation?.filePath == #filePath)
+#endif
       #expect(issue.sourceLocation?.line == (issue.error as? LocatedFailure)?.line)
       #expect((issue.sourceLocation?.column ?? 0) > 0)
     }
