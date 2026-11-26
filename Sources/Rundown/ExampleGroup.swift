@@ -1,4 +1,3 @@
-import os
 public struct ExampleGroup<Call: CallType>: TestExample {
   typealias BeforeAll = TestHook<BeforeAllPhase, Call>
   typealias BeforeEach = TestHook<BeforeEachPhase, Call>
@@ -101,40 +100,27 @@ public struct ExampleGroup<Call: CallType>: TestExample {
 extension ExampleGroup where Call == AsyncCall {
   /// Converts a group that was built with sync elements into an async group.
   ///
-  /// - Important: `aroundEach` and `aroundEachPeer` hooks are dropped, in the
-  /// group and in any nested groups. A sync wrapper calls its callback
-  /// synchronously, so it can't wrap an async callback. An error is logged when
-  /// this happens, but the converted group still runs, just without those hooks.
-  /// To run a sync group that has wrappers, run it as a sync group.
-  public init(fromSync other: ExampleGroup<SyncCall>) {
+  /// - Throws: `SynchronousAroundHookError` if this group or a nested group
+  ///   declares an `aroundEach` or `aroundEachPeer` hook, including excluded
+  ///   hooks. Sync wrappers cannot wrap async callbacks. Define an async helper
+  ///   group with async wrappers instead, or run the original group synchronously.
+  public init(fromSync other: ExampleGroup<SyncCall>) throws {
+    if let conflict = other.node.firstSynchronousAroundHook(includingUnselected: true) {
+      throw conflict.error
+    }
     self.description = other.description
     self.traits = other.traits
     self.beforeAllHooks = other.beforeAllHooks.map { .init(fromSync: $0) }
-    if !other.aroundEachHooks.isEmpty {
-      Logger(subsystem: "Rundown", category: "ExampleGroup")
-        .error("aroundEach cannot be converted from sync to async")
-    }
     self.aroundEachHooks = []
     self.beforeEachHooks = other.beforeEachHooks.map { .init(fromSync: $0) }
     self.afterEachHooks = other.afterEachHooks.map { .init(fromSync: $0) }
-    if !other.aroundEachPeerHooks.isEmpty {
-      Logger(subsystem: "Rundown", category: "ExampleGroup")
-        .error("aroundEachPeer cannot be converted from sync to async")
-    }
     self.aroundEachPeerHooks = []
     self.beforeEachPeerHooks = other.beforeEachPeerHooks.map { .init(fromSync: $0) }
     self.afterEachPeerHooks = other.afterEachPeerHooks.map { .init(fromSync: $0) }
     self.afterAllHooks = other.afterAllHooks.map { .init(fromSync: $0) }
-    self.elements = other.elements.map {
-      switch $0 {
-        case let syncIt as It<SyncCall>:
-          It<AsyncCall>.init(fromSync: syncIt)
-        case let syncGroup as ExampleGroup<SyncCall>:
-          ExampleGroup<AsyncCall>.init(fromSync: syncGroup)
-        default:
-          preconditionFailure("unexpected element")
-      }
-    }
+    // Async traversal can execute sync children without changing their call
+    // types. Keep their original declarations and closures intact.
+    self.elements = other.elements
   }
 }
 

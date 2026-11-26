@@ -165,6 +165,40 @@ package struct ExampleNode: Sendable {
     }
     return paths
   }
+
+  struct SynchronousAroundHook {
+    let hook: ExampleNode
+    let groups: [ExampleNode]
+
+    var error: SynchronousAroundHookError {
+      .init(path: groups.map(\.description) + [hook.description])
+    }
+  }
+
+  /// Runtime validation follows selection. Explicit conversion checks every
+  /// declared hook, since even an excluded sync wrapper cannot be converted.
+  func firstSynchronousAroundHook(includingUnselected: Bool = false,
+                                  under groups: [ExampleNode] = []) -> SynchronousAroundHook? {
+    guard isGroup, includingUnselected || (isSelected && !selectedChildren.isEmpty)
+    else { return nil }
+    let groups = groups + [self]
+    for kind in [HookKind.aroundEachPeer, .aroundEach] {
+      for hook in hooks(kind) where includingUnselected || hook.isSelected {
+        switch hook.around {
+          case .sync, .syncMain:
+            return .init(hook: hook, groups: groups)
+          default:
+            break
+        }
+      }
+    }
+    for child in children {
+      if let conflict = child.firstSynchronousAroundHook(includingUnselected: includingUnselected, under: groups) {
+        return conflict
+      }
+    }
+    return nil
+  }
 }
 
 extension ExampleNode: TestElement {

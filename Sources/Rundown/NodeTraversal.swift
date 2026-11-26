@@ -37,7 +37,11 @@ extension ExampleNode {
     guard isSelected
     else { return }
     await checkCanRun()
-    try await runInRootScope(reporter) { try await traverse(reporter) }
+    try await runInRootScope(reporter) {
+      guard try await validateAsyncComposition(reporter)
+      else { return }
+      try await traverse(reporter)
+    }
   }
 
   package func warnAboutExcludedFocus() {
@@ -376,6 +380,8 @@ extension ExampleNode {
     guard !selectedChildren.isEmpty, !reporter.shouldStop
     else { return }
     try await runInRootScope(reporter) {
+      guard try await validateAsyncComposition(reporter)
+      else { return }
       try await withGroupHooks(reporter) {
         // Each generated case enters its own traversal and path.
         try await ExampleRunner.$current.withValue(nil) {
@@ -430,7 +436,8 @@ extension ExampleNode {
     switch around {
       case .async(let around): try await around { try await inner() }
       case .asyncMain(let around): try await around { try await inner() }
-      case .sync, .syncMain: throw UnexpectedAsyncError()
+      case .sync, .syncMain:
+        throw SynchronousAroundHookError(path: (ExampleRunner.current?.path ?? []) + [description])
       case nil: preconditionFailure("node has no around body")
     }
   }
@@ -446,6 +453,25 @@ extension ExampleNode {
 }
 
 extension ExampleNode {
+  /// Reject incompatible selected wrappers before any setup, examples, or
+  /// fixtures run. Report at the wrapper's declaration, with its full path.
+  fileprivate func validateAsyncComposition(_ reporter: any Reporter) async throws -> Bool {
+    guard !reporter.shouldStop
+    else { return false }
+    guard let conflict = firstSynchronousAroundHook()
+    else { return true }
+
+    let error = conflict.error
+    let decision = ExampleRunner.$elementStack.withValue(conflict.groups) {
+      reporter.report(error, kind: .failure, at: conflict.hook)
+    }
+    if decision == .propagate { throw error }
+    return false
+  }
+
+  // Sync traversal can run sync wrappers and needs no composition check.
+  fileprivate func validateAsyncComposition(_ reporter: any Reporter) throws -> Bool { true }
+
   /// Async: any group can run from anywhere, because main-actor bodies are
   /// awaited.
   fileprivate func checkCanRun() async {}

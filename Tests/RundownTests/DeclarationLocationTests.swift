@@ -2,7 +2,7 @@ import XCTest
 @testable import Rundown
 
 final class DeclarationLocationTests: XCTestCase {
-  func testDirectInitializersAndSyncToAsyncConversionKeepLocations() {
+  func testDirectInitializersAndSyncToAsyncConversionKeepLocations() throws {
     let hookLine = #line + 1
     let hook = TestHook<BeforeAllPhase, SyncCall>("setup") {}
     let exampleLine = #line + 1
@@ -15,7 +15,7 @@ final class DeclarationLocationTests: XCTestCase {
       context("nested") { arrayExample }
     }
     let sync = group.node
-    let async = ExampleGroup<AsyncCall>(fromSync: group).named("converted").node
+    let async = try ExampleGroup<AsyncCall>(fromSync: group).named("converted").node
 
     XCTAssertEqual(sync.hooks(.beforeAll).first?.declarationLocation,
                    DeclarationLocation(fileID: #fileID, filePath: #filePath, line: hookLine, column: 50))

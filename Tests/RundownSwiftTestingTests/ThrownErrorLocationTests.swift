@@ -105,6 +105,8 @@ struct ThrownErrorLocationTests: SwiftTestingSuite {
   func asyncHooksExamplesAndConvertedHelpersKeepLocations() async throws {
     let issues = OSAllocatedUnfairLock(initialState: [Issue]())
     let trace = OSAllocatedUnfairLock(initialState: [String]())
+    // Conversion throws, so construct the helper outside spec's nonthrowing builder.
+    let helper = try ExampleGroup<AsyncCall>(fromSync: sharedFailures()).named("helper")
 
     try await ThrownIssueProbe.$issues.withValue(issues) {
       try await spec("Async") {
@@ -129,7 +131,7 @@ struct ThrownErrorLocationTests: SwiftTestingSuite {
             throw LocatedFailure(line: exampleLine)
           }
         }
-        ExampleGroup<AsyncCall>(fromSync: sharedFailures()).named("helper")
+        helper
         it("continues") { trace.withLock { $0.append("sibling") } }
       }
     }
