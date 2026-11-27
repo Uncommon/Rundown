@@ -126,7 +126,7 @@ jobs:
           SMOKE_PLATFORM: ${{ matrix.platform }}
         run: |
           xcrun simctl list > /dev/null
-          xcodebuild -downloadPlatform "$SMOKE_PLATFORM" -buildVersion 26.0
+          xcodebuild -downloadPlatform "$SMOKE_PLATFORM"
 
       - name: Build consumer tests
         run: |

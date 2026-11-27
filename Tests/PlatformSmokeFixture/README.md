@@ -30,7 +30,7 @@ Substitute a destination from the table to check another platform. These builds 
 
 Xcode needs the selected platform's simulator runtime installed to make its generic simulator destination available, even for `build-for-testing`. If Xcode reports that the platform is not installed, install it in Xcode's Components settings or use `xcodebuild -downloadPlatform watchOS` (substituting `iOS` or `tvOS` as needed).
 
-CI builds all four destinations using Xcode 26.0.1 and installs the missing tvOS and watchOS 26.0 simulator platforms before building. The macOS test jobs execute both the main suite and these consumer examples across Swift 6.2, 6.3, and 6.4. To execute the consumer examples on macOS from the repository root:
+CI builds all four destinations using Xcode 26.0.1 and installs compatible tvOS and watchOS simulator platforms before building. Xcode selects the runtime version available for download; the deployment targets remain those in `Package.swift`. The macOS test jobs execute both the main suite and these consumer examples across Swift 6.2, 6.3, and 6.4. To execute the consumer examples on macOS from the repository root:
 
 ```sh
 swift test --package-path Tests/PlatformSmokeFixture
