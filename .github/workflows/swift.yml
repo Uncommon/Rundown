@@ -65,6 +65,7 @@ jobs:
           SWIFT_SYNTAX_VERSION: ${{ matrix.syntax }}
         run: |
           for package in . Tests/InvalidSequencesFixture Tests/PlatformSmokeFixture; do
+            swift package --package-path "$package" resolve
             swift package --package-path "$package" resolve swift-syntax --version "$SWIFT_SYNTAX_VERSION"
           done
 
@@ -72,7 +73,9 @@ jobs:
         if: matrix.discovery
         env:
           SWIFT_SYNTAX_VERSION: ${{ matrix.syntax }}
-        run: swift package --package-path Tests/ExternalSpecFixture resolve swift-syntax --version "$SWIFT_SYNTAX_VERSION"
+        run: |
+          swift package --package-path Tests/ExternalSpecFixture resolve
+          swift package --package-path Tests/ExternalSpecFixture resolve swift-syntax --version "$SWIFT_SYNTAX_VERSION"
 
       - name: Run package tests
         run: swift test
