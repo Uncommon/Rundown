@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   tests:
-    name: Swift ${{ matrix.swift }}
+    name: Swift ${{ matrix.swift }} / SwiftSyntax ${{ matrix.syntax }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
 
@@ -28,14 +28,22 @@ jobs:
           - swift: "6.2"
             runner: macos-15
             xcode: "26.0.1"
+            syntax: "602.0.0"
+            discovery: false
+          - swift: "6.2"
+            runner: macos-15
+            xcode: "26.0.1"
+            syntax: "604.0.0"
             discovery: false
           - swift: "6.3"
             runner: macos-26
             xcode: "26.6"
+            syntax: "603.0.2"
             discovery: false
           - swift: "6.4"
             runner: xcode-27
             xcode: "27.2"
+            syntax: "604.0.0"
             discovery: true
 
     env:
@@ -51,6 +59,20 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
+
+      - name: Resolve SwiftSyntax version
+        env:
+          SWIFT_SYNTAX_VERSION: ${{ matrix.syntax }}
+        run: |
+          for package in . Tests/InvalidSequencesFixture Tests/PlatformSmokeFixture; do
+            swift package --package-path "$package" resolve swift-syntax --version "$SWIFT_SYNTAX_VERSION"
+          done
+
+      - name: Resolve downstream discovery dependencies
+        if: matrix.discovery
+        env:
+          SWIFT_SYNTAX_VERSION: ${{ matrix.syntax }}
+        run: swift package --package-path Tests/ExternalSpecFixture resolve swift-syntax --version "$SWIFT_SYNTAX_VERSION"
 
       - name: Run package tests
         run: swift test

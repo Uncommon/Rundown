@@ -14,7 +14,8 @@ let package = Package(name: "Rundown",
                                  targets: ["RundownSwiftTesting"]),
                       ],
                       dependencies: [
-                        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0-latest"),
+                        // Allow consumers to share SwiftSyntax with other macro packages.
+                        .package(url: "https://github.com/swiftlang/swift-syntax.git", "602.0.0"..<"605.0.0"),
                       ],
                       targets: [
                         // Targets are the basic building blocks of a package, defining a module or a test suite.
