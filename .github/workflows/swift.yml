@@ -120,6 +120,14 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Install simulator platform
+        if: matrix.platform == 'tvOS' || matrix.platform == 'watchOS'
+        env:
+          SMOKE_PLATFORM: ${{ matrix.platform }}
+        run: |
+          xcrun simctl list > /dev/null
+          xcodebuild -downloadPlatform "$SMOKE_PLATFORM" -buildVersion 26.0
+
       - name: Build consumer tests
         run: |
           xcodebuild -quiet \
