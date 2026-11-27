@@ -55,6 +55,54 @@ jobs:
       - name: Run package tests
         run: swift test
 
+      - name: Test downstream adapters
+        run: swift test --package-path Tests/PlatformSmokeFixture
+
       - name: Test downstream discovery
         if: matrix.discovery
         run: swift test --package-path Tests/ExternalSpecFixture
+
+  platform-smoke:
+    name: Platform smoke (${{ matrix.platform }})
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            destination: generic/platform=iOS Simulator
+          - platform: tvOS
+            destination: generic/platform=tvOS Simulator
+          - platform: watchOS
+            destination: generic/platform=watchOS Simulator
+          - platform: Mac Catalyst
+            destination: generic/platform=macOS,variant=Mac Catalyst
+
+    defaults:
+      run:
+        working-directory: Tests/PlatformSmokeFixture
+
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build consumer tests
+        run: |
+          xcodebuild -quiet \
+            -scheme PlatformSmokeFixture-Package \
+            -destination '${{ matrix.destination }}' \
+            -derivedDataPath "$RUNNER_TEMP/RundownPlatformSmoke" \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing
