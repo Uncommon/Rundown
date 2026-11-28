@@ -17,12 +17,9 @@ open class TestCase: XCTestCase, MainActorSuite {
     }
     let description = runner.description
 
-    let newIssue = XCTIssue(type: issue.type,
-                            compactDescription: "\(description) \(issue.compactDescription)",
-                            detailedDescription: issue.description,
-                            sourceCodeContext: issue.sourceCodeContext,
-                            associatedError: issue.associatedError,
-                            attachments: issue.attachments)
+    // Copy the issue so severity and diagnostic metadata survive path decoration.
+    var newIssue = issue
+    newIssue.compactDescription = "\(description) \(issue.compactDescription)"
 
     super.record(newIssue)
   }
